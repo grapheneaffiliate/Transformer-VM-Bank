@@ -1,0 +1,55 @@
+# Generated transformer weights (large binaries)
+weights/*.bin
+weights/*.npz
+
+# Rust
+target/
+**/*.rs.bk
+Cargo.lock.tmp
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.uv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Lean
+build/
+.lake/
+lake-packages/
+.olean
+
+# Test artifacts
+tests/failures/
+tests/vectors/*.json
+!tests/vectors/.gitkeep
+
+# Local config
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Compiled WASM and intermediate artifacts
+*.wasm
+data/*.txt
+!data/.gitkeep
+
+# Block store (sequencer runtime data)
+sequencer/data/
+sequencer/blockstore/
