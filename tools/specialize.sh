@@ -26,9 +26,9 @@ mkdir -p "$PSL_ROOT/weights"
 WEIGHTS="$PSL_ROOT/weights/${NAME}.bin"
 
 # Default to 5% MILP gap unless user overrides
-MILP_GAP="--mip-gap"
-if [[ ! " $* " =~ " --mip-gap " ]] && [[ ! " $* " =~ " --milp-gap " ]]; then
-    set -- --mip-gap 0.05 "$@"
+MILP_GAP="--milp-gap"
+if [[ ! " $* " =~ " --milp-gap " ]] && [[ ! " $* " =~ " --milp-gap " ]]; then
+    set -- --milp-gap 0.05 "$@"
 fi
 
 cd "$TRANSFORMER_VM_PATH"

@@ -20,10 +20,16 @@ if [[ ! -d "$TRANSFORMER_VM_PATH" ]]; then
 fi
 
 if [[ -z "${CLANG_PATH:-}" ]]; then
-    if [[ -x "/mnt/c/Users/atchi/wasi-sdk/bin/clang.exe" ]]; then
+    PSL_ROOT_FOR_WRAPPER="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    WRAPPER="$PSL_ROOT_FOR_WRAPPER/tools/clang-wsl-wrapper.sh"
+    if [[ -x "$WRAPPER" ]]; then
+        # On WSL, Python's subprocess bypasses interop path translation; the
+        # wrapper rewrites /mnt/c/... → C:\... before forwarding to clang.exe.
+        export CLANG_PATH="$WRAPPER"
+    elif [[ -x "/mnt/c/Users/atchi/wasi-sdk/bin/clang.exe" ]]; then
         export CLANG_PATH="/mnt/c/Users/atchi/wasi-sdk/bin/clang.exe"
     else
-        echo "WARNING: CLANG_PATH not set and default not found; relying on Transformer-VM defaults" >&2
+        echo "WARNING: CLANG_PATH not set and default not found" >&2
     fi
 fi
 
@@ -43,13 +49,18 @@ mkdir -p "$PSL_ROOT/data"
 cd "$TRANSFORMER_VM_PATH"
 uv run wasm-compile "$PSL_ROOT/$SOURCE" "$@"
 
-# Move generated outputs to PSL data/ for tracking
+# Move generated outputs to PSL data/ for tracking. Transformer-VM writes
+# under transformer_vm/data/, not data/.
 NAME="$(basename "$SOURCE" .c)"
+TVM_DATA_DIRS=("$TRANSFORMER_VM_PATH/transformer_vm/data" "$TRANSFORMER_VM_PATH/data")
 for suffix in .txt _spec.txt _ref.txt; do
-    src="$TRANSFORMER_VM_PATH/data/${NAME}${suffix}"
-    if [[ -f "$src" ]]; then
-        cp "$src" "$PSL_ROOT/data/${NAME}${suffix}"
-    fi
+    for d in "${TVM_DATA_DIRS[@]}"; do
+        src="$d/${NAME}${suffix}"
+        if [[ -f "$src" ]]; then
+            cp "$src" "$PSL_ROOT/data/${NAME}${suffix}"
+            break
+        fi
+    done
 done
 
 echo "[compile] OK: $NAME (outputs in $PSL_ROOT/data/)"

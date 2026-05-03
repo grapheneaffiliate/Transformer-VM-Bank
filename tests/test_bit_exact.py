@@ -43,32 +43,21 @@ PRIMITIVES = [
 ]
 
 
-def pytest_addoption(parser):
-    parser.addoption("--full", action="store_true", help="Run all 10k vectors per primitive")
-
-
-@pytest.fixture(scope="session")
-def vector_count(pytestconfig):
-    return None if pytestconfig.getoption("--full") else 100
-
-
-@pytest.fixture(scope="session")
-def transformer_vm_ready():
-    """Skip the suite if Transformer-VM venv isn't synced."""
+def _ensure_primitive_artifacts(primitive: str):
+    """Skip a single test if its primitive's artifacts aren't built."""
     venv = TVM / ".venv"
     if not venv.exists():
         pytest.skip(
             f"Transformer-VM venv not synced at {venv}; run `cd {TVM} && uv sync`"
         )
-    for primitive in PRIMITIVES:
-        if not (DATA_DIR / f"{primitive}.txt").exists():
-            pytest.skip(
-                f"{primitive}.txt missing; run `./tools/build_all_primitives.sh`"
-            )
-        if not (WEIGHTS_DIR / f"{primitive}.bin").exists():
-            pytest.skip(
-                f"{primitive}.bin missing; run `./tools/build_all_primitives.sh`"
-            )
+    if not (DATA_DIR / f"{primitive}.txt").exists():
+        pytest.skip(
+            f"data/{primitive}.txt missing; run `./tools/compile.sh primitives/{primitive}.c --args ...`"
+        )
+    if not (WEIGHTS_DIR / f"{primitive}.bin").exists():
+        pytest.skip(
+            f"weights/{primitive}.bin missing; run `./tools/specialize.sh data/{primitive}.txt`"
+        )
 
 
 def load_vectors(primitive: str, limit: int | None) -> list[dict]:
@@ -94,14 +83,25 @@ def split_spec_and_input(txt: str) -> tuple[list[str], list[str]]:
     return tokens[:1], tokens[1:]
 
 
-def render_input_tokens(input_bytes: list[int]) -> list[str]:
-    """Encode raw byte values as the hex-token format Transformer-VM expects.
+def render_input_tokens(input_values: list[int]) -> list[str]:
+    """Encode a witness as Transformer-VM input tokens.
 
-    Each input byte becomes a 2-character lowercase hex token (e.g. 0xff → 'ff').
-    The encoding contract is taken from how Transformer-VM compiles arc_*.c
-    primitives — see transformer_vm/compilation/compile_wasm.py.
+    The witness is a list of decimal byte values (e.g. [1, 0, 0, ..., 0]).
+    These are joined by spaces into an ASCII string ("1 0 0 0..."), then
+    NUL-terminated, then each byte is tokenized: printable ASCII becomes the
+    literal char, otherwise 2-char hex. Matches `compile_wasm.format_input_section`.
+    A trailing `commit(+0,sts=0,bt=0)` token signals end-of-input.
     """
-    return [f"{b & 0xff:02x}" for b in input_bytes]
+    text = " ".join(str(b) for b in input_values)
+    data = text.encode("utf-8") + b"\x00"
+    tokens = []
+    for b in data:
+        if 0x20 < b < 0x7F and chr(b) not in ("{", "}"):
+            tokens.append(chr(b))
+        else:
+            tokens.append(f"{b:02x}")
+    tokens.append("commit(+0,sts=0,bt=0)")
+    return tokens
 
 
 def run_wasm_eval(input_file: Path) -> list[str]:
@@ -191,7 +191,8 @@ def dump_failure(primitive: str, witness: dict, universal: list[str], specialize
 
 
 @pytest.mark.parametrize("primitive", PRIMITIVES)
-def test_primitive_bit_exact(primitive, vector_count, transformer_vm_ready):
+def test_primitive_bit_exact(primitive, vector_count):
+    _ensure_primitive_artifacts(primitive)
     program_file = DATA_DIR / f"{primitive}.txt"
     weights_file = WEIGHTS_DIR / f"{primitive}.bin"
 
