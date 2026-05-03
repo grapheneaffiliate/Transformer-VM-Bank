@@ -27,7 +27,7 @@ Before any verification gate can run:
 | P0: trace-hash contract pinned | ✅ ARCHITECTURE.md § 0 | ✅ | pinned |
 | P1: malachite audit | ✅ CONSENSUS_DECISION.md | ✅ | defer; ABCI + CometBFT |
 | P2: repo + remote backup | ✅ | ✅ | live on origin/main |
-| **1: bit-exact (10k/primitive)** | ✅ harness | ⏳ blocked on torch | **load-bearing for everything below** |
+| **1: bit-exact (10k/primitive)** | ✅ harness | ⚠️ partial: 1/3 freeze witnesses pass | **see docs/FINDINGS.md — decomposition needed** |
 | 2: MPT determinism | ✅ crypto/tests/randomized.rs | ⏳ blocked on cargo | — |
 | 3: Lean proofs (no `sorry`) | ✅ skeleton | ⏳ blocked on elan | **partial — see Lean tracker below** |
 | 4: sequencer + 3 followers, 100 blocks | ✅ sequencer/tests/integration.rs | ⏳ | — |
