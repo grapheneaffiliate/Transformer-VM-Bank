@@ -31,19 +31,19 @@ Before any verification gate can run on this machine:
 
 | Gate | Code written | Ran here | Pass |
 | --- | --- | --- | --- |
-| P0: trace-hash contract | ✅ docs/ARCHITECTURE.md § 0 | n/a | n/a |
-| P1: malachite audit | ✅ docs/CONSENSUS_DECISION.md | ✅ | verdict: defer, ship on tendermint-rs ABCI |
-| P2: repo + remote | ✅ | ⏳ initial push pending | — |
-| P3: common.h + freeze.c | ✅ | ⏳ blocked on Transformer-VM sync | — |
+| P0: trace-hash contract | ✅ docs/ARCHITECTURE.md § 0 | ✅ | pinned |
+| P1: malachite audit | ✅ docs/CONSENSUS_DECISION.md | ✅ | verdict: defer, ship on tendermint-rs ABCI + CometBFT |
+| P2: repo + remote | ✅ | ✅ pushed to origin/main | — |
+| P3: common.h + all 6 primitives | ✅ | ⏳ blocked on Transformer-VM sync | — |
 | 1: bit-exact (10k/primitive) | ✅ harness written | ⏳ blocked on torch | — |
-| 2: MPT determinism | ⏳ | — | — |
-| 3: Lean proofs | ⏳ | — | — |
-| 4: sequencer e2e | ⏳ | — | — |
-| 5: compliance | ⏳ | — | — |
-| 6: light client | ⏳ | — | — |
-| 7: pilot | ⏳ | — | — |
-| 8: pure-Rust runner | ⏳ | — | — |
-| 9: consortium swap | ⏳ | — | — |
+| 2: MPT determinism | ✅ crypto/src/smt.rs + tests/randomized.rs | ⏳ blocked on cargo | — |
+| 3: Lean proofs | ✅ skeleton; some `sorry`s remain | ⏳ blocked on elan | partial |
+| 4: sequencer e2e | ✅ sequencer/tests/integration.rs | ⏳ blocked on cargo | — |
+| 5: compliance | ✅ sequencer/src/compliance.rs + mempool checks | ⏳ blocked on cargo | — |
+| 6: light client | ✅ light_client/src/* + unit test | ⏳ blocked on cargo | — |
+| 7: pilot | ✅ pilot/issuer_demo/src/main.rs | ⏳ blocked on cargo | — |
+| 8: pure-Rust runner | ✅ rust_runner/ skeleton; port TODOs in lib.rs | ⏳ port itself is the work | — |
+| 9: consortium swap | ✅ consensus/src/abci.rs scaffold | ⏳ ABCI integration is v2 work | — |
 
 ## How to make this real
 

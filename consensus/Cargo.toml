@@ -1,0 +1,17 @@
+[package]
+name = "psl-consensus"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "PSL consensus layer: Consensus trait + sovereign + ABCI implementations"
+
+[dependencies]
+psl-crypto = { path = "../crypto" }
+psl-sequencer = { path = "../sequencer" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+async-trait = "0.1"

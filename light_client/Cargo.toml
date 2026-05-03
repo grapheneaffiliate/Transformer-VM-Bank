@@ -1,0 +1,22 @@
+[package]
+name = "psl-light-client"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "PSL light client: phone-side balance verification via Merkle proofs"
+
+[lib]
+name = "psl_light_client"
+path = "src/lib.rs"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[dependencies]
+psl-crypto = { path = "../crypto" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+hex.workspace = true
+ed25519-dalek.workspace = true
+
+[dev-dependencies]
+rand.workspace = true

@@ -1,0 +1,21 @@
+[package]
+name = "psl-issuer-demo"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "End-to-end PSL pilot: register issuer, mint, transfer, burn, verify"
+
+[[bin]]
+name = "issuer_demo"
+path = "src/main.rs"
+
+[dependencies]
+psl-crypto = { path = "../../crypto" }
+psl-sequencer = { path = "../../sequencer" }
+psl-light-client = { path = "../../light_client" }
+tokio.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+hex.workspace = true
+clap = { version = "4.5", features = ["derive"] }

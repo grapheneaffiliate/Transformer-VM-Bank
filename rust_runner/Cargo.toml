@@ -1,0 +1,29 @@
+[package]
+name = "psl-rust-runner"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Phase 1.5: pure-Rust port of Transformer-VM's specialized-model runner"
+
+[lib]
+name = "psl_rust_runner"
+path = "src/lib.rs"
+
+[[bin]]
+name = "psl-runner"
+path = "src/bin/runner.rs"
+
+[dependencies]
+psl-crypto = { path = "../crypto" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+ndarray = "0.15"
+half = "2.4"
+byteorder = "1.5"
+clap = { version = "4.5", features = ["derive"] }
+
+[dev-dependencies]
+rand.workspace = true

@@ -1,0 +1,35 @@
+[workspace]
+resolver = "2"
+members = [
+    "crypto",
+    "consensus",
+    "sequencer",
+    "light_client",
+    "rust_runner",
+    "pilot/issuer_demo",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+authors = ["PSL contributors"]
+
+[workspace.dependencies]
+blake3 = "1.5"
+ed25519-dalek = { version = "2.1", features = ["rand_core"] }
+rand = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+tokio = { version = "1.40", features = ["full"] }
+hex = "0.4"
+sled = "0.34"
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1

@@ -1,0 +1,17 @@
+[package]
+name = "psl-crypto"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "PSL crypto primitives: Sparse Merkle Tree, ed25519, BLAKE3 wrappers"
+
+[dependencies]
+blake3.workspace = true
+ed25519-dalek.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+hex.workspace = true
+rand.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
