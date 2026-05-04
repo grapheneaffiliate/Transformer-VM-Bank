@@ -116,6 +116,33 @@ research direction in Transformer-VM, not a fix I can apply in PSL. The
 second is workable for offline auditors but kills the "phone can verify"
 property of the architecture.
 
+## 10k results (added 2026-05-04)
+
+### freeze: 10000/10000 PASS ✓
+
+```
+[setup] done in 7217s (1.4/s)
+[apply] done in 2369s (4.2/s)
+Result: 10000/10000 passed (0 failed)
+```
+
+freeze decomposed (`freeze_setup` + `freeze_apply`) clears gate 1 cleanly.
+
+### transfer (binary I/O single primitive): 8914/10000 (89%)
+
+```
+done in 7067s (~2 hours)
+Result: 8914/10000 passed (char-form comparison)
+```
+
+Failures show length mismatches: expected 41 output bytes, got 1/24/28/30/31.
+The model halts prematurely on ~11% of witnesses. transfer_binary's
+`d_ffn_per_layer = [9, 6, 1994, 51, 45, 25, 26]` has one layer near the
+2000 limit; precision drift at scale flips rare argmax decisions toward
+the halt token.
+
+Path forward to 10k/10k for transfer: split into 2-3 binary-I/O stages.
+
 ## Binary I/O breakthrough (added post-transfer-decomposition failure)
 
 ASCII decimal I/O is the trace-length killer. Each "decimal-encoded byte"
