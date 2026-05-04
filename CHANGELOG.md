@@ -5,6 +5,36 @@ load-bearing commit on `origin/main`.
 
 ## 2026-05-04
 
+### Gate 8 first-pass — pure-Rust runner bit-exact on 3 primitives
+
+`cargo test -p psl-rust-runner --test parity --release -- --ignored`: 3/3.
+
+Ported `Transformer-VM/transformer_vm/{model/transformer.py, model/weights.py,
+attention/standard_cache.py, runner.py}` to native Rust. Forward pass is
+greedy argmax-decoding with no biases, no LayerNorm, no attention scaling
+— matching the analytical-construction Python path exactly. StandardKVCache
+(softmax over scores, einsum) implemented as a triple-nested loop; ndarray
+v0.15 used without BLAS feature in this first pass.
+
+Bit-exact match against Python (`wasm-run --python --nohull`) on the
+gate-1 spec inputs:
+
+| Primitive | Tokens | Rust | Python | Speedup |
+| --- | --- | --- | --- | --- |
+| byte_add_with_carry | 117 | 50 ms | 470 ms | 9.4× |
+| byte_sub_with_borrow | 402 | ~90 ms | ~1 s | ~11× |
+| mpt_emit_record | 3,678 | 31 s | 94 s | 3.0× |
+
+The mismatch shrinks at longer traces because attention is O(n²) and the
+naive Rust loop saturates without BLAS. Adding `ndarray = { features = ["blas"] }`
++ a backend (openblas-src or accelerate-src) is expected to take the larger
+primitives (freeze_setup at 17k tokens, freeze_apply at 7k) from
+many-minutes back into seconds territory and recover the ≥10× target. That
+is follow-up work — first-pass parity itself, the harder claim, is in.
+
+PSL (this repo) holds no PyTorch or NumPy dependency. The runner is pure
+Rust crate `psl-rust-runner` with one ndarray dep.
+
 ### Gate 7 cleared — end-to-end pilot
 
 `cargo run --bin issuer_demo -- --full-flow` walks through the full

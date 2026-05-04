@@ -13,7 +13,7 @@ to WASM, then compiled through the existing Transformer-VM at
 weights. Anyone with the weights and a state commitment can verify any
 block's state delta by re-running the transformer.
 
-## Status — gates 1-7 cleared
+## Status — gates 1-7 cleared, gate 8 first pass
 
 | Gate | Status | Result |
 | --- | --- | --- |
@@ -24,8 +24,8 @@ block's state delta by re-running the transformer.
 | 5. Compliance enforcement (view-keys, travel-rule, freeze-authority) | ✅ | **9/9** — travel-rule × 3, freeze authority × 4, view-key proofs × 2 |
 | 6. Light-client cross-verifies 1000 balances | ✅ | **8/8** — 1000-balance + 6 adversarial (tampered proof / sig / root / chain / signer) |
 | 7. End-to-end pilot (register → mint → transfer → burn → verify) | ✅ | Full flow runs; light-client verifies merchant=50 against the published 4-block chain |
-| 8. Pure-Rust runner parity (Phase 1.5) | ⏳ | port estimate ~1.5 weeks (`docs/STATUS.md`) |
-| 9. Consortium swap (ABCI + CometBFT) | ⏳ | v2 work; vendor decision in `docs/CONSENSUS_DECISION.md` |
+| 8. Pure-Rust runner parity (Phase 1.5) | 🟡 first pass | Bit-exact on byte_add (117 tok, 9.4× speedup), byte_sub (402 tok, ~11×), mpt_emit (3,678 tok, 3.0×). Larger primitives need ndarray BLAS feature. |
+| 9. Consortium swap (ABCI + CometBFT) | ⏳ | v2 work, gated on production trigger; vendor decision in `docs/CONSENSUS_DECISION.md` |
 
 See `docs/STATUS.md` for per-gate command, output, and commit hash.
 

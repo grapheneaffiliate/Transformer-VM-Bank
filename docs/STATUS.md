@@ -34,7 +34,7 @@ Before any verification gate can run:
 | **5** | Compliance enforcement | `cargo test -p psl-sequencer --test compliance` | ✅ 9/9 (travel-rule × 3, freeze authority × 4, view-key proofs × 2) | _(this commit)_ |
 | **6** | Light client cross-verifies 1000 balances | `cargo test -p psl-light-client` | ✅ 8/8 (1000-balance cross-verify + 6 adversarial: tampered proof value, tampered siblings, bad sig, tampered root, wrong signer, broken chain) | _(this commit)_ |
 | **7** | Pilot end-to-end | `cargo run --bin issuer_demo -- --full-flow` | ✅ register issuer → mint 1M → xfer 100 → xfer 50 → burn 100; light-client verifies merchant=50 against the 4-block chain rooted at empty-SMT genesis | _(this commit)_ |
-| 8 | Pure-Rust runner parity (Phase 1.5) | port runner.py → Rust + bit-exact verify | ⏳ port itself is the work | — |
+| **8** | Pure-Rust runner parity (Phase 1.5) | `cargo test -p psl-rust-runner --test parity --release -- --ignored` | ✅ first pass: 3/3 bit-exact (byte_add 117 tok, byte_sub 402 tok, mpt_emit 3678 tok). 50ms / 90ms / 31s vs Python's 470ms / ~1s / 94s — 3-10× speedup. **Open**: longer primitives (freeze_setup at 17k tokens, freeze_apply at 7k) need ndarray BLAS feature for parity at scale; expected to drop O(n²) attention from minutes → seconds | _(this commit)_ |
 | 9 | Consortium swap (ABCI + CometBFT) | 4-node cluster liveness + consistency under failure | ⏳ v2 | — |
 
 ## Gate 1 — primitive trace-length results

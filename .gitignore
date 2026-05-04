@@ -53,3 +53,4 @@ data/*.txt
 # Block store (sequencer runtime data)
 sequencer/data/
 sequencer/blockstore/
+.claude/

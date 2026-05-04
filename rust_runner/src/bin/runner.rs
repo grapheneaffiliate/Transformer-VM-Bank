@@ -21,10 +21,10 @@ fn main() -> Result<()> {
     let w = psl_rust_runner::weights::load_weights(&cli.weights)
         .context("loading weights")?;
     let input_str = std::fs::read_to_string(&cli.input)?;
-    let input: Vec<String> = input_str.split_whitespace().map(|s| s.to_string()).collect();
+    let input_owned: Vec<String> = input_str.split_whitespace().map(|s| s.to_string()).collect();
+    let input: Vec<&str> = input_owned.iter().map(|s| s.as_str()).collect();
     let cfg = psl_rust_runner::GenerateConfig {
         max_new_tokens: cli.max_new_tokens,
-        ..Default::default()
     };
     let predicted = psl_rust_runner::generate(&w, &input, &cfg)?;
     println!("{}", predicted.join(" "));
