@@ -1,0 +1,16 @@
+[gate-1-rust] loading /mnt/c/Users/atchi/Transformer_VM_Bank/weights/transfer_check.bin
+[gate-1-rust] vocab=618 d_model=52 n_layers=6 n_heads=26 ffn=[9, 6, 174, 41, 33, 22]
+  [  100/1000] 100 ok / 0 fail  (0.3/s, ETA 3595s)
+  [  200/1000] 200 ok / 0 fail  (0.3/s, ETA 2904s)
+  [  300/1000] 300 ok / 0 fail  (0.3/s, ETA 2416s)
+  [  400/1000] 400 ok / 0 fail  (0.3/s, ETA 2008s)
+  [  500/1000] 500 ok / 0 fail  (0.3/s, ETA 1640s)
+  [  600/1000] 600 ok / 0 fail  (0.3/s, ETA 1289s)
+  [  700/1000] 700 ok / 0 fail  (0.3/s, ETA 956s)
+  [  800/1000] 800 ok / 0 fail  (0.3/s, ETA 632s)
+  [  900/1000] 900 ok / 0 fail  (0.3/s, ETA 313s)
+  [ 1000/1000] 1000 ok / 0 fail  (0.3/s, ETA 0s)
+
+=== transfer_check (transfer_check) summary ===
+  pass: 1000/1000    fail: 0
+  time: 3113.8s    rate: 0.3/s

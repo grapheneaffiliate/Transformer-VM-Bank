@@ -1,0 +1,16 @@
+[gate-1-rust] loading /mnt/c/Users/atchi/Transformer_VM_Bank/weights/byte_add_with_carry.bin
+[gate-1-rust] vocab=868 d_model=40 n_layers=6 n_heads=20 ffn=[7, 6, 52, 29, 24, 30]
+  [  100/1000] 100 ok / 0 fail  (50.7/s, ETA 18s)
+  [  200/1000] 200 ok / 0 fail  (52.9/s, ETA 15s)
+  [  300/1000] 300 ok / 0 fail  (53.0/s, ETA 13s)
+  [  400/1000] 400 ok / 0 fail  (50.9/s, ETA 12s)
+  [  500/1000] 500 ok / 0 fail  (50.4/s, ETA 10s)
+  [  600/1000] 600 ok / 0 fail  (50.6/s, ETA 8s)
+  [  700/1000] 700 ok / 0 fail  (51.1/s, ETA 6s)
+  [  800/1000] 800 ok / 0 fail  (50.9/s, ETA 4s)
+  [  900/1000] 900 ok / 0 fail  (51.0/s, ETA 2s)
+  [ 1000/1000] 1000 ok / 0 fail  (50.9/s, ETA 0s)
+
+=== byte_add (byte_add_with_carry) summary ===
+  pass: 1000/1000    fail: 0
+  time: 19.6s    rate: 50.9/s

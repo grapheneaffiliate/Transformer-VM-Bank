@@ -1,0 +1,16 @@
+[gate-1-rust] loading /mnt/c/Users/atchi/Transformer_VM_Bank/weights/byte_sub_with_borrow.bin
+[gate-1-rust] vocab=871 d_model=48 n_layers=6 n_heads=24 ffn=[9, 6, 286, 42, 32, 25]
+  [  100/1000] 100 ok / 0 fail  (4.2/s, ETA 216s)
+  [  200/1000] 200 ok / 0 fail  (4.4/s, ETA 182s)
+  [  300/1000] 300 ok / 0 fail  (4.4/s, ETA 160s)
+  [  400/1000] 400 ok / 0 fail  (4.0/s, ETA 151s)
+  [  500/1000] 500 ok / 0 fail  (3.9/s, ETA 129s)
+  [  600/1000] 600 ok / 0 fail  (3.9/s, ETA 101s)
+  [  700/1000] 700 ok / 0 fail  (4.0/s, ETA 75s)
+  [  800/1000] 800 ok / 0 fail  (3.9/s, ETA 51s)
+  [  900/1000] 900 ok / 0 fail  (3.9/s, ETA 25s)
+  [ 1000/1000] 1000 ok / 0 fail  (3.9/s, ETA 0s)
+
+=== byte_sub (byte_sub_with_borrow) summary ===
+  pass: 1000/1000    fail: 0
+  time: 254.2s    rate: 3.9/s

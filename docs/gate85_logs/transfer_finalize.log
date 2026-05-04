@@ -1,0 +1,16 @@
+[gate-1-rust] loading /mnt/c/Users/atchi/Transformer_VM_Bank/weights/transfer_finalize.bin
+[gate-1-rust] vocab=869 d_model=50 n_layers=6 n_heads=25 ffn=[11, 6, 272, 35, 33, 18]
+  [  100/1000] 100 ok / 0 fail  (1.6/s, ETA 549s)
+  [  200/1000] 200 ok / 0 fail  (1.5/s, ETA 540s)
+  [  300/1000] 300 ok / 0 fail  (1.5/s, ETA 470s)
+  [  400/1000] 400 ok / 0 fail  (1.5/s, ETA 401s)
+  [  500/1000] 500 ok / 0 fail  (1.6/s, ETA 320s)
+  [  600/1000] 600 ok / 0 fail  (1.6/s, ETA 248s)
+  [  700/1000] 700 ok / 0 fail  (1.6/s, ETA 182s)
+  [  800/1000] 800 ok / 0 fail  (1.7/s, ETA 119s)
+  [  900/1000] 900 ok / 0 fail  (1.7/s, ETA 58s)
+  [ 1000/1000] 1000 ok / 0 fail  (1.7/s, ETA 0s)
+
+=== transfer_finalize (transfer_finalize) summary ===
+  pass: 1000/1000    fail: 0
+  time: 576.2s    rate: 1.7/s
