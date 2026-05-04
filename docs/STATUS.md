@@ -33,7 +33,7 @@ Before any verification gate can run:
 | **4** | Sequencer + 3 followers, 100 blocks | `cargo test -p psl-sequencer --test integration` | ✅ 2/2; all 4 state roots match every block; mutation detected | `93bae87` |
 | **5** | Compliance enforcement | `cargo test -p psl-sequencer --test compliance` | ✅ 9/9 (travel-rule × 3, freeze authority × 4, view-key proofs × 2) | _(this commit)_ |
 | **6** | Light client cross-verifies 1000 balances | `cargo test -p psl-light-client` | ✅ 8/8 (1000-balance cross-verify + 6 adversarial: tampered proof value, tampered siblings, bad sig, tampered root, wrong signer, broken chain) | _(this commit)_ |
-| 7 | Pilot end-to-end | `cargo run --bin issuer_demo -- --full-flow` | ⏳ | — |
+| **7** | Pilot end-to-end | `cargo run --bin issuer_demo -- --full-flow` | ✅ register issuer → mint 1M → xfer 100 → xfer 50 → burn 100; light-client verifies merchant=50 against the 4-block chain rooted at empty-SMT genesis | _(this commit)_ |
 | 8 | Pure-Rust runner parity (Phase 1.5) | port runner.py → Rust + bit-exact verify | ⏳ port itself is the work | — |
 | 9 | Consortium swap (ABCI + CometBFT) | 4-node cluster liveness + consistency under failure | ⏳ v2 | — |
 

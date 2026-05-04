@@ -48,7 +48,7 @@ pub fn verify_balance(
         }
         h.verify(expected_signer)
             .map_err(|_| VerifyError::InvalidSignature(h.header.block_n))?;
-        prev_hash = Some(h.header.header_hash());
+        prev_hash = Some(h.full_hash());
     }
     let head = &headers[headers.len() - 1].header;
     if !SparseMerkleTree::verify_proof(&head.new_state_root, account_pubkey, proof) {

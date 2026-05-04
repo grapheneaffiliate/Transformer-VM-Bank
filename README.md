@@ -13,17 +13,17 @@ to WASM, then compiled through the existing Transformer-VM at
 weights. Anyone with the weights and a state commitment can verify any
 block's state delta by re-running the transformer.
 
-## Status — gates 1-4 cleared
+## Status — gates 1-7 cleared
 
 | Gate | Status | Result |
 | --- | --- | --- |
 | 1. Primitive bit-exact (10k vectors each) | ✅ | All 7 active primitives at **10000/10000** |
-| 2. SMT determinism (cargo test -p crypto) | ✅ | **22/22** crypto tests pass |
+| 2. SMT determinism (`cargo test -p crypto`) | ✅ | **22/22** crypto tests pass |
 | 3. Lean lake build | ✅ | Compiles against mathlib v4.12.0; 3 sorrys with target dates 2026-06-15 / 2026-07-15 |
 | 4. Sequencer + 3 followers, 100 blocks mixed traffic | ✅ | All 4 state roots agree at every block; mutation detected |
-| 5. Compliance enforcement (view-keys, travel-rule, freeze-authority) | ⏳ | next |
-| 6. Light-client cross-verifies 1000 balances | ⏳ | — |
-| 7. End-to-end pilot (register → mint → transfer → burn → verify) | ⏳ | — |
+| 5. Compliance enforcement (view-keys, travel-rule, freeze-authority) | ✅ | **9/9** — travel-rule × 3, freeze authority × 4, view-key proofs × 2 |
+| 6. Light-client cross-verifies 1000 balances | ✅ | **8/8** — 1000-balance + 6 adversarial (tampered proof / sig / root / chain / signer) |
+| 7. End-to-end pilot (register → mint → transfer → burn → verify) | ✅ | Full flow runs; light-client verifies merchant=50 against the published 4-block chain |
 | 8. Pure-Rust runner parity (Phase 1.5) | ⏳ | port estimate ~1.5 weeks (`docs/STATUS.md`) |
 | 9. Consortium swap (ABCI + CometBFT) | ⏳ | v2 work; vendor decision in `docs/CONSENSUS_DECISION.md` |
 

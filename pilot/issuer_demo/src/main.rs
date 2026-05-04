@@ -53,6 +53,11 @@ async fn main() -> Result<()> {
     let node = Arc::new(SequencerNode::new(cfg).await?);
     let state = node.state.clone();
 
+    // Capture the empty-SMT root as the chain's genesis state root, before
+    // any registration or transactions touch the state. This is what the
+    // light client treats as the trust anchor.
+    let genesis_root = state.read().unwrap().accounts_root();
+
     info!("registering issuer for asset_id=1");
     node.register_issuer(IssuerRecord {
         asset_id: 1,
@@ -68,7 +73,7 @@ async fn main() -> Result<()> {
 
     let exec = NativeTraceExecutor;
     let mut block_n = 0u64;
-    let mut last_header: Option<BlockHeader> = None;
+    let mut chain: Vec<BlockHeader> = Vec::new();
 
     // Step 1: mint 1_000_000 to treasury
     let mint_tx = build_tx(
@@ -81,9 +86,8 @@ async fn main() -> Result<()> {
         0,
         None,
     );
-    let header_after_mint =
-        finalize_block(&exec, &state, &sequencer_kp, &mint_tx, &mut block_n, &last_header)?;
-    last_header = Some(header_after_mint);
+    let h = finalize_block(&exec, &state, &sequencer_kp, &mint_tx, &mut block_n, chain.last())?;
+    chain.push(h);
     info!("after mint: treasury balance = {}", balance_of(&state, &treasury.public()));
 
     // Step 2: treasury transfers 100 to customer
@@ -97,9 +101,8 @@ async fn main() -> Result<()> {
         0,
         None,
     );
-    let header_after_xfer1 =
-        finalize_block(&exec, &state, &sequencer_kp, &xfer1, &mut block_n, &last_header)?;
-    last_header = Some(header_after_xfer1);
+    let h = finalize_block(&exec, &state, &sequencer_kp, &xfer1, &mut block_n, chain.last())?;
+    chain.push(h);
     info!(
         "after xfer 100 to customer: treasury={} customer={}",
         balance_of(&state, &treasury.public()),
@@ -117,9 +120,8 @@ async fn main() -> Result<()> {
         0,
         None,
     );
-    let header_after_xfer2 =
-        finalize_block(&exec, &state, &sequencer_kp, &xfer2, &mut block_n, &last_header)?;
-    last_header = Some(header_after_xfer2);
+    let h = finalize_block(&exec, &state, &sequencer_kp, &xfer2, &mut block_n, chain.last())?;
+    chain.push(h);
     info!(
         "after xfer 50 to merchant: customer={} merchant={}",
         balance_of(&state, &customer.public()),
@@ -137,21 +139,20 @@ async fn main() -> Result<()> {
         0,
         None,
     );
-    let header_after_burn =
-        finalize_block(&exec, &state, &sequencer_kp, &burn_tx, &mut block_n, &last_header)?;
-    last_header = Some(header_after_burn);
+    let h = finalize_block(&exec, &state, &sequencer_kp, &burn_tx, &mut block_n, chain.last())?;
+    chain.push(h);
     info!("after burn: treasury balance = {}", balance_of(&state, &treasury.public()));
 
-    // Step 5: light-client verifies merchant's balance against the published header
-    let head = last_header.as_ref().unwrap();
-    let (proof, _bytes) = {
-        let s = state.read().unwrap();
-        (s.account_proof(&merchant.public()), s.account(&merchant.public()).bytes)
-    };
-    let signed_header = adopt_header_for_lightclient(head.clone(), &sequencer_kp);
+    // Step 5: light-client verifies merchant's balance against the published
+    // chain of block headers (genesis through head).
+    let proof = state.read().unwrap().account_proof(&merchant.public());
+    let signed_chain: Vec<SignedHeader> = chain
+        .iter()
+        .map(|h| adopt_header_for_lightclient(h.clone(), &sequencer_kp))
+        .collect();
     let bal = verify_balance(
-        [0u8; 32],
-        &[signed_header],
+        genesis_root,
+        &signed_chain,
         &sequencer_kp.public(),
         &merchant.public(),
         &proof,
@@ -197,15 +198,13 @@ fn finalize_block(
     seq_kp: &KeyPair,
     tx: &SignedTx,
     block_n: &mut u64,
-    last_header: &Option<BlockHeader>,
+    last_header: Option<&BlockHeader>,
 ) -> Result<BlockHeader> {
     let prev_state_root;
-    let prev_registry_root;
     let parent_hash;
     {
         let s = state.read().unwrap();
         prev_state_root = s.accounts_root();
-        prev_registry_root = s.registry_root();
         parent_hash = match last_header {
             Some(h) => h.header_hash(),
             None => [0u8; 32],

@@ -42,11 +42,11 @@ impl Header {
         buf
     }
 
-    pub fn header_hash(&self) -> Hash {
-        let mut buf = self.signing_bytes();
-        // signing_bytes excludes signature; here we'd append it, but for
-        // header_hash we hash the signed-form excluding sig too — see node.rs.
-        hash_bytes(&buf)
+    /// Hash of the header BEFORE the sequencer signature is appended. Used
+    /// internally; chain linking uses `SignedHeader::full_hash` (which
+    /// matches `psl_sequencer::block::BlockHeader::header_hash`).
+    pub fn unsigned_hash(&self) -> Hash {
+        hash_bytes(&self.signing_bytes())
     }
 }
 
@@ -68,5 +68,15 @@ impl SignedHeader {
             return Err(SigError::VerificationFailed);
         }
         verify(&self.header.sequencer_pubkey, &self.header.signing_bytes(), &self.signature)
+    }
+
+    /// Full hash of the signed header (signing_bytes || signature). Matches
+    /// `psl_sequencer::block::BlockHeader::header_hash`. Used as `parent_hash`
+    /// of the next block in the chain — modifying any byte of the signed
+    /// header (including the signature) changes the downstream chain identity.
+    pub fn full_hash(&self) -> Hash {
+        let mut buf = self.header.signing_bytes();
+        buf.extend_from_slice(&self.signature);
+        hash_bytes(&buf)
     }
 }

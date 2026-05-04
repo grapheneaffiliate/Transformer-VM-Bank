@@ -5,6 +5,40 @@ load-bearing commit on `origin/main`.
 
 ## 2026-05-04
 
+### Gate 7 cleared — end-to-end pilot
+
+`cargo run --bin issuer_demo -- --full-flow` walks through the full
+register → mint → xfer → xfer → burn flow, with the light-client
+verifying the merchant balance against the 4-block chain rooted at
+the empty-SMT genesis:
+
+```
+PSL issuer-demo pilot starting
+weights/ missing → using NativeTraceExecutor (DEV ONLY)
+registering issuer for asset_id=1
+after mint:    treasury = 1_000_000
+after xfer 100 → customer: treasury=999_900  customer=100
+after xfer 50  → merchant: customer=50      merchant=50
+after burn:    treasury = 999_800
+light-client verified: merchant balance = 50
+PSL pilot completed all steps.
+```
+
+Bug fixes during the gate:
+- Pilot was passing only the head header to verify_balance; light client
+  required full chain from genesis. Pilot now accumulates the full
+  Vec<BlockHeader> and threads parent_hash through correctly.
+- `psl_sequencer::block::BlockHeader::header_hash` includes the sequencer
+  signature in the hashed bytes; `psl_light_client::header::Header::header_hash`
+  did not. The two diverged, breaking chain linking. Aligned: light_client
+  now exposes `SignedHeader::full_hash` (signing_bytes ∥ signature) used by
+  verify_balance for chain linking; the unsigned variant is kept as
+  `Header::unsigned_hash` but no longer used by chain logic.
+- Pilot's genesis_root: was hardcoded to [0u8; 32] but the empty SMT root
+  is `default_hashes()[0]`, not zero. Pilot now snapshots
+  `state.accounts_root()` before the first transaction and passes that as
+  the trust anchor.
+
 ### Gate 6 cleared — light client cross-verifies 1000 balances
 
 `cargo test -p psl-light-client` 8/8 (1 unit + 7 in `tests/gate6.rs`):

@@ -291,9 +291,9 @@ re-derive `witness_post` from `witness_pre + tx` via the trace and assert
 | 2 | SMT determinism (`cargo test -p crypto`) | ✅ 22/22 |
 | 3 | Lean lake build | ✅ compiles; 3 sorrys remain (Conservation:42/60, MPT:58) within target dates |
 | 4 | Sovereign sequencer + 3 followers, 100 blocks | ✅ all roots match every block; mutation detected |
-| 5 | Compliance enforcement (view-keys, travel-rule, freeze-authority) | ⏳ |
-| 6 | Light client cross-verifies 1000 balances | ⏳ |
-| 7 | End-to-end pilot (register → mint → transfer → burn → verify) | ⏳ |
+| 5 | Compliance enforcement (view-keys, travel-rule, freeze-authority) | ✅ 9/9 |
+| 6 | Light client cross-verifies 1000 balances | ✅ 8/8 (1000-balance + 6 adversarial) |
+| 7 | End-to-end pilot (register → mint → transfer → burn → verify) | ✅ flow completes; light-client verifies merchant balance |
 | 8 | Pure-Rust runner parity (Phase 1.5) | ⏳ port estimate ~1.5 weeks |
 | 9 | Consortium swap (ABCI + CometBFT) | ⏳ v2 work |
 
