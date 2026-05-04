@@ -31,7 +31,7 @@ Before any verification gate can run:
 | **2** | SMT determinism | `cargo test -p crypto` | ✅ 22/22 (incl. 100k randomized put + non-inclusion proofs) | `93bae87` |
 | **3** | Lean lake build | `cd lean && lake build` | ✅ compiles against mathlib v4.12.0; 3 sorrys remain (target dates below) | `113c11b` |
 | **4** | Sequencer + 3 followers, 100 blocks | `cargo test -p psl-sequencer --test integration` | ✅ 2/2; all 4 state roots match every block; mutation detected | `93bae87` |
-| 5 | Compliance enforcement | `uv run pytest tests/test_compliance.py -v` | ⏳ | — |
+| **5** | Compliance enforcement | `cargo test -p psl-sequencer --test compliance` | ✅ 9/9 (travel-rule × 3, freeze authority × 4, view-key proofs × 2) | _(this commit)_ |
 | 6 | Light client cross-verifies 1000 balances | `cargo test -p light_client` | ⏳ | — |
 | 7 | Pilot end-to-end | `cargo run --bin issuer_demo -- --full-flow` | ⏳ | — |
 | 8 | Pure-Rust runner parity (Phase 1.5) | port runner.py → Rust + bit-exact verify | ⏳ port itself is the work | — |

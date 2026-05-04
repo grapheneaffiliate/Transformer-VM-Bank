@@ -5,6 +5,19 @@ load-bearing commit on `origin/main`.
 
 ## 2026-05-04
 
+### Gate 5 cleared — compliance enforcement
+
+`cargo test -p psl-sequencer --test compliance` 9/9. Three areas exercised
+against `mempool::validate` and `state::account_proof`:
+
+- **Travel rule**: high-value transfer without `originator_metadata`
+  rejected; with metadata accepted; low-value passes without metadata.
+- **Freeze authority**: non-issuer freeze rejected; freeze without
+  `court_order_hash` rejected; issuer freeze with court order accepted;
+  frozen account's subsequent transfer rejected.
+- **View-key proofs**: regulator's SMT inclusion proof verifies against
+  published root; tampered-balance proof rejected.
+
 ### Gate 3 cleared — Lean lake build (`113c11b`)
 
 `cd lean && lake build` succeeds against mathlib v4.12.0 cached oleans.
