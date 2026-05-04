@@ -2,6 +2,7 @@
 
 use psl_crypto::{Hash, PublicKey, Signature};
 use serde::{Deserialize, Serialize};
+use serde_big_array::BigArray;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum TxKind {
@@ -32,6 +33,7 @@ pub struct SignedTx {
     /// Travel-rule encrypted metadata for high-value txs.
     pub originator_metadata: Option<Vec<u8>>,
     /// ed25519 signature over a canonical encoding of all above fields.
+    #[serde(with = "BigArray")]
     pub signature: Signature,
 }
 

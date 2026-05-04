@@ -82,10 +82,17 @@ impl SparseMerkleTree {
         self.root
     }
 
-    /// Hash of a leaf containing `value`. Empty value → `defaults[KEY_BITS]`.
+    /// Hash of a leaf containing `value`. Empty value → `defaults[KEY_BITS]`
+    /// (= the SMT default leaf), so absent keys verify against the empty-tree
+    /// progression. Standard SMT semantics: putting `(key, [])` is equivalent
+    /// to removing `key`.
     fn leaf_hash(key: &Hash, value: &[u8]) -> Hash {
-        let value_hash = hash_bytes(value);
-        hash_three(&[0u8], key, &value_hash)
+        if value.is_empty() {
+            hash_bytes(b"")
+        } else {
+            let value_hash = hash_bytes(value);
+            hash_three(&[0u8], key, &value_hash)
+        }
     }
 
     /// Bit at position `i` (0 = MSB, 255 = LSB) of a 32-byte key.
@@ -100,10 +107,10 @@ impl SparseMerkleTree {
     }
 
     /// Insert/update `key → value`. Returns the new root.
+    /// Putting an empty `value` removes the key (standard SMT semantics).
     pub fn put(&mut self, key: Hash, value: Vec<u8>) -> Hash {
         let new_leaf_hash = Self::leaf_hash(&key, &value);
         let path = self.compute_path_to_leaf(&key);
-        // Walk back up, recomputing internal nodes.
         let mut current = new_leaf_hash;
         for i in (0..KEY_BITS).rev() {
             let bit = Self::bit(&key, i);
@@ -113,7 +120,11 @@ impl SparseMerkleTree {
             self.nodes.insert(parent, InternalNode { left, right });
             current = parent;
         }
-        self.leaves.insert(key, value);
+        if value.is_empty() {
+            self.leaves.remove(&key);
+        } else {
+            self.leaves.insert(key, value);
+        }
         self.root = current;
         self.root
     }

@@ -59,8 +59,20 @@ impl TraceExecutor for NativeTraceExecutor {
             TxKind::Transfer => self.transfer(w),
             TxKind::Mint => self.mint(w),
             TxKind::Burn => self.burn(w),
-            TxKind::MultiAsset => Err(anyhow!("MultiAsset native executor TODO")),
+            TxKind::MultiAsset => self.multi_asset(w),
         }
+    }
+}
+
+/// Per-tx trace-hash counts under the per-byte composition design.
+/// (Used by sequencer + followers to verify block format consistency.)
+pub fn expected_trace_hash_count(kind: TxKind, multi_n: usize) -> usize {
+    match kind {
+        TxKind::Freeze => 2,                 // freeze_setup + freeze_apply
+        TxKind::Transfer => 34,              // 1 check + 16 sub + 16 add + 1 finalize
+        TxKind::Mint => 16,                  // 16 byte_add
+        TxKind::Burn => 17,                  // 1 check + 16 byte_sub
+        TxKind::MultiAsset => multi_n * 34,  // N inner transfers
     }
 }
 
@@ -127,6 +139,38 @@ impl NativeTraceExecutor {
                 success: false,
             }),
         }
+    }
+
+    fn multi_asset(&self, w: &Witness) -> Result<TraceResult> {
+        // multi_asset is N chained transfers. The witness's accounts vec carries
+        // all 2N participating accounts in (from_0, to_0, from_1, to_1, ...) order.
+        // For NativeTraceExecutor we apply each transfer in turn with the same
+        // amount/epoch, accumulating updates.
+        if w.accounts.len() % 2 != 0 || w.accounts.is_empty() {
+            return Err(anyhow!("multi_asset needs an even, nonzero number of accounts"));
+        }
+        let amount = u128::from_le_bytes(w.amount);
+        let mut updated = Vec::with_capacity(w.accounts.len());
+        let n_pairs = w.accounts.len() / 2;
+        let mut all_success = true;
+        for i in 0..n_pairs {
+            let mut from = w.accounts[2 * i];
+            let mut to = w.accounts[2 * i + 1];
+            if from.is_frozen() || from.balance() < amount {
+                all_success = false;
+                updated.push(Account::default());
+                updated.push(Account::default());
+                continue;
+            }
+            from.set_balance(from.balance() - amount);
+            to.set_balance(to.balance().wrapping_add(amount));
+            from.set_nonce(from.nonce() + 1);
+            from.set_last_active(w.epoch as u64);
+            to.set_last_active(w.epoch as u64);
+            updated.push(from);
+            updated.push(to);
+        }
+        Ok(TraceResult { updated_accounts: updated, trace_hash: NATIVE_TRACE_MARKER, success: all_success })
     }
 
     fn burn(&self, w: &Witness) -> Result<TraceResult> {
@@ -206,7 +250,8 @@ impl TraceExecutor for SubprocessTraceExecutor {
         let predicted_tokens = extract_tokens_from_verbose(&stdout)?;
         let trace_hash = hash_trace_owned(&predicted_tokens);
         let updated_accounts = decode_output_accounts(&predicted_tokens, &tx.kind)?;
-        Ok(TraceResult { updated_accounts, trace_hash, success: !updated_accounts.is_empty() })
+        let success = !updated_accounts.is_empty();
+        Ok(TraceResult { updated_accounts, trace_hash, success })
     }
 }
 

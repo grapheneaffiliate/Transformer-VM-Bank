@@ -9,6 +9,7 @@ description = "PSL crypto primitives: Sparse Merkle Tree, ed25519, BLAKE3 wrappe
 blake3.workspace = true
 ed25519-dalek.workspace = true
 serde.workspace = true
+serde-big-array.workspace = true
 thiserror.workspace = true
 hex.workspace = true
 rand.workspace = true

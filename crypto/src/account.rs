@@ -10,6 +10,7 @@
 //! This is a v1 simplification — v2 may extend the record to 96 bytes.
 
 use serde::{Deserialize, Serialize};
+use serde_big_array::BigArray;
 
 pub const ACCOUNT_BYTES: usize = 64;
 pub const PUBKEY_OFFSET: usize = 0;
@@ -25,6 +26,7 @@ pub const FROZEN_FLAG: u8 = 0x80;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Account {
+    #[serde(with = "BigArray")]
     pub bytes: [u8; ACCOUNT_BYTES],
 }
 

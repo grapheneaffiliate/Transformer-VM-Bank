@@ -14,7 +14,7 @@ pub mod account;
 pub mod trace_hash;
 
 pub use hash::{Hash, hash_bytes, hash_concat};
-pub use signature::{KeyPair, PublicKey, Signature, sign, verify};
+pub use signature::{KeyPair, PublicKey, SigError, Signature, sign, verify};
 pub use smt::{SparseMerkleTree, MerkleProof, SmtError};
 pub use account::{Account, FROZEN_FLAG};
-pub use trace_hash::hash_trace;
+pub use trace_hash::{hash_trace, hash_trace_owned};
