@@ -116,6 +116,41 @@ research direction in Transformer-VM, not a fix I can apply in PSL. The
 second is workable for offline auditors but kills the "phone can verify"
 property of the architecture.
 
+## Binary I/O breakthrough (added post-transfer-decomposition failure)
+
+ASCII decimal I/O is the trace-length killer. Each "decimal-encoded byte"
+costs ~10 wire tokens for input plus the parse-loop overhead inside the
+trace. By switching to **binary I/O** — one wire token per value byte,
+read via `input[i]`, written via `putchar(byte)`, no parsing or printf —
+trace length drops by ~10×.
+
+| Primitive | I/O | Tokens | Smoke pass |
+| --- | --- | --- | --- |
+| `freeze_apply` | ASCII | 7,723 | 100/100 |
+| `transfer_compute` (ASCII, decomposed) | ASCII | 211,995 | 1/5 |
+| `transfer_sub_binary` (POC) | binary | 8,196 | 20/20 |
+| `transfer_binary` (single primitive) | binary | ~10,000 | 10/10 |
+
+**transfer no longer needs decomposition** under the binary-I/O design. A
+single primitive handles the full transfer in ~10k tokens (well under the
+30k envelope). The sequencer's role: instead of writing decimal-encoded
+witness strings, write spec.txt files with one wire token per witness byte.
+
+### When to use which I/O style
+
+- **Binary**: when the primitive operates on byte arrays (balance, nonce,
+  flags). Most settlement-layer primitives. Faster, shorter traces.
+- **ASCII**: when the witness is naturally textual (e.g. `flag` as a
+  single decimal digit). Freeze primitives currently use ASCII; could be
+  rewritten to binary for consistency but already pass at scale.
+
+### Implication for sequencer
+
+`sequencer/src/trace.rs` becomes simpler — instead of formatting decimal
+strings, it directly emits the wire-token form for each byte of the
+witness. The sequencer already has accounts in binary form (in the SMT),
+so this is the natural representation.
+
 ## Empirical trace-length budget (added 2026-05-03 post-decomposition)
 
 After decomposing freeze and seeing 100/100 pass on the 100-vector smoke,
