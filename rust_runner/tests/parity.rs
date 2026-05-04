@@ -103,3 +103,15 @@ fn parity_byte_sub_with_borrow() {
 fn parity_mpt_emit_record() {
     run_primitive("mpt_emit_record");
 }
+
+#[test]
+#[ignore]
+fn parity_freeze_apply() {
+    run_primitive("freeze_apply");
+}
+
+#[test]
+#[ignore]
+fn parity_freeze_setup() {
+    run_primitive("freeze_setup");
+}
