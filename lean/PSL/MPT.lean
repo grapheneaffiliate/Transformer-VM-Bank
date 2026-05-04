@@ -18,24 +18,27 @@ import PSL.Account
 
 namespace PSL.MPT
 
-opaque Hash : Type := Vector (Fin 256) 32
+/-- 32-byte BLAKE3 digest, modeled as a list of bytes. -/
+def Hash : Type := List (Fin 256)
+
+instance : Inhabited Hash := ⟨List.replicate 32 0⟩
 
 /-- Opaque hash function modeled as collision-resistant. -/
-opaque hash : Array (Fin 256) → Hash
+opaque hash : List (Fin 256) → Hash
 
 axiom hash_collision_resistant :
-  ∀ (a b : Array (Fin 256)),
+  ∀ (a b : List (Fin 256)),
     hash a = hash b → a = b
 
 structure Proof where
   siblings : List Hash
-  value    : Array (Fin 256)
+  value    : List (Fin 256)
 
 /-- Verify an inclusion proof. The leaf hash is `hash(0x00 || key || hash(value))`.
     Walking up: at depth `d`, current_hash = hash(left || right) with sibling on
     one side per the bit. -/
-def verifyProof (root : Hash) (key : Array (Fin 256)) (proof : Proof) : Bool :=
-  proof.siblings.length = 256
+def verifyProof (_root : Hash) (_key : List (Fin 256)) (proof : Proof) : Bool :=
+  decide (proof.siblings.length = 256)
   -- Full implementation would fold over siblings; left as TODO since the
   -- soundness theorem doesn't require executable verification, only the
   -- semantic relation.
@@ -44,9 +47,9 @@ def verifyProof (root : Hash) (key : Array (Fin 256)) (proof : Proof) : Bool :=
     `proof.value` OR the proof is forged via a hash collision (impossible by
     `hash_collision_resistant`). -/
 theorem inclusion_proof_sound
-  (root : Hash) (key : Array (Fin 256)) (proof : Proof) :
+  (root : Hash) (key : List (Fin 256)) (proof : Proof) :
     verifyProof root key proof = true →
-      proof.value.size = 0 ∨ proof.value.size = 64 := by
+      proof.value.length = 0 ∨ proof.value.length = 64 := by
   intro _
   -- A full proof would trace the verification logic against the SMT
   -- construction in crypto/src/smt.rs. Marked sorry for future formal work;

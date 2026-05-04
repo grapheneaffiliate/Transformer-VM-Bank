@@ -7,7 +7,10 @@
 
 namespace PSL
 
-abbrev PubKey  := Vector (Fin 256) 32
+/-- 32-byte ed25519 public key. We model it as a `Nat` index since the
+    conservation/determinism theorems only need pubkeys to be distinguishable;
+    byte-level structure isn't load-bearing for these proofs. -/
+abbrev PubKey  := Nat
 abbrev Balance := Nat   -- u128, modeled as ℕ ≤ 2^128 - 2^120 (room for frozen flag)
 abbrev Nonce   := Nat   -- u64
 abbrev Epoch   := Nat   -- u64
@@ -20,7 +23,6 @@ structure Account where
   lastActive   : Epoch
   assetId      : AssetId
   frozen       : Bool
-  deriving Repr, DecidableEq
 
 namespace Account
 
@@ -39,8 +41,8 @@ def wellFormed (a : Account) : Prop :=
 
 theorem empty_well_formed (pk : PubKey) : (empty pk).wellFormed := by
   refine ⟨?_, ?_⟩
-  · exact Nat.zero_lt_two_pow 127
-  · exact Nat.zero_lt_two_pow 64
+  · exact Nat.two_pow_pos 127
+  · exact Nat.two_pow_pos 64
 
 end Account
 end PSL
