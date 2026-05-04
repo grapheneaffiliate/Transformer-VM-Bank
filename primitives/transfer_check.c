@@ -1,60 +1,40 @@
-/* transfer_check: validate a transfer can proceed.
+/* transfer_check: validate from_balance >= amount via MSB-first compare.
  *
- * Sequencer pre-extracts (frozen, from_balance, amount) and feeds to this
- * primitive, which checks frozen and balance. Output: 1-byte success.
+ * Binary I/O (raw bytes per wire token).
  *
- * Input wire (33 decimals):
- *   frozen(1) from_balance[16] amount[16]
+ * Input layout (32 raw bytes):
+ *   [0..16):   from_balance (u128 little-endian)
+ *   [16..32):  amount       (u128 little-endian)
  *
- * Output wire (1 decimal):
- *   success
+ * Output layout (1 raw byte):
+ *   ok (1 if from_balance >= amount, else 0)
  *
- * Estimated trace: parse 33 + print 1 = ~34 ops, ~17k tokens.
+ * Algorithm: scan from MSB (byte 15) down to LSB (byte 0). On the first
+ * byte where they differ, the higher byte's owner wins. If all bytes equal,
+ * from_balance == amount → ok = 1 (>= holds).
+ *
+ * 16 iterations × ~10 ops = ~160 ops, ~800 token trace.
  */
 
 #include "common.h"
 
-static char from_balance[16];
-static char amount_buf[16];
-
-__attribute__((noinline))
-static int parse_one(const char **pp) {
-    const char *p = *pp;
-    while (*p == ' ') p = p + 1;
-    int v = 0;
-    while (*p >= '0' && *p <= '9') {
-        int d = *p - '0';
-        int t2 = v + v;
-        int t4 = t2 + t2;
-        int t8 = t4 + t4;
-        v = t8 + t2 + d;
-        p = p + 1;
-    }
-    *pp = p;
-    return v;
-}
-
 void compute(const char *input) {
-    const char *p = input;
-    int frozen = parse_one(&p);
+    int decided = 0;
+    int ok = 1;
 
-    int i = 0;
+    int j = 0;
     int safety = 0;
-    while (i < 16 && safety < 100) {
-        from_balance[i] = (char)parse_one(&p);
-        i = i + 1;
-        safety = safety + 1;
-    }
-    i = 0;
-    safety = 0;
-    while (i < 16 && safety < 100) {
-        amount_buf[i] = (char)parse_one(&p);
-        i = i + 1;
+    while (j < 16 && safety < 32) {
+        int idx = 15 - j;
+        int b = (int)(unsigned char)input[idx];
+        int a = (int)(unsigned char)input[16 + idx];
+        if (!decided) {
+            if (b > a) { ok = 1; decided = 1; }
+            else if (b < a) { ok = 0; decided = 1; }
+        }
+        j = j + 1;
         safety = safety + 1;
     }
 
-    int has_balance = u128_geq(from_balance, amount_buf);
-    int success = (frozen == 0 && has_balance != 0) ? 1 : 0;
-
-    printf("%d\n", success);
+    putchar(ok);
 }
