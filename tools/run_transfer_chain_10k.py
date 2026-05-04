@@ -49,16 +49,12 @@ def expected_chars(expected_bytes):
     return "".join(out)
 
 
-def run_batch(weights, spec_paths, label, max_new=5000):
+def _run_one_chunk(weights, chunk_paths, max_new):
     cmd = ["uv", "run", "wasm-run", "--model", str(weights),
-           "--max-new-tokens", str(max_new)] + [str(p) for p in spec_paths]
-    print(f"  [{label}] launching {len(spec_paths)} specs...", flush=True)
-    t0 = time.time()
+           "--max-new-tokens", str(max_new)] + [str(p) for p in chunk_paths]
     r = subprocess.run(cmd, cwd=str(TVM), capture_output=True, text=True, timeout=21600)
-    elapsed = time.time() - t0
     if r.returncode != 0:
-        print(f"  [{label}] FAILED: {r.stderr[-300:]}", flush=True)
-        return {}, elapsed
+        return None, r.stderr
     by_name = {}
     text = r.stdout
     summary_marker = "\n\n0 passed,"
@@ -78,6 +74,29 @@ def run_batch(weights, spec_paths, label, max_new=5000):
             if content.endswith("\n"):
                 content = content[:-1]
             by_name[name] = content
+    return by_name, ""
+
+
+def run_batch(weights, spec_paths, label, max_new=5000, chunk=4000):
+    """Chunk to avoid kernel ARG_MAX limit (~2MB on Linux). Each chunk is one
+    wasm-run process; model weights are loaded per chunk (~3s amortized)."""
+    print(f"  [{label}] launching {len(spec_paths)} specs in chunks of {chunk}...", flush=True)
+    t0 = time.time()
+    by_name = {}
+    n_chunks = (len(spec_paths) + chunk - 1) // chunk
+    for ci in range(n_chunks):
+        chunk_paths = spec_paths[ci * chunk : (ci + 1) * chunk]
+        out, err = _run_one_chunk(weights, chunk_paths, max_new)
+        if out is None:
+            print(f"  [{label}] chunk {ci} FAILED: {err[-300:]}", flush=True)
+            continue
+        by_name.update(out)
+        if (ci + 1) % 5 == 0 or ci + 1 == n_chunks:
+            elapsed = time.time() - t0
+            done = (ci + 1) * chunk
+            rate = done / elapsed if elapsed > 0 else 0
+            print(f"  [{label}] chunk {ci+1}/{n_chunks} ({rate:.1f}/s overall)", flush=True)
+    elapsed = time.time() - t0
     print(f"  [{label}] done in {elapsed:.0f}s ({len(spec_paths)/elapsed:.1f}/s)", flush=True)
     return by_name, elapsed
 

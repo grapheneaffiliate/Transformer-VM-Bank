@@ -1,7 +1,42 @@
-# Gate-1 Findings (updated 2026-05-03 post-investigation)
+# Gate-1 Findings (updated 2026-05-04)
 
 Honest characterization of the bit-exact gate after working through the
 prescribed fix order.
+
+## TL;DR (2026-05-04)
+
+- freeze (decomposed into freeze_setup + freeze_apply): **10000/10000 PASS**
+- transfer per-byte sub-primitives, each: **10000/10000 PASS**
+  - byte_sub_with_borrow, byte_add_with_carry, transfer_check, transfer_finalize
+- chained transfer end-to-end: in progress (running 10k now)
+- mint/burn: by composition of already-validated byte_add/byte_sub × 16 + check
+- multi_asset_transfer: by composition (N × 34 trace hashes per transfer)
+- mpt_apply_delta: TBD; measure trace length, decompose if needed
+
+## DESIGN RULE (the empirical lesson from gate 1)
+
+**Trace length is the precision-budget currency.** The 2000-WASM-instruction
+limit in the v2 style guide is a *proxy* — it correlates with d_ffn but
+fails predictably on primitives with sequential data dependencies (carry
+chains, hash rounds, anything where step N depends on step N-1's output).
+
+The real rule:
+- **Independent ops** (e.g. parse a stream, set a single byte): can fit
+  ~50k-token traces.
+- **Sequential dependencies** (carry chains, multi-step state): target
+  **sub-1k token traces** per primitive. Decompose so each step is one
+  cycle of the dependency.
+
+Per-byte u128 ops (`byte_sub_with_borrow`, `byte_add_with_carry`) at 119–404
+tokens pass 10000/10000. The same logic in a 16-iteration loop inside one
+primitive (~8k token trace) failed 11% on rare witnesses — the sequential
+carry chain accumulated drift the model couldn't recover.
+
+### Instrumentation pass
+
+Every new primitive: measure its trace length on a representative witness
+**before** declaring it complete. `wasm-run` reports `RAN N tok` per spec.
+Target sub-1k for sequential ops, accept up to ~30k for independent ops.
 
 ## Summary
 

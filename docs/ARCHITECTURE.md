@@ -121,7 +121,29 @@ Each transformer-trace primitive operates on a *witness slice* — the affected
 accounts only — to stay under the 2000-WASM-instruction precision budget. The
 sequencer assembles witnesses from the live Merkle-Patricia trie.
 
-## 4. Primitive contracts
+## 4. Primitive design rule (gate-1 lesson)
+
+**Trace length is the precision-budget currency.** The 2000-WASM-instruction
+budget in the v2 style guide is a proxy that fails on primitives with
+sequential data dependencies. The real rule:
+
+- **Independent ops** (parse, byte-stream emit): can fit ~50k-token traces.
+- **Sequential ops** (carry chains, hash rounds, anything where step N
+  depends on step N-1): target **sub-1k token traces** per primitive.
+  Decompose so each step is one cycle of the dependency.
+
+Composition: the sequencer threads outputs through chained primitives,
+producing N trace hashes per logical transaction. Followers re-execute all
+N primitives independently and verify each output matches the chained
+expectation. The per-tx cost is N hashes in the block, not N traces in
+the witness — followers re-derive intermediate values.
+
+For each new primitive: **measure trace length on a representative witness
+before declaring it complete.** `wasm-run`'s `RAN N tok` field is the
+metric. Target sub-1k for sequential ops, accept up to ~30k for
+independent ops. Anything ≥100k tokens means "decompose now."
+
+## 5. Primitive contracts
 
 ### 4.1 `ledger_freeze.c`
 
