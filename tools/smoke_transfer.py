@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-TVM = Path("/mnt/c/Users/atchi/Transformer-VM")
+TVM = Path(os.environ.get("TRANSFORMER_VM_PATH", "/mnt/c/Users/atchi/Transformer-VM"))
 SPEC_DIR = Path("/tmp/psl_smoke_specs")
 SPEC_DIR.mkdir(exist_ok=True)
 

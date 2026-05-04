@@ -59,11 +59,11 @@ Each open `sorry` in a load-bearing theorem with a target close date.
 
 | File | Theorem | Why it's load-bearing | Target close |
 | --- | --- | --- | --- |
-| `PSL/Conservation.lean:42` | `transfer_balance_delta_sums_to_zero` | The conservation result other theorems unfold to. Without this the entire conservation chain is hand-waved. | 2026-06-15 |
-| `PSL/Conservation.lean:60` | `transfer_conserves` | Auditor-facing claim that transfers preserve total supply per asset. Closes immediately once the helper above closes. | 2026-06-15 |
+| `PSL/Conservation.lean:30` (sorry at :42) | `transfer_balance_delta_sums_to_zero` | The conservation result other theorems unfold to. Without this the entire conservation chain is hand-waved. | 2026-06-15 |
+| `PSL/Conservation.lean:54` (sorry at :60) | `transfer_conserves` | Auditor-facing claim that transfers preserve total supply per asset. Closes immediately once the helper above closes. | 2026-06-15 |
 | `PSL/Conservation.lean` | `freeze_conserves` | freeze must not change any balance — a regulator would expect this. | 2026-06-22 |
 | `PSL/Conservation.lean` | `supply_changes_only_via_authority` | The compliance-facing invariant that mint/burn are the only supply-altering operations. | 2026-07-01 |
-| `PSL/MPT.lean:58` | `inclusion_proof_sound` | Phone-side balance verification soundness. Currently conditioned on `hash_collision_resistant` axiom (fine); the verifier-folding step itself is unproven. | 2026-07-15 |
+| `PSL/MPT.lean:49` (sorry at :58) | `inclusion_proof_sound` | Phone-side balance verification soundness. Currently conditioned on `hash_collision_resistant` axiom (fine); the verifier-folding step itself is unproven. | 2026-07-15 |
 
 Notes:
 - **Determinism** theorems (`PSL/Determinism.lean`) are by-construction

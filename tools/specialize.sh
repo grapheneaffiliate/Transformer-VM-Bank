@@ -9,7 +9,14 @@
 set -euo pipefail
 
 if [[ -z "${TRANSFORMER_VM_PATH:-}" ]]; then
+    # Dev workstation default. Set TRANSFORMER_VM_PATH explicitly on any
+    # other machine — see REPRODUCE.md.
     TRANSFORMER_VM_PATH="/mnt/c/Users/atchi/Transformer-VM"
+fi
+if [[ ! -d "$TRANSFORMER_VM_PATH" ]]; then
+    echo "ERROR: TRANSFORMER_VM_PATH=$TRANSFORMER_VM_PATH does not exist" >&2
+    echo "  Set it to your local Transformer-VM checkout (see REPRODUCE.md)." >&2
+    exit 1
 fi
 
 PSL_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

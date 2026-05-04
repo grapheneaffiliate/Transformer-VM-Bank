@@ -11,25 +11,24 @@
 set -euo pipefail
 
 if [[ -z "${TRANSFORMER_VM_PATH:-}" ]]; then
+    # Dev workstation default. Set TRANSFORMER_VM_PATH explicitly on any
+    # other machine — see REPRODUCE.md.
     TRANSFORMER_VM_PATH="/mnt/c/Users/atchi/Transformer-VM"
 fi
 
 if [[ ! -d "$TRANSFORMER_VM_PATH" ]]; then
     echo "ERROR: TRANSFORMER_VM_PATH=$TRANSFORMER_VM_PATH does not exist" >&2
+    echo "  Set it to your local Transformer-VM checkout (see REPRODUCE.md)." >&2
     exit 1
 fi
 
+# CLANG_PATH always goes through our dispatcher. The dispatcher itself
+# handles Linux-native vs WSL fallback (see tools/clang-wsl-wrapper.sh).
 if [[ -z "${CLANG_PATH:-}" ]]; then
     PSL_ROOT_FOR_WRAPPER="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-    WRAPPER="$PSL_ROOT_FOR_WRAPPER/tools/clang-wsl-wrapper.sh"
-    if [[ -x "$WRAPPER" ]]; then
-        # On WSL, Python's subprocess bypasses interop path translation; the
-        # wrapper rewrites /mnt/c/... → C:\... before forwarding to clang.exe.
-        export CLANG_PATH="$WRAPPER"
-    elif [[ -x "/mnt/c/Users/atchi/wasi-sdk/bin/clang.exe" ]]; then
-        export CLANG_PATH="/mnt/c/Users/atchi/wasi-sdk/bin/clang.exe"
-    else
-        echo "WARNING: CLANG_PATH not set and default not found" >&2
+    DISPATCHER="$PSL_ROOT_FOR_WRAPPER/tools/clang-wsl-wrapper.sh"
+    if [[ -x "$DISPATCHER" ]]; then
+        export CLANG_PATH="$DISPATCHER"
     fi
 fi
 
