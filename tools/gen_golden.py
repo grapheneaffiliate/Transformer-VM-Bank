@@ -3,7 +3,7 @@
 Transformer-VM Python runner (StandardKVCache, no hull cache).
 
 Usage:
-    /mnt/c/Users/atchi/Transformer-VM/.venv/bin/python tools/gen_golden.py freeze_setup freeze_apply
+    "$TRANSFORMER_VM_PATH/.venv/bin/python" tools/gen_golden.py freeze_setup freeze_apply
 
 Writes one line of space-joined predicted tokens per primitive.
 """
@@ -12,13 +12,14 @@ import os
 import sys
 import time
 
-sys.path.insert(0, "/mnt/c/Users/atchi/Transformer-VM")
+TVM = os.environ.get("TRANSFORMER_VM_PATH", os.path.expanduser("~/Transformer-VM"))
+sys.path.insert(0, TVM)
 
 import torch
 from transformer_vm.attention import StandardKVCache
 from transformer_vm.model.weights import load_weights
 
-REPO = "/mnt/c/Users/atchi/Transformer_VM_Bank"
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def gen_one(name: str) -> None:

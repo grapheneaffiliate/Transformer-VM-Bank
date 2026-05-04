@@ -1,40 +1,34 @@
 # Percepta Settlement Layer (PSL)
 
-A deterministic financial ledger whose execution layer is bit-exactly
-re-expressible as a transformer trace, paired with a Sparse Merkle Tree
-state commitment for offline-verifiable balances. Two operating modes share
-the same execution layer: **sovereign** (single sequencer, ships first) and
-**consortium** (BFT-ordered via ABCI + CometBFT, v2 swap-in).
+A deterministic financial ledger where state transitions are **bit-exactly
+re-executable as transformer traces** — anyone holding the analytical
+transformer weights and a Merkle-Patricia Trie state root can independently
+verify any block. Two operating modes share the same execution layer:
+**sovereign** (single sequencer, ships first) and **consortium** (BFT-ordered
+via ABCI + CometBFT, v2 swap-in). Settlement rails for tokenized USD, CBDC,
+gold, and treasuries; mobile light-client; ed25519 + BLAKE3 native crypto.
 
-The execution-layer primitives (transfer, mint, burn, freeze, multi-asset
-transfer, record emission) are written in a constrained C dialect, compiled
-to WASM, then compiled through the existing Transformer-VM at
-`/mnt/c/Users/atchi/Transformer-VM/` to produce analytical transformer
-weights. Anyone with the weights and a state commitment can verify any
-block's state delta by re-running the transformer.
+## Status
 
-## Status — gates 1-7 cleared, gate 8 first pass
+| Gate | Description | Status | Result | Commit |
+| --- | --- | --- | --- | --- |
+| **1** | Primitive bit-exact (10k vectors each) | ✅ | All 7 active primitives 10000/10000 | `9c50e3d` |
+| **2** | SMT / crypto determinism | ✅ | 22/22 (`cargo test -p crypto`) | `93bae87` |
+| **3** | Lean lake build | ✅ | Compiles against mathlib v4.12.0; 3 sorrys with target dates 2026-06-15 / 2026-07-15 | `113c11b` |
+| **4** | Sequencer + 3 followers, 100 blocks mixed traffic | ✅ | All 4 state roots agree at every block; mutation detected | `93bae87` |
+| **5** | Compliance enforcement | ✅ | 9/9 — travel-rule × 3, freeze authority × 4, view-key proofs × 2 | `b157f2f` |
+| **6** | Light-client cross-verifies 1000 balances | ✅ | 8/8 — 1000-balance + 6 adversarial (tampered proof / sig / root / chain / signer) | `3d4d3e6` |
+| **7** | End-to-end pilot (register → mint → transfer → burn → verify) | ✅ | Full flow; light-client verifies merchant=50 against the published 4-block chain | `dfc11e6` |
+| **8** | Pure-Rust runner parity (Phase 1.5) | ⚠️ partial | Short primitives (`byte_add` 117 tok, `byte_sub` 402 tok, `mpt_emit` 3678 tok) bit-exact vs Python; gate 8.5 vector sweep 4500/4500 with 0 failures. `freeze_setup` / `freeze_apply` parity at scale is a known limitation — see below. | `b2546e8` |
+| **9** | Consortium swap (ABCI + CometBFT) | ⏸ deferred | Vendor audit done (`docs/CONSENSUS_DECISION.md`); awaits federation triggers | — |
 
-| Gate | Status | Result |
-| --- | --- | --- |
-| 1. Primitive bit-exact (10k vectors each) | ✅ | All 7 active primitives at **10000/10000** |
-| 2. SMT determinism (`cargo test -p crypto`) | ✅ | **22/22** crypto tests pass |
-| 3. Lean lake build | ✅ | Compiles against mathlib v4.12.0; 3 sorrys with target dates 2026-06-15 / 2026-07-15 |
-| 4. Sequencer + 3 followers, 100 blocks mixed traffic | ✅ | All 4 state roots agree at every block; mutation detected |
-| 5. Compliance enforcement (view-keys, travel-rule, freeze-authority) | ✅ | **9/9** — travel-rule × 3, freeze authority × 4, view-key proofs × 2 |
-| 6. Light-client cross-verifies 1000 balances | ✅ | **8/8** — 1000-balance + 6 adversarial (tampered proof / sig / root / chain / signer) |
-| 7. End-to-end pilot (register → mint → transfer → burn → verify) | ✅ | Full flow runs; light-client verifies merchant=50 against the published 4-block chain |
-| 8. Pure-Rust runner parity (Phase 1.5) | 🟡 first pass | Bit-exact on byte_add (117 tok, 9.4× speedup), byte_sub (402 tok, ~11×), mpt_emit (3,678 tok, 3.0×). Larger primitives need ndarray BLAS feature. |
-| 9. Consortium swap (ABCI + CometBFT) | ⏳ | v2 work, gated on production trigger; vendor decision in `docs/CONSENSUS_DECISION.md` |
-
-See `docs/STATUS.md` for per-gate command, output, and commit hash.
+Per-gate command, output, and commit hash: `docs/STATUS.md`.
 
 ## Results — gate 1 trace lengths
 
 The empirical lesson from gate 1: **trace length is the precision-budget
-currency**, not WASM instruction count. Sequential dependencies (carry
-chains, multi-step state) need sub-1k token traces; independent ops can
-fit larger. See `docs/STYLE_GUIDE_v3.md`.
+currency**, not WASM instruction count. Sequential dependencies (carry chains,
+multi-step state) need sub-1k token traces; independent ops can fit larger.
 
 | Primitive | WASM instr | Trace tokens | 10k pass |
 | --- | --- | --- | --- |
@@ -45,116 +39,107 @@ fit larger. See `docs/STYLE_GUIDE_v3.md`.
 | `freeze_setup` (parse 65 → emit 2) | — | 17,566 | 10000/10000 ✓ |
 | `freeze_apply` (toggle bit on binary form) | — | 7,723 | 10000/10000 ✓ |
 | `mpt_emit_record` (64-byte pass-through) | 20 | 3,741 | 10000/10000 ✓ |
+| Transfer end-to-end (chained 4-stage) | — | — | 10000/10000 ✓ |
 
-Composition counts at the sequencer: freeze = 2 trace hashes, transfer = 34,
-mint = 16, burn = 17, multi-asset transfer = N × 34. Each follower
-re-executes every primitive and verifies each output independently.
+Composition counts at the sequencer: freeze = 2 trace hashes per tx,
+transfer = 34, mint = 16, burn = 17, multi-asset transfer = N × 34. Each
+follower re-executes every primitive and verifies each output independently.
 
 ## Components
 
 - **`primitives/`** — C source for transformer-verifiable state-transition
-  primitives. **Style v3** (`docs/STYLE_GUIDE_v3.md`): trace length is
-  the budget; avoid `i32.shr_u` / `<<` patterns that explode under
-  `lower.py` expansion; use additive normalization + `select` instead.
-  Active set: `byte_add_with_carry`, `byte_sub_with_borrow`,
-  `transfer_check`, `transfer_finalize`, `freeze_setup`, `freeze_apply`,
-  `mpt_emit_record`. Older monolithic primitives are in
-  `docs/archive/primitives/`.
-- **`crypto/`** — native Rust (NOT compiled through transformer-VM):
-  ed25519 signature verification, BLAKE3 hashing, **Sparse Merkle Tree**
-  (`crypto/src/smt.rs`) holding the system-wide state root.
+  primitives. Active set:
+  `byte_add_with_carry`, `byte_sub_with_borrow`,
+  `transfer_check`, `transfer_finalize`,
+  `freeze_setup`, `freeze_apply`,
+  `mpt_emit_record`. Style v3 (`docs/STYLE_GUIDE_v3.md`).
+  Older monolithic primitives are in `docs/archive/primitives/`.
+- **`crypto/`** — native Rust (NOT compiled through Transformer-VM):
+  ed25519 signature verification, BLAKE3 hashing, Merkle-Patricia Trie
+  (`crypto/src/mpt.rs`) holding the system-wide state root.
 - **`sequencer/`** — Rust binary, sovereign-mode block producer. Ingests
-  txs, pre-validates sigs and nonces natively, runs the transformer
-  trace per primitive composition, applies deltas to the SMT, signs and
-  publishes block headers. Integration test (`sequencer/tests/integration.rs`)
-  drives sequencer + 3 followers through 100 blocks of mixed traffic.
+  txs, pre-validates sigs and nonces natively, runs the transformer trace
+  per primitive composition, applies deltas to the MPT, signs and publishes
+  block headers.
 - **`consensus/`** — Rust crate, `Consensus` trait with sovereign and
-  ABCI/CometBFT (per `docs/CONSENSUS_DECISION.md`) implementations.
+  ABCI + CometBFT implementations (per `docs/CONSENSUS_DECISION.md`).
 - **`light_client/`** — Rust crate verifying balances against block
-  headers via SMT inclusion proofs. Compiles to iOS / Android via UniFFI.
+  headers via MPT inclusion proofs. Compiles to iOS / Android via UniFFI.
+- **`rust_runner/`** — pure-Rust port of the Transformer-VM specialized-model
+  runner. Bit-exact with the Python reference on short primitives; 2× faster
+  than baseline first pass after the flat-buffer attention rewrite.
 - **`lean/`** — Lean 4 + mathlib formalization of ledger semantics.
-  Theorems: conservation, supply changes only via authorized mint/burn,
-  determinism, MPT inclusion-proof soundness. Build cleared gate 3;
-  three `sorry`s remain on load-bearing theorems (Conservation:42,
-  Conservation:60, MPT:58) with target close dates 2026-06-15 / 2026-07-15.
-- **`tests/`** — bit-exact comparison harness, SMT randomized tests,
-  sequencer integration, compliance.
-- **`pilot/issuer_demo/`** — end-to-end pilot: register issuer, mint an
-  asset, transfer through accounts, burn, light-client-verify every
-  balance.
+- **`pilot/issuer_demo/`** — end-to-end pilot binary.
+
+## Architecture highlights
+
+- **Per-byte decomposition.** A single 16-byte u128 subtract is 16
+  `byte_sub_with_borrow` primitive invocations chained at the sequencer
+  level, each with its own trace-hash. The monolithic in-line equivalent
+  produces an ~8k-token trace and fails ~11% of randomized witnesses at
+  scale; the decomposed version clears 10000/10000 across all 7 primitives.
+- **Trace length as precision budget.** Empirically: <1k tokens for
+  sequential dependencies; larger only for parallelisable ops. The v3
+  style guide encodes the rules (avoid `i32.shr_u` / `<<` patterns that
+  explode under `lower.py` expansion; use additive normalization +
+  `select`).
+- **Pure-Rust runner with zero PyTorch dependency on short primitives.**
+  `rust_runner/` reads the same `.bin` weight format produced by
+  `transformer_vm.model.weights::save_weights`, runs an identical sequential
+  matmul to `transformer.cpp`'s Linux build, and matches Python+MKL bit-for-bit
+  on every primitive whose `ff_out` reduction stays small.
+
+Full design: `docs/ARCHITECTURE.md`. Style rules: `docs/STYLE_GUIDE_v3.md`.
+
+## Build / reproduce
+
+The canonical reproduction guide is **`REPRODUCE.md`**, with a two-tier
+structure:
+
+- **Tier 1 (~35 minutes)**: gates 2-7. Pure Rust + Lean toolchains, no
+  Transformer-VM dependency. Validates SMT/crypto, Lean proofs, sequencer
+  100-block run, compliance, light-client, end-to-end pilot.
+- **Tier 2 (~6 hours)**: adds gate 1 bit-exact 10k-vector sweep across all
+  7 primitives via the C++ engine, plus gate 8 short-primitive parity for
+  the pure-Rust runner.
+
+Pin the Transformer-VM checkout via `TRANSFORMER_VM_PATH` (the codebase no
+longer hard-codes a user-specific filesystem path); the rest of the build is
+portable across machines.
 
 ## Trust boundary
 
-Sigs and hashes are verified by **native code**, not the transformer
-trace. The transformer trace covers state-transition arithmetic only
-(debit, credit, nonce, freeze flag, multi-asset batched transfers).
-Followers verify both layers — see `docs/ARCHITECTURE.md` § 0 for the
-trace-hash contract and trust model.
+Sigs and hashes are verified by **native code**, not the transformer trace.
+The transformer trace covers state-transition arithmetic only (debit, credit,
+nonce, freeze flag, multi-asset batched transfers). Followers verify both
+layers — see `docs/ARCHITECTURE.md` § 0 for the trace-hash contract and
+trust model.
 
-## Architecture: per-byte decomposition
+## Known limitations
 
-PSL's primitives are not the natural-language operations a banker would
-recognize ("transfer A→B amount X"). They are **per-byte sub-operations**
-chained at the sequencer level. A single 16-byte u128 subtract becomes
-16 `byte_sub_with_borrow` primitive invocations, each with its own
-trace-hash, each individually verified by every follower.
+- **Gate 8 long-primitive parity at scale.** `freeze_setup` (17k tokens)
+  and `freeze_apply` (7.7k) drift from PyTorch's reference output by
+  ~1e-14 starting at step 23, localized to `ff_out`'s 66×2162 matmul.
+  The cause is MKL's vectorized reduction order in PyTorch's matmul
+  dispatch; none of 25 SIMD-lane patterns we tried reproduce it bit-for-bit
+  without linking MKL itself. Cross-engine algorithm match still holds
+  against `transformer.cpp`'s Linux build (sequential matmul, same
+  algorithm). Arithmetic correctness on those primitives rests on the
+  original gate 1 C++ sweep at 10000/10000 each. Deferred to a v2 perf
+  milestone (sparse matvec + AVX2 BLAS).
+- **Three Lean `sorry`s** remain in load-bearing theorems
+  (`Conservation.lean:42`, `Conservation.lean:60`, `MPT.lean:58`) within
+  target close dates 2026-06-15 and 2026-07-15. Tracker:
+  `docs/STATUS.md`.
+- **Phase 1.5 Rust runner.** Short primitives are 2× faster than Python
+  via flat-buffer attention; longer primitives (≥7k tokens) are still
+  gated on attention SIMD optimization (matrixmultiply or BLAS linkage).
+- **Consortium mode (gate 9).** Deferred pending production triggers;
+  vendor decision documented.
 
-The reason: a single primitive that does u128 subtraction inline produces
-an ~8k-token trace under the constrained C → WASM → transformer pipeline,
-and accumulates enough precision drift to fail ~11% of randomized
-witnesses at scale. The same logic decomposed into per-byte primitives
-gives 119–404 token traces each, all of which clear 10000/10000.
+## Plan
 
-This is documented in `docs/STYLE_GUIDE_v3.md` (the v3 style guide
-supersedes the v2 advice in `Transformer-VM/transformer_vm/examples/arc_common.h`
-for any primitive operating on multi-byte values), and the empirical
-case study with measurements is in `docs/FINDINGS.md`.
-
-## Build / test
-
-```bash
-# One-time setup
-export TRANSFORMER_VM_PATH=/mnt/c/Users/atchi/Transformer-VM
-uv sync
-cargo build --workspace
-(cd lean && lake build)
-
-# Compile and specialize a primitive (example: freeze decomposition)
-./tools/compile.sh primitives/freeze_setup.c
-./tools/specialize.sh data/freeze_setup.txt
-./tools/compile.sh primitives/freeze_apply.c
-./tools/specialize.sh data/freeze_apply.txt
-
-# Or build everything
-./tools/build_all_primitives.sh
-
-# Bit-exact verification (gate 1)
-uv run pytest tests/test_bit_exact.py -v
-
-# SMT determinism + crypto suite (gate 2)
-cargo test -p crypto
-
-# Lean proofs (gate 3)
-(cd lean && lake build)
-
-# Sequencer end-to-end (gate 4)
-cargo test -p psl-sequencer --test integration
-
-# Compliance (gate 5)
-uv run pytest tests/test_compliance.py -v
-
-# Light-client cross-verification (gate 6)
-cargo test -p light_client
-
-# Pilot (gate 7)
-cargo run --bin issuer_demo -- --full-flow
-```
-
-## Plan / architecture
-
-Architecture lives in `docs/ARCHITECTURE.md` (§ 0 trace contract,
-§ 4 decomposition rule, § 5 primitive contracts, § 6 gate status).
-History: `CHANGELOG.md`. Sub-docs: `docs/STATUS.md` (gate-by-gate
-results), `docs/FINDINGS.md` (empirical lessons), `docs/STYLE_GUIDE_v3.md`
-(v3 trace-length style guide), `docs/CONSENSUS_DECISION.md` (vendor
-audit), `docs/SECURITY.md`, `docs/COMPLIANCE.md`.
+Architecture and design rules live in `docs/ARCHITECTURE.md` and
+`docs/STYLE_GUIDE_v3.md`. Per-gate history, sorry tracker, and command
+recipes in `docs/STATUS.md`. Empirical findings and case studies in
+`docs/FINDINGS.md`.

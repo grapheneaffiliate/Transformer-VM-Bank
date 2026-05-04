@@ -13,7 +13,8 @@ os.environ.setdefault("MKL_DYNAMIC", "FALSE")
 import sys
 import time
 
-sys.path.insert(0, "/mnt/c/Users/atchi/Transformer-VM")
+TVM = os.environ.get("TRANSFORMER_VM_PATH", os.path.expanduser("~/Transformer-VM"))
+sys.path.insert(0, TVM)
 
 import torch
 torch.set_num_threads(1)
@@ -22,7 +23,7 @@ torch.set_num_interop_threads(1)
 from transformer_vm.attention import StandardKVCache
 from transformer_vm.model.weights import load_weights
 
-REPO = "/mnt/c/Users/atchi/Transformer_VM_Bank"
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def gen_one(name: str, suffix: str = ".singlethread") -> None:

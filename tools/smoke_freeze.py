@@ -15,7 +15,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 import os
-TVM = Path(os.environ.get("TRANSFORMER_VM_PATH", "/mnt/c/Users/atchi/Transformer-VM"))
+TVM = Path(os.environ.get("TRANSFORMER_VM_PATH", os.path.expanduser("~/Transformer-VM")))
 
 sys.path.insert(0, str(TVM))
 

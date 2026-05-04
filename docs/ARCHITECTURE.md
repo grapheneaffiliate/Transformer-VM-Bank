@@ -56,6 +56,20 @@ greedy argmax is deterministic given the weights. PSL pins
 potential nondeterminism from the optional `HullKVCache` (whose float-ish
 internals could in principle drift across implementations).
 
+**Cross-engine algorithmic equivalence.** The pure-Rust runner in
+`rust_runner/src/transformer.rs` uses the same sequential `for j: y[i] +=
+W[i,j] * x[j]` matrix-vector reduction as the `#else` branch of `matvec` in
+`Transformer-VM/transformer_vm/model/transformer.cpp` (Linux build, no
+BLAS dispatch). Both produce bit-identical outputs on every primitive
+where the FFN width is small enough that PyTorch's CPU dispatch keeps the
+matmul out of MKL — confirmed empirically on `byte_add_with_carry` (FFN
+52), `byte_sub_with_borrow` (FFN 52), and `mpt_emit_record` (FFN 42). For
+larger FFN widths (`freeze_setup` / `freeze_apply` at 1770 / 2162), PyTorch
+dispatches to Intel MKL's vectorized dgemv whose reduction order is not
+reproducible without linking MKL itself; this is documented in
+`docs/FINDINGS.md` § Gate 8.5. The Rust↔C++ algorithmic equivalence is
+preserved regardless and is the production correctness anchor.
+
 ### 0.4 What the trace does NOT cover
 
 Out of scope for the transformer trace; verified separately by native code:
@@ -83,8 +97,9 @@ exact byte layout.
 
 1. **Crypto outside the trace.** See § 0.4. Single trust surface for state
    transitions; native code carries authorization.
-2. **Repo at `/mnt/c/Users/atchi/Transformer_VM_Bank/`**, depending on
-   Transformer-VM via `$TRANSFORMER_VM_PATH`.
+2. **Repo lives at the user's local checkout**, depending on Transformer-VM
+   via `$TRANSFORMER_VM_PATH` (defaults to `~/Transformer-VM`; see
+   `REPRODUCE.md`).
 3. **PyO3 → Rust runner port is Phase 1.5, not deferred.** Sovereign pilot
    ships on PyO3; no production issuer onboards before the Rust runner exists.
 4. **Lean toolchain set up from scratch** (Transformer-VM has none).

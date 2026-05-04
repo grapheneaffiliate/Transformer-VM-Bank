@@ -14,8 +14,8 @@
 #   Resolution order:
 #     1. $WSL_CLANG_EXE  (legacy)
 #     2. $WASI_CLANG_EXE
-#     3. /mnt/c/Users/atchi/wasi-sdk/bin/clang.exe (default for the dev
-#        WSL workstation this repo was bootstrapped on)
+#     3. error out — set $WASI_CLANG_EXE to your wasi-sdk Windows binary
+#        (e.g. /mnt/c/<user>/wasi-sdk/bin/clang.exe on WSL).
 #
 # Also injects PSL-specific clang flags that disable optimizations known to
 # trigger Transformer-VM WASM-lowering bugs (see docs/FINDINGS.md):
@@ -49,7 +49,7 @@ if [[ -n "$NATIVE_CLANG" ]]; then
 fi
 
 # WSL fallback: rewrite /mnt/c/... paths and call clang.exe.
-WIN_CLANG="${WSL_CLANG_EXE:-${WASI_CLANG_EXE:-/mnt/c/Users/atchi/wasi-sdk/bin/clang.exe}}"
+WIN_CLANG="${WSL_CLANG_EXE:-${WASI_CLANG_EXE:-}}"
 if [[ ! -x "$WIN_CLANG" ]]; then
     echo "ERROR: no WASI clang found." >&2
     echo "  Set WASI_CLANG to a Linux-native wasi-sdk clang, e.g." >&2

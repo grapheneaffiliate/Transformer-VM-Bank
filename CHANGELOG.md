@@ -5,6 +5,30 @@ load-bearing commit on `origin/main`.
 
 ## 2026-05-04
 
+### Gate 8 short-primitive completion + gate 8.5 — `4ffe560` → `b2546e8`
+
+`bin/run_gate1` (the pure-Rust gate-1 vector runner): 5/5 short
+primitives, **4500/4500 random witnesses, 0 failures**.
+
+| Primitive | Vectors | Time | Rate |
+| --- | --- | --- | --- |
+| `byte_add_with_carry` | 1000/1000 | 19.6s | 50.9 vec/s |
+| `byte_sub_with_borrow` | 1000/1000 | 254.2s | 3.9 vec/s |
+| `transfer_finalize` | 1000/1000 | 576.2s | 1.7 vec/s |
+| `transfer_check` | 1000/1000 | 3113.8s | 0.3 vec/s |
+| `mpt_emit_record` | 500/500 | 5512.0s | 0.1 vec/s |
+
+The flat-buffer attention rewrite (`4ffe560`) cut the gate-8 parity test
+wall-clock from 21.6s → 10.4s on the 3 baseline primitives — bit-exact
+preserved because summation order didn't change.
+
+`freeze_setup` / `freeze_apply` parity at scale ruled out without MKL
+linkage. Localized to `ff_out`'s 66×2162 reduction; PyTorch CPU
+dispatches it to Intel MKL's `mkl_blas_avx2_xdgemv_t`, whose vectorized
+reduction order doesn't match a sequential summation. Cross-engine
+algorithm match against `transformer.cpp`'s Linux build still holds.
+Full diagnosis: `docs/FINDINGS.md` § Gate 8.5.
+
 ### Gate 8 first-pass — pure-Rust runner bit-exact on 3 primitives
 
 `cargo test -p psl-rust-runner --test parity --release -- --ignored`: 3/3.

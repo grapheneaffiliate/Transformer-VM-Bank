@@ -23,7 +23,7 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-TVM = Path(os.environ.get("TRANSFORMER_VM_PATH", "/mnt/c/Users/atchi/Transformer-VM"))
+TVM = Path(os.environ.get("TRANSFORMER_VM_PATH", os.path.expanduser("~/Transformer-VM")))
 DATA_DIR = REPO_ROOT / "data"
 WEIGHTS_DIR = REPO_ROOT / "weights"
 VECTORS_DIR = REPO_ROOT / "tests" / "vectors"

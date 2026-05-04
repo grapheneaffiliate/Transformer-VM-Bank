@@ -14,14 +14,15 @@ import os
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("MKL_NUM_THREADS", "1")
 import sys
-sys.path.insert(0, "/mnt/c/Users/atchi/Transformer-VM")
+TVM = os.environ.get("TRANSFORMER_VM_PATH", os.path.expanduser("~/Transformer-VM"))
+sys.path.insert(0, TVM)
 
 import numpy as np
 import torch
 torch.set_num_threads(1)
 from transformer_vm.model.weights import load_weights
 
-REPO = "/mnt/c/Users/atchi/Transformer_VM_Bank"
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 NAME = "freeze_apply"
 
 

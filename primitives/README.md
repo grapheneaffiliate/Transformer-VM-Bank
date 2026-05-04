@@ -2,8 +2,7 @@
 
 These C source files are compiled to WASM, then specialized through the
 existing Transformer-VM toolchain at `$TRANSFORMER_VM_PATH` (default
-`/mnt/c/Users/atchi/Transformer-VM`) to produce per-primitive transformer
-weights. Each primitive's specialized model is bit-exactly equivalent to
+`~/Transformer-VM`) to produce per-primitive transformer weights. Each primitive's specialized model is bit-exactly equivalent to
 running the WASM natively — that equivalence is the entire trust property
 PSL relies on.
 

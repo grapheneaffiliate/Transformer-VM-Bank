@@ -366,3 +366,69 @@ Per the sorry tracker, gate 3's success criterion is "compiles" not
 The mathlib precompiled cache (5134 oleans) downloaded successfully
 via the `lake update` post-hook — total round trip from elan install
 to passing build was about 30 minutes.
+
+## Gate 8.5 — pure-Rust runner vector sweep (2026-05-04)
+
+`cargo run --release --bin run_gate1 -- --primitive <p> --count <n>`
+re-runs the gate-1 random-witness validation using the pure-Rust
+`rust_runner/`, eliminating the Python+PyTorch dependency on the short
+primitives. **5/5 short primitives, 4500/4500 vectors, 0 failures.**
+
+| Primitive | Vectors | Time | Rate |
+| --- | --- | --- | --- |
+| `byte_add_with_carry` | 1000/1000 | 19.6s | 50.9 vec/s |
+| `byte_sub_with_borrow` | 1000/1000 | 254.2s | 3.9 vec/s |
+| `transfer_finalize` | 1000/1000 | 576.2s | 1.7 vec/s |
+| `transfer_check` | 1000/1000 | 3113.8s | 0.3 vec/s |
+| `mpt_emit_record` | 500/500 | 5512.0s | 0.1 vec/s |
+
+Logs preserved in `docs/gate85_logs/`. The Rust runner load-tests the
+full pipeline: input encoding → forward pass → `out(...)` parsing →
+arithmetic ground-truth comparison.
+
+### Long-primitive parity divergence (the load-bearing finding)
+
+`freeze_setup` (17.5k tok) and `freeze_apply` (7.7k tok) are
+**not bit-exact with PyTorch** at scale, even on the unmodified runner
+(verified by reverting and re-testing). Localised via
+`tools/localize_drift.py` — the divergence is exclusively in `ff_out`'s
+66×2162 matmul reduction. PyTorch CPU dispatches that case to **Intel
+MKL's `mkl_blas_avx2_xdgemv_t`**, whose vectorized reduction order does
+not match a sequential summation. Drift is ~1e-14 per step, accumulates,
+and flips an argmax around generation step 5944 of `freeze_apply`.
+
+Single-thread MKL produces the same drift, so it is the algorithm itself,
+not parallelism. We enumerated 25 candidate SIMD-lane patterns
+(`tools/match_mkl_reduction.py`) — none reproduce MKL bit-for-bit; the
+closest, `lane_dot(L=4, tree-horiz)`, drifts at 4.3e-14 vs MKL's output.
+
+**Cross-engine algorithm match still holds.** Both our pure-Rust runner
+and `Transformer-VM/transformer_vm/model/transformer.cpp`'s Linux build
+(the `#else` branch in `matvec`) use a sequential `for j: y[i] += W[i,j]
+* x[j]` reduction. Production correctness on the long primitives rests
+on the original gate-1 C++-engine sweep at 10000/10000 each, not on
+PyTorch+MKL bit-for-bit equivalence.
+
+### Why gate 8.5 was the right framing
+
+The gate-8 first-pass framing ("bit-exact vs Python on every primitive")
+implied PyTorch was a single canonical reference. It isn't — PyTorch's
+output depends on which BLAS it dispatches to, and the dispatch is
+size-dependent. Gate 8.5 reframes the load-bearing claim as
+**arithmetic correctness** on random witnesses, the same property gate 1
+checks through the C++ engine. Bit-exact parity remains a useful
+secondary check on small primitives where both runners take the same
+non-BLAS code path.
+
+### Open performance work
+
+- `freeze_setup` / `freeze_apply` at 10k vectors are infeasible at the
+  current Rust runner speed (~9 days each, single-threaded).
+  C++ engine parity comes from sparse-matvec + AVX2 BLAS in
+  `transformer.cpp`. Future Rust runner work: sparse weight detection
+  + matrixmultiply-backed dense path or BLAS link via build script.
+- The flat-buffer attention rewrite (`4ffe560`) cut baseline parity
+  test wall-clock 21.6s → 10.4s (2×) by eliminating per-step Array1
+  allocations. Bit-exactness preserved because summation order didn't
+  change. Further wins likely from rewriting the FFN ReGLU loop as
+  a pair of matrix multiplies and from a SIMD-aware ff_out.

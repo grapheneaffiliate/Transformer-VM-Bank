@@ -8,7 +8,7 @@ Writes:
                                         per step.
 
 Usage:
-  PYBIN=/mnt/c/Users/atchi/Transformer-VM/.venv/bin/python
+  PYBIN="$TRANSFORMER_VM_PATH/.venv/bin/python"
   OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 $PYBIN tools/dump_logits_python.py
 """
 
@@ -17,7 +17,8 @@ import struct
 import sys
 import time
 
-sys.path.insert(0, "/mnt/c/Users/atchi/Transformer-VM")
+TVM = os.environ.get("TRANSFORMER_VM_PATH", os.path.expanduser("~/Transformer-VM"))
+sys.path.insert(0, TVM)
 
 import torch
 import torch.nn.functional as F
@@ -26,7 +27,7 @@ from transformer_vm.attention import StandardKVCache
 from transformer_vm.model.weights import load_weights
 from transformer_vm.model.transformer import add_position_encoding
 
-REPO = "/mnt/c/Users/atchi/Transformer_VM_Bank"
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 NAME = sys.argv[1] if len(sys.argv) > 1 else "freeze_apply"
 MAX_GEN = int(sys.argv[2]) if len(sys.argv) > 2 else 200  # cap to keep file small for diff
 

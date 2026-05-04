@@ -11,9 +11,10 @@
 set -euo pipefail
 
 if [[ -z "${TRANSFORMER_VM_PATH:-}" ]]; then
-    # Dev workstation default. Set TRANSFORMER_VM_PATH explicitly on any
-    # other machine — see REPRODUCE.md.
-    TRANSFORMER_VM_PATH="/mnt/c/Users/atchi/Transformer-VM"
+    # Default to ~/Transformer-VM if env var unset. Set TRANSFORMER_VM_PATH
+    # explicitly on any machine where the checkout lives elsewhere — see
+    # REPRODUCE.md.
+    TRANSFORMER_VM_PATH="${HOME}/Transformer-VM"
 fi
 
 if [[ ! -d "$TRANSFORMER_VM_PATH" ]]; then

@@ -44,8 +44,11 @@ async fn main() -> Result<()> {
     let cfg = Config {
         data_dir: "/tmp/psl-pilot/data".into(),
         weights_dir: "/tmp/psl-pilot/weights".into(),
-        transformer_vm_path: std::env::var("TRANSFORMER_VM_PATH")
-            .unwrap_or_else(|_| "/mnt/c/Users/atchi/Transformer-VM".into()),
+        transformer_vm_path: std::env::var("TRANSFORMER_VM_PATH").unwrap_or_else(|_| {
+            std::env::var("HOME")
+                .map(|h| format!("{h}/Transformer-VM"))
+                .unwrap_or_else(|_| "Transformer-VM".into())
+        }),
         rpc_listen: "127.0.0.1:0".into(),
         sequencer_secret: [0xa0u8; 32],
         block_interval_ms: 100,
