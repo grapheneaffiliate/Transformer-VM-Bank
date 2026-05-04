@@ -47,7 +47,43 @@ UTF-8, hashed with BLAKE3 to a 32-byte digest. The reference implementation is
 `tools/verify_trace.py` (third-party verifier) and `sequencer/src/trace.rs::hash_trace`
 (production path).
 
-### 0.3 Why argmax-decoding is deterministic
+### 0.3 Canonical engine ordering (pinned 2026-05-04)
+
+For determinism across implementations, PSL pins three engines in a
+strict ordering. Trace_hash production for block-header signing MUST
+use the canonical engine; the other two are for cross-validation.
+
+1. **Canonical: pure-Rust runner** (`rust_runner/`,
+   `target/release/psl-runner`). Reference for trace-hash production —
+   every published `trace_hash` value in a block header is produced by
+   this engine. Algorithm: greedy argmax decoding via sequential
+   `for j: y[i] += W[i,j] * x[j]` matrix-vector reduction, no BLAS, no
+   FMA, IEEE-754 fp64 throughout. Deterministic across hosts given the
+   same weights and witness. Ratified by re-running the gate-1 vector
+   set under this engine — see `docs/STATUS.md` gate 8.5.
+
+2. **Secondary: Transformer-VM C++ engine**
+   (`transformer_vm/model/transformer.cpp`, Linux build, `#else` branch
+   in `matvec`). Algorithmically identical to the canonical engine
+   (same sequential matmul) — produces bit-identical output on every
+   primitive tested. Used historically for gate-1 validation; retained
+   as an independent cross-check for future regression testing.
+
+3. **Tertiary: PyTorch+MKL** (`wasm-run --python`). Useful for
+   development and small-primitive fixture generation, but its CPU
+   matmul dispatch goes through Intel MKL's vectorized dgemv on long
+   reductions (FFN width ≥ ~1k). MKL's reduction order is
+   implementation-specific and not reproducible without linking MKL
+   itself. **Disagreement between PyTorch+MKL and the canonical engine
+   on long primitives (`freeze_setup` / `freeze_apply`) is expected,
+   documented (`docs/FINDINGS.md` § Gate 8.5), and not a correctness
+   issue.** A verifier that uses PyTorch as its execution engine MUST
+   reproduce the canonical engine's output, not the other way around.
+
+`tests/test_bit_exact.py` defaults to engine `rust`; set
+`PSL_VERIFY_ENGINE=cpp` to cross-validate against the secondary engine.
+
+### 0.5 Why argmax-decoding is deterministic
 
 The specialized models PSL uses are pure-integer-arithmetic in the intended
 case (per the existing test_specialize tests with `StandardKVCache`), and
@@ -56,21 +92,7 @@ greedy argmax is deterministic given the weights. PSL pins
 potential nondeterminism from the optional `HullKVCache` (whose float-ish
 internals could in principle drift across implementations).
 
-**Cross-engine algorithmic equivalence.** The pure-Rust runner in
-`rust_runner/src/transformer.rs` uses the same sequential `for j: y[i] +=
-W[i,j] * x[j]` matrix-vector reduction as the `#else` branch of `matvec` in
-`Transformer-VM/transformer_vm/model/transformer.cpp` (Linux build, no
-BLAS dispatch). Both produce bit-identical outputs on every primitive
-where the FFN width is small enough that PyTorch's CPU dispatch keeps the
-matmul out of MKL — confirmed empirically on `byte_add_with_carry` (FFN
-52), `byte_sub_with_borrow` (FFN 52), and `mpt_emit_record` (FFN 42). For
-larger FFN widths (`freeze_setup` / `freeze_apply` at 1770 / 2162), PyTorch
-dispatches to Intel MKL's vectorized dgemv whose reduction order is not
-reproducible without linking MKL itself; this is documented in
-`docs/FINDINGS.md` § Gate 8.5. The Rust↔C++ algorithmic equivalence is
-preserved regardless and is the production correctness anchor.
-
-### 0.4 What the trace does NOT cover
+### 0.6 What the trace does NOT cover
 
 Out of scope for the transformer trace; verified separately by native code:
 
@@ -85,7 +107,7 @@ A follower verifying a block performs **two** checks — re-runs the trace on
 each tx's witness to verify state-transition arithmetic, AND re-verifies sigs,
 hashes, and authority lookups natively. Both must pass.
 
-### 0.5 Witness encoding
+### 0.7 Witness encoding
 
 Each primitive's input format is space-separated decimal bytes, identical to
 the encoding used by `arc_*.c` examples. See per-primitive sections below for

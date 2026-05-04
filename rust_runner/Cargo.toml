@@ -24,6 +24,7 @@ ndarray = "0.15"
 half = "2.4"
 byteorder = "1.5"
 clap = { version = "4.5", features = ["derive"] }
+rayon = "1.10"
 
 [dev-dependencies]
 rand.workspace = true

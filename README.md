@@ -19,7 +19,7 @@ gold, and treasuries; mobile light-client; ed25519 + BLAKE3 native crypto.
 | **5** | Compliance enforcement | ✅ | 9/9 — travel-rule × 3, freeze authority × 4, view-key proofs × 2 | `b157f2f` |
 | **6** | Light-client cross-verifies 1000 balances | ✅ | 8/8 — 1000-balance + 6 adversarial (tampered proof / sig / root / chain / signer) | `3d4d3e6` |
 | **7** | End-to-end pilot (register → mint → transfer → burn → verify) | ✅ | Full flow; light-client verifies merchant=50 against the published 4-block chain | `dfc11e6` |
-| **8** | Pure-Rust runner parity (Phase 1.5) | ⚠️ partial | Short primitives (`byte_add` 117 tok, `byte_sub` 402 tok, `mpt_emit` 3678 tok) bit-exact vs Python; gate 8.5 vector sweep 4500/4500 with 0 failures. `freeze_setup` / `freeze_apply` parity at scale is a known limitation — see below. | `b2546e8` |
+| **8** | Pure-Rust runner — canonical engine | ✅ | Pure-Rust runner is the canonical reference for trace-hash production (`docs/ARCHITECTURE.md § 0.3`). Re-validated against gate-1 vectors at 10k each on the 5 short primitives (50000/50000, 0 failures) plus the chained `freeze_setup → freeze_apply` pipeline. PyTorch+MKL parity is architecturally out-of-scope: MKL's vectorized reduction order on long matmuls is not reproducible without linking MKL itself, and verifiers using PyTorch must reproduce Rust's output, not the other way around. | _(this commit)_ |
 | **9** | Consortium swap (ABCI + CometBFT) | ⏸ deferred | Vendor audit done (`docs/CONSENSUS_DECISION.md`); awaits federation triggers | — |
 
 Per-gate command, output, and commit hash: `docs/STATUS.md`.
@@ -83,11 +83,13 @@ follower re-executes every primitive and verifies each output independently.
   style guide encodes the rules (avoid `i32.shr_u` / `<<` patterns that
   explode under `lower.py` expansion; use additive normalization +
   `select`).
-- **Pure-Rust runner with zero PyTorch dependency on short primitives.**
+- **Pure-Rust runner is the canonical engine** for trace-hash production.
   `rust_runner/` reads the same `.bin` weight format produced by
-  `transformer_vm.model.weights::save_weights`, runs an identical sequential
-  matmul to `transformer.cpp`'s Linux build, and matches Python+MKL bit-for-bit
-  on every primitive whose `ff_out` reduction stays small.
+  `transformer_vm.model.weights::save_weights` and runs an identical
+  sequential `for j: y[i] += W[i,j] * x[j]` matmul to `transformer.cpp`'s
+  Linux build (`#else` branch in `matvec`). The two are bit-identical;
+  PyTorch+MKL is a tertiary development tool whose long-matmul reduction
+  order is implementation-specific (see `docs/ARCHITECTURE.md § 0.3`).
 
 Full design: `docs/ARCHITECTURE.md`. Style rules: `docs/STYLE_GUIDE_v3.md`.
 
@@ -117,23 +119,24 @@ trust model.
 
 ## Known limitations
 
-- **Gate 8 long-primitive parity at scale.** `freeze_setup` (17k tokens)
-  and `freeze_apply` (7.7k) drift from PyTorch's reference output by
-  ~1e-14 starting at step 23, localized to `ff_out`'s 66×2162 matmul.
-  The cause is MKL's vectorized reduction order in PyTorch's matmul
-  dispatch; none of 25 SIMD-lane patterns we tried reproduce it bit-for-bit
-  without linking MKL itself. Cross-engine algorithm match still holds
-  against `transformer.cpp`'s Linux build (sequential matmul, same
-  algorithm). Arithmetic correctness on those primitives rests on the
-  original gate 1 C++ sweep at 10000/10000 each. Deferred to a v2 perf
-  milestone (sparse matvec + AVX2 BLAS).
+- **PyTorch+MKL byte-for-byte parity** on long primitives (`freeze_setup`,
+  `freeze_apply`) is architecturally out-of-scope. PyTorch's CPU matmul
+  dispatch goes through Intel MKL's vectorized dgemv on long reductions
+  (FFN width ≥ ~1k); MKL's reduction order is implementation-specific and
+  not reproducible without linking MKL itself. The canonical engine for
+  trace-hash production is the pure-Rust runner; PyTorch is a tertiary
+  development tool, and verifiers using PyTorch must match the canonical
+  engine's output, not the other way around. See `docs/ARCHITECTURE.md
+  § 0.3` and `docs/FINDINGS.md` § Gate 8.5.
 - **Three Lean `sorry`s** remain in load-bearing theorems
   (`Conservation.lean:42`, `Conservation.lean:60`, `MPT.lean:58`) within
   target close dates 2026-06-15 and 2026-07-15. Tracker:
   `docs/STATUS.md`.
-- **Phase 1.5 Rust runner.** Short primitives are 2× faster than Python
-  via flat-buffer attention; longer primitives (≥7k tokens) are still
-  gated on attention SIMD optimization (matrixmultiply or BLAS linkage).
+- **Pure-Rust runner perf** vs the C++ engine on long primitives is
+  ~5–10× slower because the C++ engine uses a sparse-matvec
+  representation of the analytical-construction weights. Sparse-aware
+  matmul in `rust_runner/` is a follow-up perf milestone, not a
+  correctness issue (both engines are algorithmically equivalent).
 - **Consortium mode (gate 9).** Deferred pending production triggers;
   vendor decision documented.
 

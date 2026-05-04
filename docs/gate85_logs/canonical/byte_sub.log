@@ -1,0 +1,5 @@
+[gate-1-rust] primitive=byte_sub count=10000 threads=8
+[gate-1-rust] vocab=871 d_model=48 n_layers=6 ffn=[9, 6, 286, 42, 32, 25]
+  [ 1000/10000] 1000 ok / 0 fail  (19.73/s, ETA 456s)
+  [ 2000/10000] 2000 ok / 0 fail  (20.11/s, ETA 398s)
+  [ 3000/10000] 3000 ok / 0 fail  (19.73/s, ETA 355s)

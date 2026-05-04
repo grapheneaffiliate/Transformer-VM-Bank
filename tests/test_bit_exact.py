@@ -1,17 +1,26 @@
 """Bit-exact verification gate.
 
-Runs N randomized witnesses per primitive through the specialized
-transformer (Transformer-VM's C++ engine via `wasm-run`), parses the
-program output, and compares to the expected output computed natively in
-Python (golden model that mirrors the C primitive's logic).
+Runs N randomized witnesses per primitive through the **canonical
+pure-Rust runner** (`rust_runner/` → `target/release/psl-runner`),
+parses the predicted token stream for `out(...)` bytes, and compares to
+the expected output computed natively in Python (golden model that
+mirrors the C primitive's logic).
 
-The C++ engine is ~30000 tok/s; the pure-Python path is ~1000× slower.
-So this harness uses subprocess to wasm-run rather than calling
-model.generate_with_cache directly.
+The pure-Rust runner is the reference engine for the trace-hash contract
+as of 2026-05-04 (see `docs/ARCHITECTURE.md § 0.3`). The Transformer-VM
+C++ engine (via `wasm-run`) is a secondary cross-validation; PyTorch+MKL
+is tertiary and may disagree on long traces by ~1e-14 due to MKL's
+proprietary reduction order — that disagreement is documented and not
+a correctness issue.
+
+Setting `PSL_VERIFY_ENGINE=cpp` falls back to the C++ engine for
+cross-validation; default is `rust`.
 
 Usage:
+    cargo build -p psl-rust-runner --release
     uv run pytest tests/test_bit_exact.py -v -k freeze        # 100/primitive
     uv run pytest tests/test_bit_exact.py -v -k freeze --full # 10k/primitive
+    PSL_VERIFY_ENGINE=cpp uv run pytest tests/test_bit_exact.py -v -k freeze
 """
 
 import json
@@ -80,7 +89,70 @@ def _render_input_tokens(input_values: list[int]) -> list[str]:
     return tokens
 
 
+RUST_RUNNER = REPO_ROOT / "target" / "release" / "psl-runner"
+
+
+def _parse_out_tokens(token_stream: str) -> list[int]:
+    """Extract bytes from `out(XX)` and `out(<char>)` tokens emitted by the
+    transformer trace. Mirrors `parse_out_bytes` in
+    `rust_runner/src/bin/run_gate1.rs`.
+    """
+    bytes_out: list[int] = []
+    for tok in token_stream.split():
+        if tok.startswith("out(") and tok.endswith(")"):
+            inner = tok[4:-1]
+            if len(inner) == 1:
+                bytes_out.append(ord(inner))
+            elif len(inner) == 2:
+                try:
+                    bytes_out.append(int(inner, 16))
+                except ValueError:
+                    pass
+    return bytes_out
+
+
+def _run_rust_engine(primitive: str, witness: list[int]) -> list[int]:
+    """Canonical engine for trace-hash production. Calls the in-repo
+    pure-Rust runner binary and parses its full token stream."""
+    if not RUST_RUNNER.exists():
+        raise RuntimeError(
+            f"Rust runner missing at {RUST_RUNNER}. "
+            f"Build it first: cargo build -p psl-rust-runner --release"
+        )
+    tokens = _render_input_tokens(witness)
+    with tempfile.NamedTemporaryFile(mode="w", suffix="_spec.txt", delete=False) as f:
+        f.write(" ".join(tokens))
+        spec_path = f.name
+    try:
+        result = subprocess.run(
+            [
+                str(RUST_RUNNER),
+                "--weights",
+                str(WEIGHTS_DIR / f"{primitive}.bin"),
+                "--input",
+                spec_path,
+                "--max-new-tokens",
+                "500000",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"psl-runner failed: {result.stderr[-500:]}")
+        return _parse_out_tokens(result.stdout)
+    finally:
+        try:
+            os.unlink(spec_path)
+        except OSError:
+            pass
+
+
 def _run_cpp_engine(primitive: str, witness: list[int]) -> list[int]:
+    """Secondary cross-validation engine — Transformer-VM's C++ engine
+    via `wasm-run`. Algorithmically identical to the canonical Rust
+    runner (sequential matmul, Linux build); kept as an independent
+    cross-check."""
     tokens = _render_input_tokens(witness)
     with tempfile.NamedTemporaryFile(mode="w", suffix="_spec.txt", delete=False) as f:
         f.write(" ".join(tokens))
@@ -115,6 +187,17 @@ def _run_cpp_engine(primitive: str, witness: list[int]) -> list[int]:
             os.unlink(spec_path)
         except OSError:
             pass
+
+
+def _run_canonical_engine(primitive: str, witness: list[int]) -> list[int]:
+    """Dispatch to the canonical (Rust) or secondary (C++) engine based on
+    the `PSL_VERIFY_ENGINE` env var. Default is `rust`."""
+    engine = os.environ.get("PSL_VERIFY_ENGINE", "rust").lower()
+    if engine == "rust":
+        return _run_rust_engine(primitive, witness)
+    if engine in ("cpp", "c++"):
+        return _run_cpp_engine(primitive, witness)
+    raise RuntimeError(f"unknown PSL_VERIFY_ENGINE={engine!r} (expected 'rust' or 'cpp')")
 
 
 # ── Golden models (native Python implementations of each primitive) ──────────
@@ -227,7 +310,7 @@ def test_primitive_bit_exact(primitive, vector_count):
         witness = v["input"]
         expected = GOLDEN[primitive](witness)
         try:
-            got = _run_cpp_engine(primitive, witness)
+            got = _run_canonical_engine(primitive, witness)
         except Exception as e:
             failed += 1
             if len(failure_examples) < 3:

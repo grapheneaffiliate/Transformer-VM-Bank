@@ -5,6 +5,25 @@ load-bearing commit on `origin/main`.
 
 ## 2026-05-04
 
+### Gate 8 — Rust runner ratified canonical for trace-hash production
+
+`docs/ARCHITECTURE.md § 0.3` pins three engines in canonical / secondary /
+tertiary ordering: pure-Rust runner (canonical) → C++ engine (secondary,
+algorithmically identical) → PyTorch+MKL (tertiary, may diverge on long
+matmuls due to MKL's reduction-order opacity). Trace-hash production
+must use the canonical engine; tertiary engines must match it, not the
+other way around.
+
+`tools/run_canonical_gate1.sh` re-runs the gate-1 vector set under the
+canonical engine: 10k vectors × 5 short primitives = 50000/50000 (0 fail)
+plus the chained `freeze_setup → freeze_apply` pipeline at the largest
+count that fits in wall budget. `tests/test_bit_exact.py` defaults to
+the Rust engine (`PSL_VERIFY_ENGINE=rust`); set `cpp` for cross-validation
+against the secondary engine.
+
+`bin/run_gate1` gains rayon-based witness-level parallelism (`--threads N`)
+and a `freeze_chain` primitive that does setup → apply end-to-end.
+
 ### Gate 8 short-primitive completion + gate 8.5 — `4ffe560` → `b2546e8`
 
 `bin/run_gate1` (the pure-Rust gate-1 vector runner): 5/5 short

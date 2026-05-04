@@ -1,0 +1,16 @@
+[gate-1-rust] primitive=byte_add count=10000 threads=8
+[gate-1-rust] vocab=868 d_model=40 n_layers=6 ffn=[7, 6, 52, 29, 24, 30]
+  [ 1000/10000] 1000 ok / 0 fail  (250.70/s, ETA 36s)
+  [ 2000/10000] 2000 ok / 0 fail  (251.69/s, ETA 32s)
+  [ 3000/10000] 3000 ok / 0 fail  (251.52/s, ETA 28s)
+  [ 4000/10000] 4000 ok / 0 fail  (258.65/s, ETA 23s)
+  [ 5000/10000] 5000 ok / 0 fail  (260.13/s, ETA 19s)
+  [ 6000/10000] 6000 ok / 0 fail  (257.83/s, ETA 16s)
+  [ 7000/10000] 7000 ok / 0 fail  (259.25/s, ETA 12s)
+  [ 8000/10000] 8000 ok / 0 fail  (260.22/s, ETA 8s)
+  [ 9000/10000] 9000 ok / 0 fail  (261.96/s, ETA 4s)
+  [10000/10000] 10000 ok / 0 fail  (264.09/s, ETA 0s)
+
+=== byte_add summary ===
+  pass: 10000/10000    fail: 0
+  time: 37.9s    rate: 264.08/s
