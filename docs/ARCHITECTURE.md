@@ -1,10 +1,9 @@
 # PSL Architecture (living doc)
 
-This is the executable spec for the Percepta Settlement Layer. It mirrors the
-approved plan at `/home/username/.claude/plans/cheeky-wandering-treehouse.md`
-and adds the per-component contracts the implementation must satisfy. **The
-contracts in this document are normative.** If implementation drifts, this doc
-is the authority unless explicitly amended in a tagged commit.
+This is the executable spec for the Percepta Settlement Layer. It captures
+the per-component contracts the implementation must satisfy. **The contracts
+in this document are normative.** If implementation drifts, this doc is the
+authority unless explicitly amended in a tagged commit.
 
 ---
 
@@ -97,9 +96,9 @@ exact byte layout.
 | ID | Item | Status |
 | --- | --- | --- |
 | P0 | Pin trace-hash contract (this § 0) | ✅ done 2026-05-03 |
-| P1 | malachitebft-rs maturity audit | ⏳ in flight |
+| P1 | malachitebft-rs maturity audit (`docs/CONSENSUS_DECISION.md`) | ✅ defer; ABCI + CometBFT for MVP |
 | P2 | Repo + remote backup | ✅ done 2026-05-03 |
-| P3 | Port arc_common.h, write ledger_freeze.c | ⏳ next |
+| P3 | Port arc_common.h + active primitive set | ✅ done; gate 1 cleared 2026-05-04 |
 
 ---
 
@@ -121,22 +120,46 @@ Each transformer-trace primitive operates on a *witness slice* — the affected
 accounts only — to stay under the 2000-WASM-instruction precision budget. The
 sequencer assembles witnesses from the live Merkle-Patricia trie.
 
-## 4. Primitive design rule (gate-1 lesson)
+## 4. Primitive design rule (gate-1 lesson, ratified 2026-05-04)
 
 **Trace length is the precision-budget currency.** The 2000-WASM-instruction
 budget in the v2 style guide is a proxy that fails on primitives with
-sequential data dependencies. The real rule:
+sequential data dependencies. The real rule (full treatment in
+`docs/STYLE_GUIDE_v3.md`):
 
-- **Independent ops** (parse, byte-stream emit): can fit ~50k-token traces.
+- **Independent ops** (parse, byte-stream emit): can fit ~30k-token traces.
 - **Sequential ops** (carry chains, hash rounds, anything where step N
   depends on step N-1): target **sub-1k token traces** per primitive.
   Decompose so each step is one cycle of the dependency.
 
-Composition: the sequencer threads outputs through chained primitives,
-producing N trace hashes per logical transaction. Followers re-execute all
-N primitives independently and verify each output matches the chained
-expectation. The per-tx cost is N hashes in the block, not N traces in
-the witness — followers re-derive intermediate values.
+The dominant trace-length killer is `lower.py`'s `_expand_shr_u` /
+`_expand_shr_s` rewrites — clang at -O2 frequently emits `i32.shr_u 31`
+to extract a sign bit, and each shift expands to ~50–100 WASM ops in
+PSL's reduced ISA. **Avoid `>>` and `<<` on multi-byte intermediate
+values; use additive normalization + `select` instead.** See
+`docs/STYLE_GUIDE_v3.md` for the rewrite recipe and `docs/UPSTREAM_BUG_lower_py_runtime_or.md`
+for the related runtime-OR bug.
+
+### 4.1 Composition counts
+
+The sequencer threads outputs through chained primitives, producing N
+trace hashes per logical transaction. Followers re-execute all N primitives
+independently and verify each output. Per-tx hash counts (committed in
+`sequencer/src/trace.rs::expected_trace_hash_count`):
+
+| Tx kind | Composition | Trace hashes |
+| --- | --- | --- |
+| `Freeze` | `freeze_setup` + `freeze_apply` | **2** |
+| `Transfer` | `transfer_check` + 16× `byte_sub_with_borrow` + 16× `byte_add_with_carry` + `transfer_finalize` | **34** |
+| `Mint` | 16× `byte_add_with_carry` | **16** |
+| `Burn` | `transfer_check` + 16× `byte_sub_with_borrow` | **17** |
+| `MultiAsset` (N recipients) | N × Transfer composition | **N × 34** |
+
+The block header commits to the BLAKE3-of-concatenated trace hashes; each
+follower re-derives every intermediate value by chaining the same
+primitives in the same order.
+
+### 4.2 Measurement is mandatory
 
 For each new primitive: **measure trace length on a representative witness
 before declaring it complete.** `wasm-run`'s `RAN N tok` field is the
@@ -262,15 +285,19 @@ re-derive `witness_post` from `witness_pre + tx` via the trace and assert
 
 ## 6. Verification gates (in order)
 
-1. **Primitive bit-exact** — 10k vectors per primitive, native vs. specialized. Pass = 10k/10k.
-2. **MPT determinism** — 100k randomized put operations; identical roots regardless of insertion order of independent keys.
-3. **Lean proofs build** — `lake build` succeeds, zero `sorry` in conservation, supply, determinism, MPT theorems.
-4. **Sovereign sequencer end-to-end** — sequencer + 3 followers, 100 blocks of mixed traffic, all state roots agree. Adversarial mutation detected.
-5. **Compliance enforcement** — view-keys, travel-rule, freeze-authority all behave per spec.
-6. **Light client cross-verifies** — 1000 random balance proofs verified; tampered proofs/headers rejected.
-7. **End-to-end pilot** — `pilot/issuer_demo --full-flow` completes register → mint → transfer → burn → verify with light-client confirmation.
-8. **Pure-Rust runner parity (Phase 1.5)** — Rust runner bit-exact-identical to Python runner on the gate-1 vectors; ≥10× throughput.
-9. **Consortium swap** — replace sovereign block production with BFT (per the P1 audit), 4-node test cluster passes liveness + consistency under one-node failure.
+| # | Gate | State |
+| --- | --- | --- |
+| 1 | Primitive bit-exact (10k/primitive, native vs. specialized) | ✅ all 7 active primitives at 10000/10000 |
+| 2 | SMT determinism (`cargo test -p crypto`) | ✅ 22/22 |
+| 3 | Lean lake build | ✅ compiles; 3 sorrys remain (Conservation:42/60, MPT:58) within target dates |
+| 4 | Sovereign sequencer + 3 followers, 100 blocks | ✅ all roots match every block; mutation detected |
+| 5 | Compliance enforcement (view-keys, travel-rule, freeze-authority) | ⏳ |
+| 6 | Light client cross-verifies 1000 balances | ⏳ |
+| 7 | End-to-end pilot (register → mint → transfer → burn → verify) | ⏳ |
+| 8 | Pure-Rust runner parity (Phase 1.5) | ⏳ port estimate ~1.5 weeks |
+| 9 | Consortium swap (ABCI + CometBFT) | ⏳ v2 work |
+
+Per-gate command, output, and commit hash live in `docs/STATUS.md`.
 
 ---
 

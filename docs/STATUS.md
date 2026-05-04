@@ -1,59 +1,56 @@
 # PSL Build Status
 
-**Honest framing**: scaffolding is complete; verification phase begins. Code
-exists for every layer in the plan, but until gate 1 (10k/10k bit-exact per
-primitive) passes against the real Transformer-VM, every layer above it is
-built on an unverified assumption.
+**Honest framing**: gates 1-4 cleared. Compliance / light-client / pilot
+gates (5-7) are next. Phase 1.5 work (gate 8: pure-Rust runner) and v2
+consortium-mode swap (gate 9) are scoped but not started.
 
 ## Bootstrap requirements
 
 Before any verification gate can run:
 
-1. **Transformer-VM `.venv` must be synced.** `uv sync` in
+1. **Transformer-VM `.venv` synced.** `uv sync` in
    `/mnt/c/Users/atchi/Transformer-VM/` requires network access to download
    `torch==2.10.0` (~3 GB).
 2. **WASI clang** at `/mnt/c/Users/atchi/wasi-sdk/bin/clang.exe` — confirmed
    present.
 3. **Rust toolchain** — install via `rustup`. `cargo build --workspace`
    then `cargo test --workspace`.
-4. **Lean toolchain** — install `elan`; `lean-toolchain` pin selects v4.12.0.
-   `lake build` from `lean/`.
+4. **Lean toolchain** — `elan` installed at `~/.elan/`. `lean-toolchain`
+   pin selects v4.12.0. `lake build` from `lean/`. Mathlib pulled via
+   precompiled cache (`lake update` triggers `cache get` post-hook).
 5. **Python test deps** — `uv sync` at PSL repo root.
 
 ## Gate status
 
-| Gate | Scaffolded | Run? | Pass? |
+| # | Gate | Command | Result | Commit |
+| --- | --- | --- | --- | --- |
+| P0 | Trace-hash contract pinned | `docs/ARCHITECTURE.md § 0` | ✅ pinned 2026-05-03 | — |
+| P1 | Consensus vendor audit | `docs/CONSENSUS_DECISION.md` | ✅ defer malachite; ABCI + CometBFT for MVP | — |
+| P2 | Repo + remote backup | github.com/grapheneaffiliate/Transformer-VM-Bank | ✅ live | — |
+| **1** | Bit-exact 10k/primitive | `tools/run_per_byte_10k.py` + `run_freeze_decomposed.py` | ✅ 10000/10000 on all 7 active primitives | `9c50e3d` |
+| **2** | SMT determinism | `cargo test -p crypto` | ✅ 22/22 (incl. 100k randomized put + non-inclusion proofs) | `93bae87` |
+| **3** | Lean lake build | `cd lean && lake build` | ✅ compiles against mathlib v4.12.0; 3 sorrys remain (target dates below) | `113c11b` |
+| **4** | Sequencer + 3 followers, 100 blocks | `cargo test -p psl-sequencer --test integration` | ✅ 2/2; all 4 state roots match every block; mutation detected | `93bae87` |
+| 5 | Compliance enforcement | `uv run pytest tests/test_compliance.py -v` | ⏳ | — |
+| 6 | Light client cross-verifies 1000 balances | `cargo test -p light_client` | ⏳ | — |
+| 7 | Pilot end-to-end | `cargo run --bin issuer_demo -- --full-flow` | ⏳ | — |
+| 8 | Pure-Rust runner parity (Phase 1.5) | port runner.py → Rust + bit-exact verify | ⏳ port itself is the work | — |
+| 9 | Consortium swap (ABCI + CometBFT) | 4-node cluster liveness + consistency under failure | ⏳ v2 | — |
+
+## Gate 1 — primitive trace-length results
+
+| Primitive | WASM instr | Trace tokens | 10k pass |
 | --- | --- | --- | --- |
-| P0: trace-hash contract pinned | ✅ ARCHITECTURE.md § 0 | ✅ | pinned |
-| P1: malachite audit | ✅ CONSENSUS_DECISION.md | ✅ | defer; ABCI + CometBFT |
-| P2: repo + remote backup | ✅ | ✅ | live on origin/main |
-| **1: bit-exact (10k/primitive)** | ✅ harness | ⚠️ partial: 1/3 freeze witnesses pass | **see docs/FINDINGS.md — decomposition needed** |
-| 2: MPT determinism | ✅ crypto/tests/randomized.rs | ⏳ blocked on cargo | — |
-| 3: Lean proofs (no `sorry`) | ✅ skeleton | ⏳ blocked on elan | **partial — see Lean tracker below** |
-| 4: sequencer + 3 followers, 100 blocks | ✅ sequencer/tests/integration.rs | ⏳ | — |
-| 5: compliance enforcement | ✅ mempool + compliance.rs | ⏳ | — |
-| 6: light client cross-verifies | ✅ light_client/src/lib.rs test | ⏳ | — |
-| 7: pilot e2e | ✅ pilot/issuer_demo | ⏳ | — |
-| 8: pure-Rust runner parity | ✅ skeleton; **see runner port estimate below** | ⏳ port itself is the work | — |
-| 9: consortium swap | ✅ scaffold per P1 verdict | ⏳ ABCI integration is v2 work | — |
+| `byte_add_with_carry` | 26 | 119 | 10000/10000 ✓ |
+| `byte_sub_with_borrow` | 142 | 404 | 10000/10000 ✓ |
+| `transfer_check` | 86 | 1,624 | 10000/10000 ✓ |
+| `transfer_finalize` | 142 | 656 | 10000/10000 ✓ |
+| `freeze_setup` | — | 17,566 | 10000/10000 ✓ |
+| `freeze_apply` | — | 7,723 | 10000/10000 ✓ |
+| `mpt_emit_record` | 20 | 3,741 | 10000/10000 ✓ |
 
-## Priority order (per architectural review)
-
-1. **Gate 1 first.** Run `./tools/build_all_primitives.sh && uv run pytest
-   tests/test_bit_exact.py` after `uv sync` completes. Order:
-   `ledger_freeze.c` (smallest, ~150 instr) → `ledger_transfer.c`
-   (representative, ~600 instr) → others. If freeze and transfer pass clean,
-   the architecture is validated; if either fails the precision envelope
-   (>2000 WASM instructions for the C source), decompose before continuing.
-
-2. **Lean `sorry` work** — the deepest theorems, not the skeletal models.
-   See tracker below.
-
-3. **rust_runner port estimate** — read `runner.py` + `transformer.py` +
-   `standard_cache.py`, count surface area, set the trigger criteria. See
-   below.
-
----
+Composition: freeze = 2 trace hashes per tx, transfer = 34, mint = 16,
+burn = 17, multi-asset = N × 34.
 
 ## Lean `sorry` tracker
 
@@ -62,22 +59,22 @@ Each open `sorry` in a load-bearing theorem with a target close date.
 
 | File | Theorem | Why it's load-bearing | Target close |
 | --- | --- | --- | --- |
-| `PSL/Conservation.lean` | `transfer_balance_delta_sums_to_zero` | The conservation result other theorems unfold to. Without this the entire conservation chain is hand-waved. | 2026-06-15 |
-| `PSL/Conservation.lean` | `transfer_conserves` | Auditor-facing claim that transfers preserve total supply per asset. | 2026-06-15 (closes immediately once the helper above closes) |
+| `PSL/Conservation.lean:42` | `transfer_balance_delta_sums_to_zero` | The conservation result other theorems unfold to. Without this the entire conservation chain is hand-waved. | 2026-06-15 |
+| `PSL/Conservation.lean:60` | `transfer_conserves` | Auditor-facing claim that transfers preserve total supply per asset. Closes immediately once the helper above closes. | 2026-06-15 |
 | `PSL/Conservation.lean` | `freeze_conserves` | freeze must not change any balance — a regulator would expect this. | 2026-06-22 |
-| `PSL/Conservation.lean` | `supply_changes_only_via_authority` | The compliance-facing invariant that mint/burn are the only supply-altering operations. Currently has placeholder returns that satisfy the type but don't derive contradictions. | 2026-07-01 |
-| `PSL/MPT.lean` | `inclusion_proof_sound` | Phone-side balance verification soundness. Currently conditioned on `hash_collision_resistant` axiom, which is fine, but the verifier-folding step itself is unproven. | 2026-07-15 |
+| `PSL/Conservation.lean` | `supply_changes_only_via_authority` | The compliance-facing invariant that mint/burn are the only supply-altering operations. | 2026-07-01 |
+| `PSL/MPT.lean:58` | `inclusion_proof_sound` | Phone-side balance verification soundness. Currently conditioned on `hash_collision_resistant` axiom (fine); the verifier-folding step itself is unproven. | 2026-07-15 |
 
 Notes:
 - **Determinism** theorems (`PSL/Determinism.lean`) are by-construction
   trivial because Lean functions are deterministic; the operational
   determinism between Lean and C/WASM is checked empirically by gate 1.
-- **MPT.lean** uses `opaque` modeling for hash; that's the standard approach
-  and not a `sorry` problem. The unfinished work is the `verifyProof` body
-  and the soundness theorem's step-folding.
-- The `tools/check_lean_drift.py` checker exists but is not wired into CI;
-  add a pre-commit hook before any production deployment to prevent silent
-  C/Lean divergence.
+- **MPT.lean** uses `opaque` modeling for hash; that's the standard
+  approach and not a `sorry` problem. The unfinished work is the
+  `verifyProof` body and the soundness theorem's step-folding.
+- The `tools/check_lean_drift.py` checker exists but is not wired into
+  CI; add a pre-commit hook before any production deployment to prevent
+  silent C/Lean divergence.
 
 If any of these dates slip, document the slip *in this table*, not in a
 side conversation. Permanent `sorry`s are silent technical debt.

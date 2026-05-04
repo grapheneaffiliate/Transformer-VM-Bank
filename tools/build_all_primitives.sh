@@ -15,37 +15,47 @@ cd "$PSL_ROOT"
 # Sample witnesses: pick small concrete values so wasm-compile sees a valid
 # parse without ambiguity. These don't affect the specialized weights — only
 # the bit-exact verification harness does.
+#
+# Active primitive set (post-decomposition; gate 1 cleared 2026-05-04):
+#   freeze_setup + freeze_apply  -> 2 trace hashes per freeze
+#   transfer_check + 16x byte_sub_with_borrow + 16x byte_add_with_carry
+#                  + transfer_finalize -> 34 trace hashes per transfer
+#   16x byte_add_with_carry  -> 16 trace hashes per mint
+#   16x byte_sub_with_borrow + 1 check  -> 17 trace hashes per burn
+#   mpt_emit_record  -> 1 trace hash per emitted account record
+#
+# Older monolithic primitives (ledger_freeze.c, ledger_transfer.c, etc.) live
+# in docs/archive/primitives/ for historical reference; they're superseded by
+# the per-byte composition above. See docs/STYLE_GUIDE_v3.md.
 
 PIPELINE_ARGS=("$@")
 
-# ledger_freeze: flag=1, then 64 zero bytes
-W_FREEZE="1 $(python3 -c 'print(" ".join(["0"]*64))')"
-
-# ledger_transfer: epoch=1, from(64), to(64), amount(16)
-W_TRANSFER="1 $(python3 -c 'print(" ".join(["0"]*64) + " " + " ".join(["0"]*64) + " " + " ".join(["0"]*16))')"
-
-# ledger_mint: epoch=1, to(64), amount(16)
-W_MINT="1 $(python3 -c 'print(" ".join(["0"]*64) + " " + " ".join(["0"]*16))')"
-
-# ledger_burn: epoch=1, from(64), amount(16)
-W_BURN="1 $(python3 -c 'print(" ".join(["0"]*64) + " " + " ".join(["0"]*16))')"
-
-# ledger_multi_asset: epoch=1, n=1, then one transfer payload
-W_MULTI="1 1 $(python3 -c 'print(" ".join(["0"]*64) + " " + " ".join(["0"]*64) + " " + " ".join(["0"]*16))')"
-
-# mpt_apply_delta: n=1, idx=0, then 64 bytes
-W_MPT="1 0 $(python3 -c 'print(" ".join(["0"]*64))')"
+# byte_sub_with_borrow: minuend, subtrahend, borrow_in
+W_BYTE_SUB="200 50 0"
+# byte_add_with_carry: augend, addend, carry_in
+W_BYTE_ADD="100 200 0"
+# transfer_check: 16 from-balance bytes, 16 amount bytes, frozen flag, asset_id_match
+W_CHECK="$(python3 -c 'print(" ".join(["255"]*16) + " " + " ".join(["1"]*16) + " 0 1")')"
+# transfer_finalize: 8-byte nonce + 8-byte epoch
+W_FINALIZE="$(python3 -c 'print(" ".join(["0"]*8) + " " + " ".join(["1","0","0","0","0","0","0","0"]))')"
+# freeze_setup: flag + 64 account bytes
+W_FREEZE_SETUP="1 $(python3 -c 'print(" ".join(["0"]*64))')"
+# freeze_apply: 64 account bytes (binary form from setup) + 1 byte flag
+W_FREEZE_APPLY="$(python3 -c 'print(" ".join(["0"]*64) + " 1")')"
+# mpt_emit_record: 64 account bytes (pass-through)
+W_MPT_EMIT="$(python3 -c 'print(" ".join(["0"]*64))')"
 
 declare -A WITNESSES=(
-    [ledger_freeze]="$W_FREEZE"
-    [ledger_transfer]="$W_TRANSFER"
-    [ledger_mint]="$W_MINT"
-    [ledger_burn]="$W_BURN"
-    [ledger_multi_asset]="$W_MULTI"
-    [mpt_apply_delta]="$W_MPT"
+    [byte_sub_with_borrow]="$W_BYTE_SUB"
+    [byte_add_with_carry]="$W_BYTE_ADD"
+    [transfer_check]="$W_CHECK"
+    [transfer_finalize]="$W_FINALIZE"
+    [freeze_setup]="$W_FREEZE_SETUP"
+    [freeze_apply]="$W_FREEZE_APPLY"
+    [mpt_emit_record]="$W_MPT_EMIT"
 )
 
-PRIMITIVES=(ledger_freeze ledger_transfer ledger_mint ledger_burn ledger_multi_asset mpt_apply_delta)
+PRIMITIVES=(byte_sub_with_borrow byte_add_with_carry transfer_check transfer_finalize freeze_setup freeze_apply mpt_emit_record)
 
 for name in "${PRIMITIVES[@]}"; do
     echo

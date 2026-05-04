@@ -29,13 +29,27 @@ WEIGHTS_DIR = REPO_ROOT / "weights"
 VECTORS_DIR = REPO_ROOT / "tests" / "vectors"
 FAILURES_DIR = REPO_ROOT / "tests" / "failures"
 
+# Active primitive set after gate-1 decomposition (cleared 2026-05-04). The
+# original monolithic primitives lived too long traces (>30k tokens) and
+# accumulated precision drift on rare witnesses. The per-byte / decomposed
+# replacements below all clear 10000/10000 bit-exact at scale.
+#
+# Composition counts (sequencer threads outputs):
+#   freeze       = freeze_setup + freeze_apply             ->  2 hashes
+#   transfer     = transfer_check + 16x byte_sub_with_borrow
+#                                 + 16x byte_add_with_carry
+#                                 + transfer_finalize       -> 34 hashes
+#   mint         = 16x byte_add_with_carry                 -> 16 hashes
+#   burn         = transfer_check + 16x byte_sub_with_borrow -> 17 hashes
+#   mpt_emit     = mpt_emit_record (per record)             ->  1 hash
 PRIMITIVES = [
-    "ledger_freeze",
-    "ledger_transfer",
-    "ledger_mint",
-    "ledger_burn",
-    "ledger_multi_asset",
-    "mpt_apply_delta",
+    "byte_sub_with_borrow",
+    "byte_add_with_carry",
+    "transfer_check",
+    "transfer_finalize",
+    "freeze_setup",
+    "freeze_apply",
+    "mpt_emit_record",
 ]
 
 
