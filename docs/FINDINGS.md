@@ -116,7 +116,30 @@ research direction in Transformer-VM, not a fix I can apply in PSL. The
 second is workable for offline auditors but kills the "phone can verify"
 property of the architecture.
 
-## Decision needed
+## Empirical trace-length budget (added 2026-05-03 post-decomposition)
+
+After decomposing freeze and seeing 100/100 pass on the 100-vector smoke,
+trace lengths were measured via `wasm-run`'s `RAN N tok` output:
+
+| Primitive | Tokens | Ops | Pass rate |
+| --- | --- | --- | --- |
+| `freeze_setup` | 17,566 | 3,780 | 100/100 in 100-vector smoke |
+| `freeze_apply` | 7,723 | 1,706 | 100/100 in 100-vector smoke |
+| `transfer_parse` | **409,680** | 87,160 | needs further decomposition |
+| `transfer_compute` | **211,995** | 45,328 | 1/5 smoke at -O0 (precision drift) |
+| `ledger_freeze` (pre-decomposition) | ~70k-600k | ~15k-130k | 19/20 at -O0 |
+
+**Empirical envelope** (revised): ≤30k tokens reliable, 30k-50k borderline,
+≥100k will fail precision drift at scale. The original ~200k figure was
+too generous.
+
+For remaining primitives, planned decompositions:
+- `transfer`: 145 parse + 41 print → 400k tokens. Need 4-5 micro-stages.
+- `mint`/`burn`: 81 parse + 64 print → ~200k. Need 2-3 stages.
+- `multi_asset`: 4× transfer. Per-payload split.
+- `mpt_apply_delta`: trace scales with N pairs. Per-pair primitive.
+
+## Original decision-needed (pre-decomposition pass)
 
 This is the point in your work order where I'm asked to report rather
 than keep iterating: I have **genuinely tried every fix above**, plus
