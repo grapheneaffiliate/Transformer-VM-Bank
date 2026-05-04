@@ -44,26 +44,26 @@ void compute(const char *input) {
         safety = safety + 1;
     }
 
-    /* Apply the freeze flag.
+    /* Apply / clear the freeze bit, preserving low 7 bits of byte 47.
      *
-     * KNOWN-LIMITED: this primitive only passes the bit-exact gate when the
-     * input account contains all-zero bytes. With non-zero account bytes,
-     * the parse-loop interaction triggers Transformer-VM WASM-lowering
-     * miscompilations (specifically: `cur | 128` after reading from a
-     * just-written memory location elides the OR, and certain byte values
-     * in the parse loop are silently zeroed at unpredictable positions).
-     * See docs/FINDINGS.md for the full diagnostic.
+     * Background: Transformer-VM's lower.py only lowers i32.or correctly when
+     * an i32.const immediately precedes it (constant-form lowering). The
+     * fallback "no preceding const" lowering is BOOLEAN (a|b → b ? 1 : a)
+     * which is wrong for full-integer bitwise OR. Any clang -O2
+     * transformation that puts a non-const op between i32.const and
+     * i32.or (or fuses two branches into a select) triggers the wrong
+     * lowering and writes garbage to byte 47.
      *
-     * The freeze logic itself is correct in native C; the failure is in the
-     * WASM compilation. v1 ships only the all-zero baseline path; v1.5 must
-     * decompose the parsing into a separate primitive (e.g. account_load)
-     * that the sequencer invokes once per witness, with freeze just toggling
-     * a single byte without parsing 64 bytes per call. */
+     * Workaround: compute via addition with volatile intermediates so clang
+     * can't fold add → or via the "non-overlapping bit ranges" optimization. */
+    int cur = (int)(unsigned char)g_account[47];
+    volatile int low7 = cur & 127;
+    volatile int freeze_bit = 0;
     if (flag) {
-        g_account[47] = (char)128;
-    } else {
-        g_account[47] = (char)0;
+        freeze_bit = 128;
     }
+    int sum = (int)low7 + (int)freeze_bit;
+    g_account[47] = (char)sum;
 
     /* Print 64 bytes space-separated */
     int j = 0;
