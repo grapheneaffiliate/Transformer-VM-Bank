@@ -5,6 +5,20 @@ load-bearing commit on `origin/main`.
 
 ## 2026-05-04
 
+### Gate 6 cleared — light client cross-verifies 1000 balances
+
+`cargo test -p psl-light-client` 8/8 (1 unit + 7 in `tests/gate6.rs`):
+
+- 1000-balance cross-verify: build random state with 1000 accounts,
+  publish a signed header committing to the SMT root, light client
+  re-verifies every (account, balance) pair via `verify_balance`.
+- Tampered proof value rejected (`ProofFailed`).
+- Tampered proof siblings rejected (`ProofFailed`).
+- Tampered header signature rejected (`InvalidSignature`).
+- Tampered header `new_state_root` rejected (sig mismatch).
+- Wrong-signer expectation rejected (`InvalidSignature`).
+- Out-of-order header chain rejected (`HeaderChainBroken`).
+
 ### Gate 5 cleared — compliance enforcement
 
 `cargo test -p psl-sequencer --test compliance` 9/9. Three areas exercised
