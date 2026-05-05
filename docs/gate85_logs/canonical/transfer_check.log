@@ -1,0 +1,16 @@
+[gate-1-rust] primitive=transfer_check count=10000 threads=8
+[gate-1-rust] vocab=618 d_model=52 n_layers=6 ffn=[9, 6, 174, 41, 33, 22]
+  [ 1000/10000] 1000 ok / 0 fail  (1.25/s, ETA 7191s)
+  [ 2000/10000] 2000 ok / 0 fail  (1.20/s, ETA 6648s)
+  [ 3000/10000] 3000 ok / 0 fail  (1.17/s, ETA 5988s)
+  [ 4000/10000] 4000 ok / 0 fail  (1.21/s, ETA 4960s)
+  [ 5000/10000] 5000 ok / 0 fail  (1.23/s, ETA 4081s)
+  [ 6000/10000] 6000 ok / 0 fail  (1.24/s, ETA 3239s)
+  [ 7000/10000] 7000 ok / 0 fail  (1.24/s, ETA 2413s)
+  [ 8000/10000] 8000 ok / 0 fail  (1.23/s, ETA 1624s)
+  [ 9000/10000] 9000 ok / 0 fail  (1.22/s, ETA 819s)
+  [10000/10000] 10000 ok / 0 fail  (1.23/s, ETA 0s)
+
+=== transfer_check summary ===
+  pass: 10000/10000    fail: 0
+  time: 8112.5s    rate: 1.23/s

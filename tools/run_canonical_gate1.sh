@@ -12,6 +12,13 @@ run_one() {
     local prim="$1"
     local count="$2"
     local log="$LOGDIR/${prim}.log"
+    # Resume-friendly: skip if a previous run already wrote a "pass: N/N    fail: 0" summary.
+    if grep -q "^  pass: ${count}/${count}    fail: 0$" "$log" 2>/dev/null; then
+        echo "============================================================"
+        echo "$(date +%H:%M:%S)  $prim  count=$count  -- already complete, skipping"
+        echo "============================================================"
+        return 0
+    fi
     echo "============================================================"
     echo "$(date +%H:%M:%S)  $prim  count=$count"
     echo "============================================================"
