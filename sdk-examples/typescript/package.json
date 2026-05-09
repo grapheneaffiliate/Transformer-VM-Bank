@@ -1,0 +1,19 @@
+{
+  "name": "psl-sdk-examples-typescript",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TypeScript reference examples for the PSL agent SDK.",
+  "scripts": {
+    "trader": "tsx trader_agent.ts",
+    "service": "tsx service_agent.ts",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@psl/sdk": "0.1.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "typescript": "^5.4.0",
+    "@types/node": "^22.0.0"
+  }
+}

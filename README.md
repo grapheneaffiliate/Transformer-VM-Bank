@@ -1,148 +1,192 @@
 # Percepta Settlement Layer (PSL)
 
-A deterministic financial ledger where state transitions are **bit-exactly
-re-executable as transformer traces** — anyone holding the analytical
-transformer weights and a Merkle-Patricia Trie state root can independently
-verify any block. Two operating modes share the same execution layer:
-**sovereign** (single sequencer, ships first) and **consortium** (BFT-ordered
-via ABCI + CometBFT, v2 swap-in). Settlement rails for tokenized USD, CBDC,
-gold, and treasuries; mobile light-client; ed25519 + BLAKE3 native crypto.
+**A deterministic financial ledger with a first-of-its-kind agent-to-agent
+transaction layer that resolves every dispute by re-execution, not arbitration.**
+
+PSL ships two things in one repository:
+
+1. A deterministic settlement layer for tokenized assets (USD, CBDC,
+   gold, treasuries) — bit-exactly re-executable, ed25519 + BLAKE3
+   native crypto, mobile light-client.
+2. **An agent execution layer on top of it.** Two agents negotiate a
+   transaction off-chain (5 signed messages), execute it on-chain, and
+   if either side disputes, the chain resolves the dispute by
+   re-executing the contract — deterministically, byte-for-byte, with
+   no human arbiter and no oracle.
+
+The novelty is the second part. Every contract in PSL is a pure
+ternary integer program (weights ∈ {-1, 0, +1}, integer biases, ReLU
+activations, **no floating point anywhere on the verifier path**). Pure
+integer + sparse encoding makes contract execution **bit-exactly
+reproducible across machines**. That property is what lets dispute
+resolution be a function of the protocol, not an off-chain process.
 
 ## Status
 
-| Gate | Description | Status | Result | Commit |
-| --- | --- | --- | --- | --- |
-| **1** | Primitive bit-exact (10k vectors each) | ✅ | All 7 active primitives 10000/10000 | `9c50e3d` |
-| **2** | SMT / crypto determinism | ✅ | 22/22 (`cargo test -p crypto`) | `93bae87` |
-| **3** | Lean lake build | ✅ | Compiles against mathlib v4.12.0; 3 sorrys with target dates 2026-06-15 / 2026-07-15 | `113c11b` |
-| **4** | Sequencer + 3 followers, 100 blocks mixed traffic | ✅ | All 4 state roots agree at every block; mutation detected | `93bae87` |
-| **5** | Compliance enforcement | ✅ | 9/9 — travel-rule × 3, freeze authority × 4, view-key proofs × 2 | `b157f2f` |
-| **6** | Light-client cross-verifies 1000 balances | ✅ | 8/8 — 1000-balance + 6 adversarial (tampered proof / sig / root / chain / signer) | `3d4d3e6` |
-| **7** | End-to-end pilot (register → mint → transfer → burn → verify) | ✅ | Full flow; light-client verifies merchant=50 against the published 4-block chain | `dfc11e6` |
-| **8** | Pure-Rust runner — canonical engine | ✅ | Pure-Rust runner is the canonical reference for trace-hash production (`docs/ARCHITECTURE.md § 0.3`). Re-validated against gate-1 vectors at 10k each on the 5 short primitives (50000/50000, 0 failures) plus the chained `freeze_setup → freeze_apply` pipeline. PyTorch+MKL parity is architecturally out-of-scope: MKL's vectorized reduction order on long matmuls is not reproducible without linking MKL itself, and verifiers using PyTorch must reproduce Rust's output, not the other way around. | _(this commit)_ |
-| **9** | Consortium swap (ABCI + CometBFT) | ⏸ deferred | Vendor audit done (`docs/CONSENSUS_DECISION.md`); awaits federation triggers | — |
+| Gate | What it covers                                       | Status |
+| ---  | ---                                                  | ---    |
+| 1    | Primitive bit-exact (10k vectors each)               | ✅ |
+| 2    | Crypto + SMT determinism                             | ✅ |
+| 3    | Lean `lake build` (3 sorrys with target dates)       | ✅ |
+| 4    | Sequencer + 3 followers, 100 mixed blocks            | ✅ |
+| 5    | Compliance enforcement (9/9)                         | ✅ |
+| 6    | Light client cross-verifies 1000 balances + 6 adv.   | ✅ |
+| 7    | End-to-end pilot (register → mint → xfer → burn)     | ✅ |
+| 8    | Pure-Rust runner (canonical engine; legacy fp64 retired per ADR-0001) | ✅ |
+| 9    | Consortium swap (ABCI + CometBFT)                    | ⏸ deferred (ADR-0002) |
+| 10   | Ternary execution engine — Phase 2 Layer 1           | ✅ |
+| 11   | Contract DSL standard library (8 contracts)          | ✅ |
+| 12   | Identity & wallet (SLIP-0010 + spending policies)    | ✅ |
+| 13   | Negotiation protocol (5 messages, signed, idempotent)| ✅ |
+| 14   | Dispute resolution by re-execution                   | ✅ |
+| 15   | Reference agents (trader + service)                  | ✅ |
+| 16   | SDK 0.1.0                                            | ✅ |
+| 17   | External security audit hand-off                     | 🟢 awaits engagement letter |
+| 18   | Production-readiness (runbooks + DR drill plan)      | 🟢 awaits first staging DR drill |
 
-Per-gate command, output, and commit hash: `docs/STATUS.md`.
+Per-gate command, output, commit hash: `docs/STATUS.md`.
 
-## Results — gate 1 trace lengths
+## The agent layer in 60 seconds
 
-The empirical lesson from gate 1: **trace length is the precision-budget
-currency**, not WASM instruction count. Sequential dependencies (carry chains,
-multi-step state) need sub-1k token traces; independent ops can fit larger.
+```
+Alice (trader)                              Bob (service)
+    │                                            │
+    ├── Propose ──────────────────────────────▶  │   (signed offer; content-addressed via proposal_hash)
+    │                                            │
+    │  ◀──────────────────────── Accept  ───────┤   (Bob counter-signs)
+    │                                            │
+    ├── Execute ───────────────────────────▶    │   (Alice runs the contract;
+    │                                            │    publishes input + claimed output + signature)
+    │                                            │
+    │            (no dispute → tx settles)       │
+    │                                            │
+    │  ──── Dispute (claimed output mismatch) ──▶│
+    │                                            │
+    │            judge agent re-executes the     │
+    │            ternary contract from input     │
+    │            and compares to Alice's claim.  │
+    │            Bytes match → DismissDispute.   │
+    │            Bytes differ → SlashExecutor.   │
+```
 
-| Primitive | WASM instr | Trace tokens | 10k pass |
-| --- | --- | --- | --- |
-| `byte_add_with_carry` | 26 | 119 | 10000/10000 ✓ |
-| `byte_sub_with_borrow` | 142 | 404 | 10000/10000 ✓ |
-| `transfer_check` (16-iter MSB-first compare) | 86 | 1,624 | 10000/10000 ✓ |
-| `transfer_finalize` (u64 nonce inc) | 142 | 656 | 10000/10000 ✓ |
-| `freeze_setup` (parse 65 → emit 2) | — | 17,566 | 10000/10000 ✓ |
-| `freeze_apply` (toggle bit on binary form) | — | 7,723 | 10000/10000 ✓ |
-| `mpt_emit_record` (64-byte pass-through) | 20 | 3,741 | 10000/10000 ✓ |
-| Transfer end-to-end (chained 4-stage) | — | — | 10000/10000 ✓ |
+There is no human arbiter and no off-chain oracle. The dispute outcome
+is a deterministic function of `(contract code, input)` that any
+participant can independently verify. Demo:
 
-Composition counts at the sequencer: freeze = 2 trace hashes per tx,
-transfer = 34, mint = 16, burn = 17, multi-asset transfer = N × 34. Each
-follower re-executes every primitive and verifies each output independently.
+```bash
+cargo run -p psl-agent-sdk --release --example trader_agent     # happy path
+cargo run -p psl-agent-sdk --release --example service_agent    # adversarial dispute
+```
+
+`service_agent` shows the dispute path: Bob (executor) signs an
+`Execute` claiming an all-zero output for a transfer; Alice opens a
+dispute; the judge agent re-executes the `TransferContract`
+deterministically; outcome is `SlashExecutor(bob_pubkey)`. No human
+in the loop, no oracle.
+
+## Why ternary integers (no floating point)
+
+A floating-point matmul reorders reductions per CPU vector width and
+per BLAS implementation. Two honest verifiers running the same code
+on different machines can disagree on the last few bits. That is fine
+for ML inference. It is **fatal for a verifier** that must produce
+the same output on the dispute resolver as on the executor.
+
+PSL's contract VM is integer-only (weights ∈ {-1, 0, +1} via thermometer
+encoding, integer biases, ReLU activations). Sparse encoding keeps
+the working set small. The kernel is checked-arithmetic; there are
+**zero `unwrap()` / `expect()` on production paths** that aren't
+either lock-poison (a programming-bug-class event) or
+structurally-impossible-overflow (audited and justified inline; see
+`docs/UNWRAP_AUDIT.md`).
+
+This is what makes "dispute = re-execute" a tractable protocol rather
+than a research idea.
 
 ## Components
 
-- **`primitives/`** — C source for transformer-verifiable state-transition
-  primitives. Active set:
-  `byte_add_with_carry`, `byte_sub_with_borrow`,
-  `transfer_check`, `transfer_finalize`,
-  `freeze_setup`, `freeze_apply`,
-  `mpt_emit_record`. Style v3 (`docs/STYLE_GUIDE_v3.md`).
-  Older monolithic primitives are in `docs/archive/primitives/`.
-- **`crypto/`** — native Rust (NOT compiled through Transformer-VM):
-  ed25519 signature verification, BLAKE3 hashing, Merkle-Patricia Trie
-  (`crypto/src/mpt.rs`) holding the system-wide state root.
-- **`sequencer/`** — Rust binary, sovereign-mode block producer. Ingests
-  txs, pre-validates sigs and nonces natively, runs the transformer trace
-  per primitive composition, applies deltas to the MPT, signs and publishes
-  block headers.
-- **`consensus/`** — Rust crate, `Consensus` trait with sovereign and
-  ABCI + CometBFT implementations (per `docs/CONSENSUS_DECISION.md`).
-- **`light_client/`** — Rust crate verifying balances against block
-  headers via MPT inclusion proofs. Compiles to iOS / Android via UniFFI.
-- **`rust_runner/`** — pure-Rust port of the Transformer-VM specialized-model
-  runner. Bit-exact with the Python reference on short primitives; 2× faster
-  than baseline first pass after the flat-buffer attention rewrite.
-- **`lean/`** — Lean 4 + mathlib formalization of ledger semantics.
-- **`pilot/issuer_demo/`** — end-to-end pilot binary.
+```
+agent_sdk/        — high-level runtime (handle_propose / handle_accept / handle_execute / resolve_dispute_for)
+agent_protocol/   — 5 wire messages + ProposalLog state machine + dispute resolver
+agent_wallet/     — SLIP-0010 ed25519 derivation + spending policies + revocation
+agent_contracts/  — 8 standard contracts (transfer, swap, escrow_*, time_locked, multisig_2of3, conditional_payment)
+ternary_vm/       — pure-integer execution kernel (the trust-critical inner loop)
 
-## Architecture highlights
+sequencer/        — sovereign-mode block producer
+consensus/        — Consensus trait (sovereign, ABCI follow-up per ADR-0002)
+light_client/     — MPT inclusion proofs; UniFFI-ready for iOS/Android
+crypto/           — ed25519 + BLAKE3 + Merkle-Patricia Trie (state root)
 
-- **Per-byte decomposition.** A single 16-byte u128 subtract is 16
-  `byte_sub_with_borrow` primitive invocations chained at the sequencer
-  level, each with its own trace-hash. The monolithic in-line equivalent
-  produces an ~8k-token trace and fails ~11% of randomized witnesses at
-  scale; the decomposed version clears 10000/10000 across all 7 primitives.
-- **Trace length as precision budget.** Empirically: <1k tokens for
-  sequential dependencies; larger only for parallelisable ops. The v3
-  style guide encodes the rules (avoid `i32.shr_u` / `<<` patterns that
-  explode under `lower.py` expansion; use additive normalization +
-  `select`).
-- **Pure-Rust runner is the canonical engine** for trace-hash production.
-  `rust_runner/` reads the same `.bin` weight format produced by
-  `transformer_vm.model.weights::save_weights` and runs an identical
-  sequential `for j: y[i] += W[i,j] * x[j]` matmul to `transformer.cpp`'s
-  Linux build (`#else` branch in `matvec`). The two are bit-identical;
-  PyTorch+MKL is a tertiary development tool whose long-matmul reduction
-  order is implementation-specific (see `docs/ARCHITECTURE.md § 0.3`).
-
-Full design: `docs/ARCHITECTURE.md`. Style rules: `docs/STYLE_GUIDE_v3.md`.
+legacy/rust_runner/  — frozen per ADR-0001; do not extend
+lean/                — Lean 4 + mathlib formalization (3 sorrys with target dates)
+pilot/issuer_demo/   — end-to-end pilot binary
+```
 
 ## Build / reproduce
 
-The canonical reproduction guide is **`REPRODUCE.md`**, with a two-tier
-structure:
+`REPRODUCE.md` is the canonical guide; `docs/REPRODUCIBILITY_REPORT.md`
+records pinned toolchain, per-gate command, and wall-clock timings on
+the reference Ubuntu 24.04 cloud VM. The summary is:
 
-- **Tier 1 (~35 minutes)**: gates 2-7. Pure Rust + Lean toolchains, no
-  Transformer-VM dependency. Validates SMT/crypto, Lean proofs, sequencer
-  100-block run, compliance, light-client, end-to-end pilot.
-- **Tier 2 (~6 hours)**: adds gate 1 bit-exact 10k-vector sweep across all
-  7 primitives via the C++ engine, plus gate 8 short-primitive parity for
-  the pure-Rust runner.
+```bash
+# Toolchain (pinned): rustc 1.95.0
+cargo build --workspace --release         # ~60 s
+cargo test  --workspace --release         # ~45 s
+cargo run -p psl-agent-sdk --release --example trader_agent
+cargo run -p psl-agent-sdk --release --example service_agent
+```
 
-Pin the Transformer-VM checkout via `TRANSFORMER_VM_PATH` (the codebase no
-longer hard-codes a user-specific filesystem path); the rest of the build is
-portable across machines.
+Total time on a fresh clone, fresh VM, no cache: ~30 minutes including
+toolchain install, ~5 minutes after toolchains land.
+
+## For auditors
+
+Start with `docs/AUDIT_BRIEF.md` — that is the day-1 entry document.
+It points at the security review (`docs/SECURITY_REVIEW.md`),
+reproducibility report (`docs/REPRODUCIBILITY_REPORT.md`), unwrap audit
+(`docs/UNWRAP_AUDIT.md`), fuzz harness inventory (`docs/FUZZING.md`),
+threat model with adversary inventory, and the in-scope crate list
+with file paths.
+
+## For institutional / partner due diligence
+
+`docs/OPERATIONAL_READINESS.md` covers the production posture (SLOs,
+metrics, alerts, runbooks). `docs/DR_DRILL_PLAN.md` is the
+pre-committed disaster-recovery drill protocol. `infra/` is the
+reference Terraform — "redeploy this exactly" is `terraform apply`.
+
+## Operating principles
+
+These are non-negotiable in this codebase:
+
+1. **No new sorrys** in load-bearing Lean theorems; existing 3 have
+   target close dates.
+2. **No `unwrap()` / `expect()` on production paths** other than
+   audited lock-poison + audited structurally-impossible-overflow
+   (see `docs/UNWRAP_AUDIT.md`).
+3. **No floating point on the verifier path.** Period.
+4. **No silent failures.** All input-driven errors return `Result`.
+5. **Reproducibility is a property of the repo, not a property of a
+   developer's laptop.** Anything in `REPRODUCE.md` must work on a
+   fresh clone on a fresh VM.
+6. **Tests are the spec.** Anything we want to be true is asserted in
+   a test, including adversarial scenarios.
+
+## License
+
+MIT (see `LICENSE`).
 
 ## Trust boundary
 
-Sigs and hashes are verified by **native code**, not the transformer trace.
-The transformer trace covers state-transition arithmetic only (debit, credit,
-nonce, freeze flag, multi-asset batched transfers). Followers verify both
-layers — see `docs/ARCHITECTURE.md` § 0 for the trace-hash contract and
-trust model.
+Signatures, hashes, and the Merkle-Patricia Trie are verified by
+**native Rust code** (`crypto/`), not by the contract VM. The contract
+VM covers application-layer state-transition arithmetic only (debits,
+credits, nonces, freeze flags, swap math, escrow conditions). Both
+layers are independently verifiable by any follower or light client.
 
-## Known limitations
+## Plan & history
 
-- **PyTorch+MKL byte-for-byte parity** on long primitives (`freeze_setup`,
-  `freeze_apply`) is architecturally out-of-scope. PyTorch's CPU matmul
-  dispatch goes through Intel MKL's vectorized dgemv on long reductions
-  (FFN width ≥ ~1k); MKL's reduction order is implementation-specific and
-  not reproducible without linking MKL itself. The canonical engine for
-  trace-hash production is the pure-Rust runner; PyTorch is a tertiary
-  development tool, and verifiers using PyTorch must match the canonical
-  engine's output, not the other way around. See `docs/ARCHITECTURE.md
-  § 0.3` and `docs/FINDINGS.md` § Gate 8.5.
-- **Three Lean `sorry`s** remain in load-bearing theorems
-  (`Conservation.lean:42`, `Conservation.lean:60`, `MPT.lean:58`) within
-  target close dates 2026-06-15 and 2026-07-15. Tracker:
-  `docs/STATUS.md`.
-- **Pure-Rust runner perf** vs the C++ engine on long primitives is
-  ~5–10× slower because the C++ engine uses a sparse-matvec
-  representation of the analytical-construction weights. Sparse-aware
-  matmul in `rust_runner/` is a follow-up perf milestone, not a
-  correctness issue (both engines are algorithmically equivalent).
-- **Consortium mode (gate 9).** Deferred pending production triggers;
-  vendor decision documented.
-
-## Plan
-
-Architecture and design rules live in `docs/ARCHITECTURE.md` and
-`docs/STYLE_GUIDE_v3.md`. Per-gate history, sorry tracker, and command
-recipes in `docs/STATUS.md`. Empirical findings and case studies in
-`docs/FINDINGS.md`.
+- Architecture and trace-hash contract: `docs/ARCHITECTURE.md`
+- Per-gate command + output + commit history: `docs/STATUS.md`
+- Architectural decisions: `docs/decisions/`
+- Empirical findings and case studies: `docs/FINDINGS.md`
