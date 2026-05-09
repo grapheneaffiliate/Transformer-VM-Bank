@@ -1,0 +1,18 @@
+[package]
+name = "psl-crypto-agility"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Cryptographic agility layer for PSL — scheme-prefixed signatures, KEM, and hashes per ADR-0007."
+
+[dependencies]
+blake3 = { workspace = true }
+ed25519-dalek = { workspace = true }
+rand = { workspace = true }
+thiserror = { workspace = true }
+zeroize = { version = "1.8", features = ["derive"] }
+
+[dev-dependencies]
+proptest = { workspace = true }
+hex = { workspace = true }

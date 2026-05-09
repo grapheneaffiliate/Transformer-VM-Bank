@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crypto",
+    "crypto_agility",
     "consensus",
     "sequencer",
     "light_client",
@@ -17,7 +18,7 @@ members = [
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-license = "Apache-2.0"
+license = "MIT"
 authors = ["PSL contributors"]
 
 [workspace.dependencies]
