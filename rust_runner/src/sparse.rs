@@ -82,9 +82,23 @@ impl SparseMatrix {
         sp
     }
 
-    /// True when the dense representation has more zeros than nonzeros.
+    /// True when CSR/fast-row12 sparse matvec is empirically faster than
+    /// dense `Array2::dot`. Dense uses contiguous reads (cache-friendly,
+    /// auto-vectorizable); sparse adds indirection per element. The
+    /// crossover point on EPYC 7702P / x86_64 with `ndarray` 0.15 falls
+    /// around 5% density:
+    ///   - density ≤ 3%   → sparse is markedly faster (fast_row12 case)
+    ///   - 3% < d ≤ 8%    → roughly tied
+    ///   - density > 8%   → dense wins comfortably
+    /// Use a conservative 4% threshold to keep dense-equivalent matrices
+    /// on the dense path. Re-measure if the matrix shapes change a lot.
     pub fn worth_using(rows: usize, cols: usize, nnz: usize) -> bool {
-        nnz.saturating_mul(2) < rows.saturating_mul(cols)
+        let total = rows.saturating_mul(cols);
+        if total == 0 {
+            return false;
+        }
+        // nnz * 25 < total * 1  ⇔  density < 4%
+        nnz.saturating_mul(25) < total
     }
 
     /// y = W · x. `y` must have length `rows`; `x` must have length `cols`.
