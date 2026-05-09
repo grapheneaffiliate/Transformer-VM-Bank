@@ -34,6 +34,7 @@
 
 pub mod error;
 pub mod program;
+pub mod swap;
 pub mod transfer;
 
 pub use error::ContractError;
