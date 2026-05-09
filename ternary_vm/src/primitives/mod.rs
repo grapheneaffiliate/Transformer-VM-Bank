@@ -21,3 +21,9 @@
 //! commits.
 
 pub mod byte_add_with_carry;
+pub mod byte_sub_with_borrow;
+pub mod freeze_apply;
+pub mod freeze_setup;
+pub mod mpt_emit_record;
+pub mod transfer_check;
+pub mod transfer_finalize;
