@@ -158,7 +158,28 @@ impl Linear {
 
     pub fn matvec(&self, x: &ndarray::Array1<f64>) -> ndarray::Array1<f64> {
         match self {
-            Linear::Dense(w) => w.dot(x),
+            // Strict-sequential matvec matching transformer.cpp's #else branch
+            // exactly: `for j: s += W[i,j] * x[j]`. ndarray's `.dot` uses
+            // `general_mat_vec_mul` which can block/reorder; on long sums that
+            // costs us bit-exact equivalence with the C++ engine and
+            // (empirically) prevents `halt` from being reached on the long
+            // primitives. This loop is autoVectorizable but order-preserving.
+            Linear::Dense(w) => {
+                let rows = w.nrows();
+                let cols = w.ncols();
+                let mut y = vec![0.0f64; rows];
+                let w_slice = w.as_slice().expect("dense weight must be C-contiguous");
+                let x_slice = x.as_slice().expect("x must be contiguous");
+                for i in 0..rows {
+                    let row_off = i * cols;
+                    let mut s = 0.0f64;
+                    for j in 0..cols {
+                        s += w_slice[row_off + j] * x_slice[j];
+                    }
+                    y[i] = s;
+                }
+                ndarray::Array1::from_vec(y)
+            }
             Linear::Sparse(sp) => sp.matvec_view(x.view()),
         }
     }
