@@ -148,20 +148,12 @@ pub enum Linear {
 
 impl Linear {
     pub fn from_dense(dense: ndarray::Array2<f64>) -> Self {
-        let rows = dense.nrows();
-        let cols = dense.ncols();
-        // Count nonzeros to decide.
-        let mut nnz = 0usize;
-        for v in dense.iter() {
-            if *v != 0.0 {
-                nnz += 1;
-            }
-        }
-        if SparseMatrix::worth_using(rows, cols, nnz) {
-            Linear::Sparse(SparseMatrix::from_view(dense.view()))
-        } else {
-            Linear::Dense(dense)
-        }
+        // Sparse path is empirically a perf regression on freeze_chain
+        // (allocator contention + indirection costs > FLOP savings on
+        // EPYC 7702P with 32 rayon threads). Disabled until either the
+        // matvec_view alloc is removed or the threshold is re-tuned with
+        // proper microbenchmarks. Bit-exact preserved either way.
+        Linear::Dense(dense)
     }
 
     pub fn matvec(&self, x: &ndarray::Array1<f64>) -> ndarray::Array1<f64> {
