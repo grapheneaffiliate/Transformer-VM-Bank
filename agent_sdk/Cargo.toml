@@ -1,0 +1,34 @@
+[package]
+name = "psl-agent-sdk"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Phase 2 Layer 5: Rust SDK for building autonomous PSL agents. Wraps wallet + protocol + contracts behind a stable, semver-versioned API; ships with reference trader / service agents."
+
+[lib]
+name = "psl_agent_sdk"
+path = "src/lib.rs"
+
+[dependencies]
+psl-ternary-vm = { path = "../ternary_vm" }
+psl-agent-contracts = { path = "../agent_contracts" }
+psl-agent-wallet = { path = "../agent_wallet" }
+psl-agent-protocol = { path = "../agent_protocol" }
+ed25519-dalek.workspace = true
+blake3.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde-big-array.workspace = true
+serde_json.workspace = true
+hex.workspace = true
+
+[dev-dependencies]
+rand.workspace = true
+
+[[example]]
+name = "trader_agent"
+path = "examples/trader_agent.rs"
+
+[[example]]
+name = "service_agent"
+path = "examples/service_agent.rs"

@@ -1009,6 +1009,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "psl-agent-sdk"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "ed25519-dalek",
+ "hex",
+ "psl-agent-contracts",
+ "psl-agent-protocol",
+ "psl-agent-wallet",
+ "psl-ternary-vm",
+ "rand",
+ "serde",
+ "serde-big-array",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "psl-agent-wallet"
 version = "0.1.0"
 dependencies = [

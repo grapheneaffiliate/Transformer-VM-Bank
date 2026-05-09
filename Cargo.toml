@@ -10,6 +10,7 @@ members = [
     "agent_contracts",
     "agent_wallet",
     "agent_protocol",
+    "agent_sdk",
     "pilot/issuer_demo",
 ]
 

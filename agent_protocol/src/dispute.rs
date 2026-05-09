@@ -101,7 +101,7 @@ pub enum DisputeOutcome {
 ///
 /// Dispute valid iff `dispute.proposal_hash == execute.proposal_hash`.
 /// Otherwise the dispute is malformed and we error out.
-pub fn resolve_dispute<P: TernaryProgram>(
+pub fn resolve_dispute<P: TernaryProgram + ?Sized>(
     contract: &P,
     propose: &Propose,
     execute: &Execute,
