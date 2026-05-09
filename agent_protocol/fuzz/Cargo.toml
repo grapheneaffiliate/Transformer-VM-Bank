@@ -1,0 +1,19 @@
+[package]
+name = "psl-agent-protocol-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+psl-agent-protocol = { path = ".." }
+serde_json.workspace = true
+
+[[bin]]
+name = "decode_protocol_message"
+path = "fuzz_targets/decode_protocol_message.rs"
+test = false
+doc = false

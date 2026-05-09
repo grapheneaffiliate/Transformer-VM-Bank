@@ -1,0 +1,24 @@
+[package]
+name = "psl-ternary-vm-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+psl-ternary-vm = { path = ".." }
+
+[[bin]]
+name = "unpack_weights"
+path = "fuzz_targets/unpack_weights.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "byte_add_run"
+path = "fuzz_targets/byte_add_run.rs"
+test = false
+doc = false
