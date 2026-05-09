@@ -1,0 +1,26 @@
+groups:
+  - name: psl_light_client
+    rules:
+      - alert: PSLLightClientBadProofSpike
+        expr: rate(psl_light_client_proof_verify_failures_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: high
+          component: light_client
+          runbook: "https://github.com/grapheneaffiliate/Transformer-VM-Bank/blob/main/docs/runbooks/light-client-divergence.md"
+        annotations:
+          summary: "Sustained light-client bad-proof rate"
+          description: |
+            psl_light_client_proof_verify_failures_total is rising at
+            >10/s. Either the published state has drifted from what the
+            light client expects (sequencer-side bug) or someone is
+            feeding malformed proofs (denial-of-service).
+
+      - alert: PSLLightClientStaleHeader
+        expr: psl_light_client_block_header_age_seconds > 60
+        for: 2m
+        labels:
+          severity: low
+          component: light_client
+        annotations:
+          summary: "Light client header age > 60s (sequencer slow or down?)"

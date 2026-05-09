@@ -1,0 +1,44 @@
+name: fuzz
+on:
+  schedule:
+    - cron: '0 3 * * *'   # daily, off-peak
+  workflow_dispatch:
+
+# Each fuzz target gets a fixed budget. The point is regression-detection,
+# not exhaustive search — long campaigns are run by the security team
+# offline (see docs/FUZZING.md).
+
+jobs:
+  fuzz-ternary-vm:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+      - name: Fuzz unpack_weights
+        run: cd ternary_vm && cargo +nightly fuzz run unpack_weights -- -max_total_time=600
+      - name: Fuzz byte_add_run
+        run: cd ternary_vm && cargo +nightly fuzz run byte_add_run -- -max_total_time=600
+
+  fuzz-agent-protocol:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+      - name: Fuzz decode_protocol_message
+        run: cd agent_protocol && cargo +nightly fuzz run decode_protocol_message -- -max_total_time=600
+
+  fuzz-agent-contracts:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+      - name: Fuzz transfer_run
+        run: cd agent_contracts && cargo +nightly fuzz run transfer_run -- -max_total_time=600
+      - name: Fuzz swap_run
+        run: cd agent_contracts && cargo +nightly fuzz run swap_run -- -max_total_time=600

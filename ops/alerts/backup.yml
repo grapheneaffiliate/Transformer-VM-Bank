@@ -1,0 +1,24 @@
+groups:
+  - name: psl-backup
+    rules:
+      - alert: PSLBackupAgeStale
+        expr: psl_backup_age_seconds > (24 * 3600)
+        for: 1h
+        labels: { severity: high }
+        annotations:
+          summary: "PSL backup older than 24 hours"
+          description: |
+            The most recent successful backup is {{ $value | humanizeDuration }} old.
+            Investigate the backup cron on the sequencer host. See
+            docs/runbooks/dr-restore.md § Pre-conditions.
+
+      - alert: PSLBackupVerifyFailed
+        expr: psl_backup_verify_failed > 0
+        for: 0m
+        labels: { severity: critical }
+        annotations:
+          summary: "PSL backup integrity verification FAILED"
+          description: |
+            tools/backup.sh --verify-latest reported a hash mismatch.
+            This means a recent backup is corrupt and could not be restored.
+            See docs/runbooks/dr-restore.md § "If backups are gone too".

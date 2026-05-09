@@ -1,0 +1,12 @@
+# Rename to backend.tf and edit the bucket / dynamodb_table values
+# to point at your own remote-state bucket. We do NOT commit a
+# concrete backend.tf because the bucket name is operator-specific.
+terraform {
+  backend "s3" {
+    bucket         = "REPLACE-with-your-tfstate-bucket"
+    key            = "psl/main.tfstate"
+    region         = "us-west-2"
+    dynamodb_table = "REPLACE-with-your-tflock-table"
+    encrypt        = true
+  }
+}

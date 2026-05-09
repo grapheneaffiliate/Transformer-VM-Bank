@@ -1,0 +1,30 @@
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels: [dependencies, rust]
+    # Group all non-major updates so we don't drown in PRs.
+    groups:
+      rust-minor-and-patch:
+        update-types: [minor, patch]
+    # Security advisories should always be a dedicated PR — don't group.
+    ignore:
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
+        # We review majors by hand because they often need code changes.
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    labels: [dependencies, ci]
+
+  - package-ecosystem: docker
+    directory: "/ops"
+    schedule:
+      interval: monthly
+    labels: [dependencies, ops]

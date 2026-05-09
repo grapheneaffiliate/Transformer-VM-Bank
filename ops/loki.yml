@@ -1,0 +1,38 @@
+# Single-binary Loki config — fine for the reference deployment, scale by
+# splitting components for production.
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9095
+
+common:
+  ring:
+    instance_addr: 127.0.0.1
+    kvstore: { store: inmemory }
+  replication_factor: 1
+  path_prefix: /loki
+
+schema_config:
+  configs:
+    - from: 2026-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index: { prefix: index_, period: 24h }
+
+storage_config:
+  filesystem: { directory: /loki/chunks }
+  tsdb_shipper:
+    active_index_directory: /loki/index
+    cache_location: /loki/index_cache
+
+limits_config:
+  retention_period: 168h    # 7 days hot
+  ingestion_rate_mb: 8
+  ingestion_burst_size_mb: 16
+
+compactor:
+  working_directory: /loki/compactor
+  retention_enabled: true
+  delete_request_store: filesystem

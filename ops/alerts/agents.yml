@@ -1,0 +1,23 @@
+groups:
+  - name: psl_agents
+    rules:
+      - alert: PSLAgentDisputeStorm
+        expr: |
+          rate(psl_agent_disputes_opened_total[5m])
+          > 5 * (avg_over_time(rate(psl_agent_disputes_opened_total[5m])[7d:5m]))
+        for: 5m
+        labels:
+          severity: high
+          component: agent
+          runbook: "https://github.com/grapheneaffiliate/Transformer-VM-Bank/blob/main/docs/runbooks/dispute-storm.md"
+        annotations:
+          summary: "Dispute rate >5σ above 7-day baseline"
+
+      - alert: PSLAgentSpendingNearCap
+        expr: psl_agent_spending_window_used / on (agent) psl_agent_spending_window_cap > 0.8
+        for: 0s
+        labels:
+          severity: low
+          component: agent
+        annotations:
+          summary: "Agent spending window > 80% utilized"

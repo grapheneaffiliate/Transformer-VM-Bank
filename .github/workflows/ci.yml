@@ -1,0 +1,48 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.95.0
+      - uses: Swatinem/rust-cache@v2
+      - name: Build workspace
+        run: cargo build --workspace --release
+      - name: Run all tests
+        run: cargo test --workspace --release
+      - name: Legacy isolation guard
+        run: tools/ci/check_legacy_isolation.sh
+
+  fmt-and-clippy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with: { components: rustfmt, clippy }
+      - name: cargo fmt
+        run: cargo fmt --all -- --check
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  reproducibility:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.95.0
+      - name: Verify REPRODUCE.md commands still work
+        run: |
+          # Re-runs the headline reproduction commands from a clean clone.
+          # Anything in REPRODUCE.md that becomes stale fails this job.
+          cargo build --workspace --release
+          cargo test --workspace --release
+          cargo run -p psl-agent-sdk --release --example trader_agent
+          cargo run -p psl-agent-sdk --release --example service_agent

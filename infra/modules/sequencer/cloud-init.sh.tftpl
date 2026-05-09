@@ -1,0 +1,52 @@
+#!/bin/bash
+# Cloud-init for a PSL sequencer instance.
+# Installs binaries, mounts state volume, registers backup cron.
+set -euo pipefail
+
+# 1. Format + mount state volume on /var/lib/psl
+mkfs.ext4 -F /dev/nvme1n1
+mkdir -p /var/lib/psl
+mount /dev/nvme1n1 /var/lib/psl
+echo "/dev/nvme1n1 /var/lib/psl ext4 defaults,nofail 0 2" >> /etc/fstab
+
+# 2. Pull pinned PSL release
+apt-get update && apt-get install -y curl awscli
+curl -L "https://github.com/grapheneaffiliate/Transformer-VM-Bank/releases/download/${psl_version}/psl-linux-amd64.tar.gz" \
+    | tar -xz -C /usr/local/bin/
+
+# 3. Backup environment
+cat > /etc/psl/backup.env <<EOF
+PSL_BACKUP_HOT_URI=${backup_hot_uri}
+PSL_BACKUP_COLD_URI=${backup_cold_uri}
+PSL_STATE_DIR=/var/lib/psl
+EOF
+
+# 4. systemd unit for the sequencer
+cat > /etc/systemd/system/psl-sequencer.service <<'EOF'
+[Unit]
+Description=PSL sequencer
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/psl-sequencer --state-dir /var/lib/psl
+Restart=on-failure
+User=psl
+EnvironmentFile=/etc/psl/backup.env
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+useradd -r -s /bin/false psl || true
+chown -R psl:psl /var/lib/psl
+systemctl enable --now psl-sequencer
+
+# 5. Backup cron — every 6 hours
+cat > /etc/cron.d/psl-backup <<'EOF'
+0 */6 * * * psl /usr/local/bin/backup.sh >> /var/log/psl-backup.log 2>&1
+EOF
+
+# 6. Weekly verify-latest cron
+cat > /etc/cron.d/psl-backup-verify <<'EOF'
+0 4 * * 0 psl /usr/local/bin/backup.sh --verify-latest >> /var/log/psl-backup-verify.log 2>&1
+EOF

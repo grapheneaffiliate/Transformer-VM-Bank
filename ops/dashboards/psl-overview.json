@@ -1,0 +1,52 @@
+{
+  "title": "PSL — Overview",
+  "uid": "psl-overview",
+  "schemaVersion": 39,
+  "tags": ["psl"],
+  "time": { "from": "now-3h", "to": "now" },
+  "refresh": "30s",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Block production rate (1m avg)",
+      "targets": [{
+        "expr": "rate(psl_blocks_produced_total[1m])",
+        "legendFormat": "blocks/s"
+      }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Inclusion latency (p50/p95/p99)",
+      "targets": [
+        { "expr": "histogram_quantile(0.50, rate(psl_inclusion_latency_seconds_bucket[5m]))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, rate(psl_inclusion_latency_seconds_bucket[5m]))", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, rate(psl_inclusion_latency_seconds_bucket[5m]))", "legendFormat": "p99" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Mempool depth",
+      "targets": [{ "expr": "psl_mempool_depth", "legendFormat": "{{instance}}" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Follower lag (blocks behind sequencer)",
+      "targets": [{ "expr": "psl_follower_lag_blocks", "legendFormat": "{{instance}}" }]
+    },
+    {
+      "type": "stat",
+      "title": "Backup age (hours)",
+      "targets": [{ "expr": "psl_backup_age_seconds / 3600" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Light-client bad-proof rate",
+      "targets": [{ "expr": "rate(psl_light_client_bad_proofs_total[5m])", "legendFormat": "{{source}}" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Agent disputes opened (5m rate)",
+      "targets": [{ "expr": "rate(psl_agent_disputes_opened_total[5m])", "legendFormat": "{{contract}}" }]
+    }
+  ]
+}

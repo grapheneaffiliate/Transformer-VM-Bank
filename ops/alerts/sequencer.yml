@@ -1,0 +1,64 @@
+groups:
+  - name: psl_sequencer_critical
+    rules:
+      - alert: PSLSequencerHalt
+        expr: |
+          (time() - psl_sequencer_block_height_total) > 120
+          OR absent(psl_sequencer_block_height_total)
+        for: 30s
+        labels:
+          severity: critical
+          component: sequencer
+          runbook: "https://github.com/grapheneaffiliate/Transformer-VM-Bank/blob/main/docs/runbooks/consensus-halt.md"
+        annotations:
+          summary: "Sequencer not producing blocks (≥2× expected interval)"
+          description: |
+            psl_sequencer_block_height_total has not advanced for >2× the
+            expected interval. Possible causes: disk full, mempool stuck on
+            bad tx, trace runtime exception. See runbook.
+
+      - alert: PSLStateRootMismatch
+        expr: rate(psl_sequencer_state_root_mismatches_total[1m]) > 0
+        for: 0s
+        labels:
+          severity: critical
+          component: sequencer
+          runbook: "https://github.com/grapheneaffiliate/Transformer-VM-Bank/blob/main/docs/runbooks/consensus-halt.md"
+        annotations:
+          summary: "Consensus halt — sequencer / follower state-root divergence"
+          description: |
+            Sequencer's published state root disagrees with at least one
+            follower's recomputed root. The chain has stopped; do not
+            produce more blocks until the divergent block is identified
+            and the offending side is rolled back. See runbook.
+
+  - name: psl_sequencer_warnings
+    rules:
+      - alert: PSLMempoolOverflow
+        expr: psl_sequencer_mempool_depth > 50000
+        for: 5m
+        labels:
+          severity: high
+          component: sequencer
+          runbook: "https://github.com/grapheneaffiliate/Transformer-VM-Bank/blob/main/docs/runbooks/dispute-storm.md"
+        annotations:
+          summary: "Mempool depth exceeds 50k pending txs"
+
+      - alert: PSLSignatureFailureSpike
+        expr: rate(psl_sequencer_mempool_admit_failures_total{reason="sig_invalid"}[5m]) > 100
+        for: 2m
+        labels:
+          severity: high
+          component: sequencer
+          runbook: "https://github.com/grapheneaffiliate/Transformer-VM-Bank/blob/main/docs/runbooks/sequencer-key-compromise.md"
+        annotations:
+          summary: "Sustained signature-verification failures (possible attack)"
+
+      - alert: PSLTraceRuntimeRegression
+        expr: histogram_quantile(0.95, rate(psl_sequencer_trace_duration_seconds_bucket[5m])) > 0.1
+        for: 10m
+        labels:
+          severity: medium
+          component: sequencer
+        annotations:
+          summary: "Ternary trace p95 > 100ms (perf regression)"

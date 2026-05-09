@@ -1,0 +1,43 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: psl-local
+
+rule_files:
+  - /etc/prometheus/alerts/*.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: psl-sequencer
+    static_configs:
+      - targets: ["host.docker.internal:9100"]
+        labels:
+          component: sequencer
+
+  - job_name: psl-followers
+    static_configs:
+      - targets:
+          - "host.docker.internal:9101"
+          - "host.docker.internal:9102"
+          - "host.docker.internal:9103"
+        labels:
+          component: follower
+
+  - job_name: psl-light-client
+    static_configs:
+      - targets: ["host.docker.internal:9110"]
+        labels:
+          component: light_client
+
+  - job_name: psl-agents
+    file_sd_configs:
+      - files: ["/etc/prometheus/agents.json"]
