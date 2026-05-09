@@ -25,6 +25,7 @@ use psl_rust_runner::weights::{load_weights, Weights};
 use psl_rust_runner::{generate, GenerateConfig};
 use rayon::prelude::*;
 use std::path::PathBuf;
+use std::io::Write;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 use std::time::Instant;
@@ -300,6 +301,10 @@ fn main() -> Result<()> {
                     "  [{:>5}/{}] {} ok / {} fail  ({:.2}/s, ETA {:.0}s)",
                     done, cli.count, p, f, rate, eta
                 );
+                // Force flush so progress lines stream through tee / log
+                // redirects instead of being held in stderr's pipe buffer
+                // until process exit.
+                let _ = std::io::stderr().flush();
             }
         }
     });
