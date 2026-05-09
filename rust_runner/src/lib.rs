@@ -38,5 +38,6 @@ pub mod weights;
 pub mod transformer;
 pub mod attention;
 pub mod generate;
+pub mod sparse;
 
 pub use generate::{generate, GenerateConfig};

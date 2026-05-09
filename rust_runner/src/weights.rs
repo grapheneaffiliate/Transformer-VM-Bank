@@ -30,6 +30,8 @@ use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::Path;
 
+use crate::sparse::Linear;
+
 #[derive(Clone, Debug)]
 pub struct Header {
     pub vocab: usize,
@@ -42,10 +44,10 @@ pub struct Header {
 
 #[derive(Clone, Debug)]
 pub struct LayerWeights {
-    pub in_proj: Array2<f64>,        // [3*d_model, d_model]
-    pub out_proj: Array2<f64>,       // [d_model, d_model]
-    pub ff_in: Array2<f64>,          // [2*d_ffn, d_model]
-    pub ff_out: Array2<f64>,         // [d_model, d_ffn]
+    pub in_proj: Linear,             // [3*d_model, d_model]
+    pub out_proj: Linear,            // [d_model, d_model]
+    pub ff_in: Linear,               // [2*d_ffn, d_model]
+    pub ff_out: Linear,              // [d_model, d_ffn]
 }
 
 #[derive(Clone, Debug)]
@@ -53,9 +55,9 @@ pub struct Weights {
     pub header: Header,
     pub tokens: Vec<String>,
     pub tok_to_idx: HashMap<String, usize>,
-    pub tok_embed: Array2<f64>,      // [vocab, d_model]
+    pub tok_embed: Array2<f64>,      // [vocab, d_model] — kept dense, used as embedding row-lookup not matmul
     pub layers: Vec<LayerWeights>,
-    pub head: Array2<f64>,            // [vocab, d_model]
+    pub head: Linear,                // [vocab, d_model]
 }
 
 fn read_f64_array<R: Read>(r: &mut R, rows: usize, cols: usize) -> Result<Array2<f64>> {
@@ -120,19 +122,20 @@ pub fn load_weights(path: &Path) -> Result<Weights> {
     // Token embedding
     let tok_embed = read_f64_array(&mut r, vocab, d_model)?;
 
-    // Per-layer weights
+    // Per-layer weights — converted to sparse representation when density
+    // < 50% (analytical-construction weights are typically 95%+ zeros).
     let mut layers = Vec::with_capacity(n_layers);
     for li in 0..n_layers {
-        let in_proj = read_f64_array(&mut r, 3 * d_model, d_model)?;
-        let out_proj = read_f64_array(&mut r, d_model, d_model)?;
+        let in_proj = Linear::from_dense(read_f64_array(&mut r, 3 * d_model, d_model)?);
+        let out_proj = Linear::from_dense(read_f64_array(&mut r, d_model, d_model)?);
         let width = d_ffn_per_layer[li];
-        let ff_in = read_f64_array(&mut r, 2 * width, d_model)?;
-        let ff_out = read_f64_array(&mut r, d_model, width)?;
+        let ff_in = Linear::from_dense(read_f64_array(&mut r, 2 * width, d_model)?);
+        let ff_out = Linear::from_dense(read_f64_array(&mut r, d_model, width)?);
         layers.push(LayerWeights { in_proj, out_proj, ff_in, ff_out });
     }
 
     // Head
-    let head_w = read_f64_array(&mut r, vocab, d_model)?;
+    let head_w = Linear::from_dense(read_f64_array(&mut r, vocab, d_model)?);
 
     // Optional erase / tiebreak — loaded but ignored (StandardKVCache cache).
     let has_erase = r.read_i32::<LittleEndian>().unwrap_or(0);

@@ -73,15 +73,15 @@ fn main() -> Result<()> {
         add_pos_enc(&mut x, pos);
 
         for (li, layer) in w.layers.iter().enumerate() {
-            let proj: Array1<f64> = layer.in_proj.dot(&x);
+            let proj: Array1<f64> = layer.in_proj.matvec(&x);
             let q = proj.slice(s![0..d_model]).to_owned();
             let k = proj.slice(s![d_model..2 * d_model]).to_owned();
             let v = proj.slice(s![2 * d_model..3 * d_model]).to_owned();
             let attn_out = cache.layer_step(li, k, q, v);
-            let out_proj_v = layer.out_proj.dot(&attn_out);
+            let out_proj_v = layer.out_proj.matvec(&attn_out);
             x = &x + &out_proj_v;
 
-            let ffn_proj: Array1<f64> = layer.ff_in.dot(&x);
+            let ffn_proj: Array1<f64> = layer.ff_in.matvec(&x);
             let width = w.header.d_ffn_per_layer[li];
             let gate = ffn_proj.slice(s![0..width]);
             let val = ffn_proj.slice(s![width..2 * width]);
@@ -89,12 +89,12 @@ fn main() -> Result<()> {
             for i in 0..width {
                 act[i] = gate[i].max(0.0) * val[i];
             }
-            let ff_out_v = layer.ff_out.dot(&act);
+            let ff_out_v = layer.ff_out.matvec(&act);
             x = &x + &ff_out_v;
         }
 
         if pos + 1 == idx_list.len() {
-            let logits: Array1<f64> = w.head.dot(&x);
+            let logits: Array1<f64> = w.head.matvec(&x);
             let bytes: &[u8] = unsafe {
                 std::slice::from_raw_parts(
                     logits.as_slice().unwrap().as_ptr() as *const u8,

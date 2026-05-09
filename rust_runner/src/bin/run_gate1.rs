@@ -62,6 +62,11 @@ impl Splitmix64 {
     fn bit(&mut self) -> u8 { (self.next_u64() & 1) as u8 }
 }
 
+/// Per-byte spec encoding — matches `render_binary_spec` in
+/// `tools/run_per_byte_10k.py` (used by byte_add / byte_sub /
+/// transfer_check / transfer_finalize / mpt_emit). Each input byte goes
+/// through the model's tokenizer directly: printable ASCII as the literal
+/// char, else 2-char hex. NUL terminator + commit token.
 fn render_spec(witness: &[u8]) -> Vec<String> {
     let mut tokens: Vec<String> = vec!["start".into()];
     for &b in witness {
@@ -72,6 +77,31 @@ fn render_spec(witness: &[u8]) -> Vec<String> {
         }
     }
     tokens.push("00".into());
+    tokens.push("commit(+0,sts=0,bt=0)".into());
+    tokens
+}
+
+/// Decimal-text-wrapped spec encoding — matches `render_spec` in
+/// `tools/run_freeze_decomposed.py`. The witness ints are first joined
+/// with single spaces into ASCII text ("1 213 141 ..."), then UTF-8 +
+/// NUL + per-byte tokens. This is the format `freeze_setup` and
+/// `freeze_apply` were specialized against.
+fn render_decimal_spec(witness: &[u8]) -> Vec<String> {
+    let text: String = witness
+        .iter()
+        .map(|b| b.to_string())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let mut data: Vec<u8> = text.into_bytes();
+    data.push(0u8);
+    let mut tokens: Vec<String> = vec!["start".into()];
+    for &b in &data {
+        if (0x20 < b && b < 0x7F) && b != b'{' && b != b'}' {
+            tokens.push((b as char).to_string());
+        } else {
+            tokens.push(format!("{b:02x}"));
+        }
+    }
     tokens.push("commit(+0,sts=0,bt=0)".into());
     tokens
 }
@@ -98,6 +128,28 @@ fn run_one_pass(w: &Weights, witness: &[u8], max_new: usize) -> Result<Vec<u8>> 
     let cfg = GenerateConfig { max_new_tokens: max_new };
     let predicted = generate(w, &toks_ref, &cfg)?;
     Ok(parse_out_bytes(&predicted))
+}
+
+/// Run a freeze pass: input encoded as decimal-text-wrapped bytes,
+/// output parsed as decimal-text integers (one per whitespace-separated
+/// chunk). Returns the integer values as u8s.
+fn run_freeze_pass(w: &Weights, witness: &[u8], max_new: usize) -> Result<Vec<u8>> {
+    let toks = render_decimal_spec(witness);
+    let toks_ref: Vec<&str> = toks.iter().map(|s| s.as_str()).collect();
+    let cfg = GenerateConfig { max_new_tokens: max_new };
+    let predicted = generate(w, &toks_ref, &cfg)?;
+    let out_bytes = parse_out_bytes(&predicted);
+    let text = String::from_utf8_lossy(&out_bytes);
+    let mut out_ints = Vec::new();
+    for chunk in text.split_whitespace() {
+        let v: i64 = chunk.parse()
+            .map_err(|e| anyhow::anyhow!("parse freeze output {chunk:?}: {e}"))?;
+        if !(0..=255).contains(&v) {
+            anyhow::bail!("freeze output int {v} out of u8 range");
+        }
+        out_ints.push(v as u8);
+    }
+    Ok(out_ints)
 }
 
 fn main() -> Result<()> {
@@ -193,8 +245,25 @@ fn main() -> Result<()> {
             Kind::FreezeChain => {
                 let setup = setup_w_arc.as_ref().unwrap();
                 let apply = apply_w_arc.as_ref().unwrap();
-                run_one_pass(setup, &witness, max_new)
-                    .and_then(|setup_out| run_one_pass(apply, &setup_out, max_new))
+                run_freeze_pass(setup, &witness, max_new).and_then(|setup_out| {
+                    if setup_out.len() != 2 {
+                        anyhow::bail!(
+                            "freeze_setup expected 2 ints, got {}: {:?}",
+                            setup_out.len(),
+                            setup_out
+                        );
+                    }
+                    run_freeze_pass(apply, &setup_out, max_new).and_then(|apply_out| {
+                        if apply_out.len() != 1 {
+                            anyhow::bail!(
+                                "freeze_apply expected 1 int, got {}: {:?}",
+                                apply_out.len(),
+                                apply_out
+                            );
+                        }
+                        Ok(apply_out)
+                    })
+                })
             }
         };
 

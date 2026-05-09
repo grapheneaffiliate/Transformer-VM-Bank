@@ -48,21 +48,21 @@ impl<'a> Transformer<'a> {
 
         for (li, layer) in self.w.layers.iter().enumerate() {
             // Attention. in_proj is [3*d_model, d_model]; result [3*d_model].
-            let proj: Array1<f64> = layer.in_proj.dot(&x);
+            // Sparse path active when ≥50% of W entries are zero (the common
+            // case for analytical-construction weights — see crate::sparse).
+            let proj: Array1<f64> = layer.in_proj.matvec(&x);
             // chunk(3) along last dim ⇒ contiguous splits of size d_model.
             let q = proj.slice(s![0..d_model]).to_owned();
             let k = proj.slice(s![d_model..2 * d_model]).to_owned();
             let v = proj.slice(s![2 * d_model..3 * d_model]).to_owned();
 
             let attn_out = cache.layer_step(li, k, q, v);
-            // out_proj is Linear(d_model, d_model) ⇒ weight [d_model, d_model],
-            // applied as W @ x (row-vector convention: y = x · Wᵀ; ndarray:
-            // weight.dot(x) gives that since matrix is stored [out, in]).
-            let out_proj = layer.out_proj.dot(&attn_out);
+            // out_proj is Linear(d_model, d_model) ⇒ weight [d_model, d_model].
+            let out_proj = layer.out_proj.matvec(&attn_out);
             x = &x + &out_proj;
 
             // FFN. ff_in is [2*width, d_model]; result [2*width].
-            let ffn_proj: Array1<f64> = layer.ff_in.dot(&x);
+            let ffn_proj: Array1<f64> = layer.ff_in.matvec(&x);
             let width = self.w.header.d_ffn_per_layer[li];
             let gate = ffn_proj.slice(s![0..width]);
             let val = ffn_proj.slice(s![width..2 * width]);
@@ -72,7 +72,7 @@ impl<'a> Transformer<'a> {
                 act[i] = gate[i].max(0.0) * val[i];
             }
             // ff_out is Linear(width, d_model) ⇒ weight [d_model, width].
-            let ff_out_vec = layer.ff_out.dot(&act);
+            let ff_out_vec = layer.ff_out.matvec(&act);
             x = &x + &ff_out_vec;
         }
         x
@@ -101,7 +101,7 @@ impl<'a> Transformer<'a> {
             // Generate next only after the prompt is fully consumed; matches
             // the Python condition `if pos + 1 == len(idx_list)`.
             if pos + 1 == idx_list.len() {
-                let logits = self.w.head.dot(&x);
+                let logits = self.w.head.matvec(&x);
                 let mut best_idx = 0usize;
                 let mut best = f64::NEG_INFINITY;
                 for (i, &v) in logits.iter().enumerate() {
