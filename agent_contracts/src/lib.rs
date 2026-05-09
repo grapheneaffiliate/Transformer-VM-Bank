@@ -32,10 +32,17 @@
 //! This iteration ships `transfer` end-to-end with random-witness
 //! verification.
 
+pub mod conditional;
 pub mod error;
+pub mod escrow;
+pub mod guarded;
 pub mod program;
 pub mod swap;
 pub mod transfer;
 
+pub use conditional::{ConditionalPayment, Multisig2of3, TimeLockedRelease};
 pub use error::ContractError;
+pub use escrow::{EscrowCreate, EscrowRefund, EscrowRelease};
 pub use program::{ProgramHash, TernaryProgram};
+pub use swap::SwapContract;
+pub use transfer::TransferContract;

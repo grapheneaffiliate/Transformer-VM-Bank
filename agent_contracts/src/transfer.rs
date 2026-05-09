@@ -24,12 +24,11 @@
 //! All u128/u64 fields are little-endian.
 
 use crate::error::ContractError;
+use crate::guarded::wrapped_transfer;
 use crate::program::{ProgramHash, TernaryProgram};
 
 use psl_ternary_vm::network::TernaryNetwork;
-use psl_ternary_vm::primitives::{
-    byte_add_with_carry, byte_sub_with_borrow, transfer_check, transfer_finalize,
-};
+use psl_ternary_vm::primitives::{byte_add_with_carry, byte_sub_with_borrow};
 
 pub const INPUT_LEN: usize = 16 + 16 + 16 + 8;
 pub const OUTPUT_LEN: usize = 16 + 16 + 8;
@@ -65,40 +64,6 @@ fn compute_program_hash(byte_add: &TernaryNetwork, byte_sub: &TernaryNetwork) ->
     out
 }
 
-/// Compute `from − amount` (16-byte little-endian u128 wrapping
-/// subtraction) by chaining `byte_sub_with_borrow` 16 times. Returns
-/// the difference + final borrow.
-fn u128_sub_chain(
-    byte_sub: &TernaryNetwork,
-    a: [u8; 16],
-    b: [u8; 16],
-) -> Result<([u8; 16], u8), ContractError> {
-    let mut diff = [0u8; 16];
-    let mut borrow: u8 = 0;
-    for i in 0..16 {
-        let (d, new_borrow) = byte_sub_with_borrow::run(byte_sub, a[i], b[i], borrow)?;
-        diff[i] = d;
-        borrow = new_borrow;
-    }
-    Ok((diff, borrow))
-}
-
-/// Compute `to + amount` by chaining `byte_add_with_carry` 16 times.
-fn u128_add_chain(
-    byte_add: &TernaryNetwork,
-    a: [u8; 16],
-    b: [u8; 16],
-) -> Result<([u8; 16], u8), ContractError> {
-    let mut sum = [0u8; 16];
-    let mut carry: u8 = 0;
-    for i in 0..16 {
-        let (s, new_carry) = byte_add_with_carry::run(byte_add, a[i], b[i], carry)?;
-        sum[i] = s;
-        carry = new_carry;
-    }
-    Ok((sum, carry))
-}
-
 impl TernaryProgram for TransferContract {
     fn name(&self) -> &'static str {
         "transfer"
@@ -125,25 +90,14 @@ impl TernaryProgram for TransferContract {
         amount.copy_from_slice(&input[32..48]);
         nonce.copy_from_slice(&input[48..56]);
 
-        // Precondition: from_balance ≥ amount.
-        let ok = transfer_check::run(&self.byte_sub, from_balance, amount)?;
-        if ok != 1 {
-            return Ok(vec![0u8; OUTPUT_LEN]);
-        }
-
-        let (new_from, _) = u128_sub_chain(&self.byte_sub, from_balance, amount)?;
-        let (new_to, carry) = u128_add_chain(&self.byte_add, to_balance, amount)?;
-        if carry == 1 {
-            // recipient balance overflow — canonical no-op
-            return Ok(vec![0u8; OUTPUT_LEN]);
-        }
-        let new_nonce = transfer_finalize::run(&self.byte_add, nonce)?;
-
-        let mut out = Vec::with_capacity(OUTPUT_LEN);
-        out.extend_from_slice(&new_from);
-        out.extend_from_slice(&new_to);
-        out.extend_from_slice(&new_nonce);
-        Ok(out)
+        wrapped_transfer(
+            &self.byte_add,
+            &self.byte_sub,
+            from_balance,
+            to_balance,
+            amount,
+            nonce,
+        )
     }
 }
 
