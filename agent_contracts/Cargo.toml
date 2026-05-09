@@ -1,0 +1,18 @@
+[package]
+name = "psl-agent-contracts"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Phase 2 Layer 2: standard contract library for the agent execution layer. Each contract composes ternary primitives from psl-ternary-vm into a deterministic, integer-arithmetic, single-shot program."
+
+[lib]
+name = "psl_agent_contracts"
+path = "src/lib.rs"
+
+[dependencies]
+psl-ternary-vm = { path = "../ternary_vm" }
+blake3.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+rand.workspace = true

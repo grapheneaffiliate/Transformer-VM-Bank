@@ -972,6 +972,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "psl-agent-contracts"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "psl-ternary-vm",
+ "rand",
+ "thiserror",
+]
+
+[[package]]
 name = "psl-consensus"
 version = "0.1.0"
 dependencies = [

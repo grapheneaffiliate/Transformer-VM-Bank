@@ -7,6 +7,7 @@ members = [
     "light_client",
     "rust_runner",
     "ternary_vm",
+    "agent_contracts",
     "pilot/issuer_demo",
 ]
 
