@@ -5,15 +5,17 @@
 //! Per-token forward pass (greedy argmax decoding). The Python
 //! `generate_with_cache` runs this loop:
 //!
-//!     x = tok.weight[token_id].clone()
-//!     add_position_encoding(x, pos)               // x[0] += pos; x[1] += k(pos); x[2] += pos²
-//!     for layer in 0..n_layers:
-//!         q,k,v = (in_proj @ x).chunk(3, dim=-1)
-//!         out   = cache.layer_step(layer, k, q, v)
-//!         x     = x + out_proj @ out
-//!         g, v  = (ff_in @ x).chunk(2, dim=-1)
-//!         x     = x + ff_out @ (relu(g) * v)
-//!     if generating: return argmax(head @ x)
+//! ```text
+//! x = tok.weight[token_id].clone()
+//! add_position_encoding(x, pos)               // x[0] += pos; x[1] += k(pos); x[2] += pos²
+//! for layer in 0..n_layers:
+//!     q,k,v = (in_proj @ x).chunk(3, dim=-1)
+//!     out   = cache.layer_step(layer, k, q, v)
+//!     x     = x + out_proj @ out
+//!     g, v  = (ff_in @ x).chunk(2, dim=-1)
+//!     x     = x + ff_out @ (relu(g) * v)
+//! if generating: return argmax(head @ x)
+//! ```
 //!
 //! No layer norm, no attention scaling, no biases — matches the analytical
 //! construction.

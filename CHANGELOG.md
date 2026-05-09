@@ -3,6 +3,106 @@
 Human-readable history of PSL milestones. Per-gate entries point at the
 load-bearing commit on `origin/main`.
 
+## v0.1.0 — 2026-05-09 — Audit hand-off release
+
+The first release tag for PSL. The core Phase 1 (settlement layer, gates
+1-9) and Phase 2 (agent execution layer, gates 10-16) work is closed.
+Gates 17 (external audit) and 18 (DR drill) are at 🟢 — the material
+is shipped and reviewable, awaiting human action (signed engagement
+letter; first scheduled drill on staging). Per ADR-0003, this tag
+triggers the audit and the publication sequence.
+
+### Added
+- **Phase 2 agent execution layer** (gates 10-16). Ternary integer
+  contract VM (`ternary_vm/`); 8-contract standard library
+  (`agent_contracts/`); SLIP-0010 wallet + spending policies +
+  revocation (`agent_wallet/`); 5-message negotiation protocol +
+  dispute-by-re-execution (`agent_protocol/`); SDK with reference
+  agents in Rust + Python + TypeScript bindings (`agent_sdk/`,
+  `sdk-examples/`).
+- **Property and adversarial test corpus** — proptest invariants for
+  wallet (5 properties) and ternary VM (11 properties); 7 adversarial
+  dispute scenarios on the protocol layer (replay, malformed witness,
+  stale, sybil, griefing, cross-proposal, illegal-transition state
+  preservation).
+- **Five fuzz harnesses** (`docs/FUZZING.md`): unpack_weights,
+  byte_add_run, decode_protocol_message, transfer_run, swap_run.
+  CI-scheduled per `.github/workflows/fuzz.yml`.
+- **Audit hand-off package**: `docs/AUDIT_BRIEF.md`,
+  `docs/SECURITY_REVIEW.md` (extended with adversary inventory,
+  cryptographic primitive selection, side-channel resistance, memory
+  zeroing), `docs/REPRODUCIBILITY_REPORT.md`, `docs/UNWRAP_AUDIT.md`,
+  `outreach/audit-engagement-{trail-of-bits,zellic,ottersec}.md`.
+- **Production operations stack** (gate 18): six runbooks
+  (`docs/runbooks/`), full observability stack (`ops/` —
+  Prometheus/Grafana/Alertmanager/Loki/Promtail/Tempo + 11 PromQL
+  alerts), backup automation with dual-tier hot/cold storage and
+  BLAKE3-verified manifests (`tools/backup.sh`), load-test scaffold
+  (`tools/load_test.sh`), pre-committed DR drill protocol
+  (`docs/DR_DRILL_PLAN.md`), reference Terraform infra (`infra/`).
+- **CI/CD**: `.github/workflows/{ci,security,fuzz}.yml`,
+  `.github/dependabot.yml`. Three categories of CI lint:
+  build/test/clippy/fmt; cargo-audit/cargo-deny/SBOM; nightly fuzz
+  campaigns.
+- **Governance scaffolding**: `MAINTAINERS.md`, `GOVERNANCE.md`,
+  `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, top-level `SECURITY.md`.
+- **External-facing artifacts**: README rewritten to lead with the
+  agent layer; launch blog post (`docs/blog/agent-layer-launch.md`);
+  whitepaper draft (`docs/whitepaper/PSL.md`) for arXiv submission
+  per ADR-0003.
+
+### Changed
+- **Gate 8 closed via retirement** (ADR-0001). The legacy fp64
+  `rust_runner/` was moved to `legacy/rust_runner/` with `#[deprecated]`
+  markers; the pure-Rust ternary kernel (`ternary_vm/`) is the
+  canonical execution engine; PyTorch+MKL parity is architecturally
+  out-of-scope (MKL's reduction-order opacity is incompatible with
+  bit-exact verification). CI guard `tools/ci/check_legacy_isolation.sh`
+  prevents new dependencies on the retired code.
+- **README rewritten** to lead with the agent transaction layer rather
+  than the original transformer-trace narrative. Status table
+  consolidated; per-gate detail stays in `docs/STATUS.md`.
+
+### Architectural decisions
+- **ADR-0001** — Retire legacy fp64 Rust runner.
+- **ADR-0002** — BFT consensus engine selection: defer to v0.2 with
+  three concrete trigger conditions and 60-day SLA from any trigger
+  fire.
+- **ADR-0003** — Publication strategy for v0.1.0 (repo announce →
+  whitepaper → social, in that order).
+- **ADR-0004** — Public test network deferred to v0.2 (cannot operate
+  one under audit-pending + DR-drill-pending posture).
+- **ADR-0005** — Licensing (MIT), export-control (EAR § 742.15(b)
+  publicly-available carveout), patent posture (defensive
+  non-assertion). Subject to legal review before any v0.2 dependencies.
+
+### Status at v0.1.0 cut
+
+| Gate | Description                               | Status |
+| ---  | ---                                       | ---    |
+| 1    | Primitive bit-exact (10k vectors each)    | ✅ |
+| 2    | Crypto + SMT determinism                  | ✅ |
+| 3    | Lean lake build                           | ✅ |
+| 4    | Sequencer + 3 followers, 100 blocks       | ✅ |
+| 5    | Compliance enforcement                    | ✅ |
+| 6    | Light client cross-verifies               | ✅ |
+| 7    | End-to-end pilot                          | ✅ |
+| 8    | Pure-Rust runner canonical (ADR-0001)     | ✅ |
+| 9    | BFT consensus (deferred per ADR-0002)     | ⏸ |
+| 10   | Ternary execution engine                  | ✅ |
+| 11   | Contract DSL standard library             | ✅ |
+| 12   | Identity & wallet                         | ✅ |
+| 13   | Negotiation protocol                      | ✅ |
+| 14   | Dispute resolution                        | ✅ |
+| 15   | Reference agents                          | ✅ |
+| 16   | SDK 0.1.0                                 | ✅ |
+| 17   | External security audit                   | 🟢 awaits engagement letter |
+| 18   | Production-readiness                      | 🟢 awaits first DR drill |
+
+Per `docs/STATUS.md` for command + output + commit-hash detail.
+
+---
+
 ## 2026-05-04
 
 ### Gate 8 — Rust runner ratified canonical for trace-hash production
