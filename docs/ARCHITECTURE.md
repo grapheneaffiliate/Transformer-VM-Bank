@@ -130,6 +130,40 @@ Each primitive's input format is space-separated decimal bytes, identical to
 the encoding used by `arc_*.c` examples. See per-primitive sections below for
 exact byte layout.
 
+### 0.8 Ternary trace contract (Phase 2 — pinned 2026-05-09)
+
+For ternary-network primitives (`ternary_vm/`), trace_hash is defined
+without any token sequence:
+
+```
+trace_hash_ternary(P, x) := BLAKE3(
+    weights_hash(P)
+ || canonical_input_encoding(x)
+ || canonical_output_encoding(y)
+)
+```
+
+where `y = TernaryNetwork::forward(x)` for the canonical
+construction of primitive `P`. `weights_hash(P)` is the BLAKE3 of the
+canonical packed weights payload (`ternary_vm/src/weights.rs::pack_weights`).
+Canonical input/output encodings are 4-byte big-endian length prefix
+followed by 8-byte big-endian per `i64`.
+
+**Why this is structurally simpler than the autoregressive § 0.2 contract:**
+ternary-integer arithmetic is associative and overflow-checked. Any
+conformant integer-arithmetic verifier (x86_64, aarch64, FPGA, secure
+enclave, microcontroller) produces bit-identical `y` for the same `x`
+and `weights_hash`. There is no canonical-engine pin, no soft-vs-hard
+attention divergence, no fp64 reduction-order surface. The
+`PSL_VERIFY_ENGINE=ternary` mode in `tests/test_bit_exact.py` becomes
+the production verifier; alternative engines (Python, C++, the legacy
+soft-attention Rust runner) are kept only for migration cross-checks.
+
+The two § 0 contracts coexist during the migration window. Per
+`docs/STATUS.md`, gate 10 closes when all 7 active primitives are in
+the ternary executor; at that point § 0.2 (token-sequence trace_hash)
+is marked legacy.
+
 ---
 
 ## 1. Architectural decisions (recap)

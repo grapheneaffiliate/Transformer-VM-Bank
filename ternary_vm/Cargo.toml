@@ -1,0 +1,18 @@
+[package]
+name = "psl-ternary-vm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Phase 2: pure-integer ternary execution engine for PSL primitives. Bit-exact deterministic across hosts (no fp). Replaces autoregressive transformer trace with single-shot inference."
+
+[lib]
+name = "psl_ternary_vm"
+path = "src/lib.rs"
+
+[dependencies]
+blake3.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+
+[dev-dependencies]
+rand.workspace = true

@@ -6,6 +6,7 @@ members = [
     "sequencer",
     "light_client",
     "rust_runner",
+    "ternary_vm",
     "pilot/issuer_demo",
 ]
 
