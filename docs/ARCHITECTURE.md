@@ -83,6 +83,23 @@ use the canonical engine; the other two are for cross-validation.
 `tests/test_bit_exact.py` defaults to engine `rust`; set
 `PSL_VERIFY_ENGINE=cpp` to cross-validate against the secondary engine.
 
+**Important caveat — attention algorithm.** The pure-Rust runner ports
+Python's `StandardKVCache` (softmax attention, O(n) per step). The
+Transformer-VM C++ engine (`transformer.cpp`) defaults to a **different
+algorithm**: hull-based hard attention (O(log n) per step), per
+`hull2d_cht.h` and the `HardAttentionHead` class. Hard attention is
+deterministic and bit-stable across implementations; soft attention
+accumulates fp64 drift that becomes argmax-flipping at long sequences
+(empirically: 17.5k-token `freeze_setup` never converges to halt under
+either Rust or Python soft-attention paths without MKL's reduction
+order intervening). The two algorithms agree on short primitives that
+the model was specialized to handle either way. For long primitives,
+the canonical reference is currently the C++ engine's hard-attention
+path; Rust soft-attention is a secondary algorithm useful for the
+short-primitive subset until either hard attention is ported to Rust
+or the analytical models are replaced by the ternary single-shot
+executor (next-phase plan).
+
 ### 0.5 Why argmax-decoding is deterministic
 
 The specialized models PSL uses are pure-integer-arithmetic in the intended
