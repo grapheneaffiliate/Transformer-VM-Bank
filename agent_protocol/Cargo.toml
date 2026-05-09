@@ -1,0 +1,25 @@
+[package]
+name = "psl-agent-protocol"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Phase 2 Layer 4: agent-to-agent negotiation protocol — registry, proposal lifecycle, reputation, dispute resolution. Network/TLS substrate is out-of-scope for this crate; this defines the on-chain message types + state machine + ledger semantics."
+
+[lib]
+name = "psl_agent_protocol"
+path = "src/lib.rs"
+
+[dependencies]
+psl-ternary-vm = { path = "../ternary_vm" }
+psl-agent-contracts = { path = "../agent_contracts" }
+psl-agent-wallet = { path = "../agent_wallet" }
+ed25519-dalek.workspace = true
+blake3.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde-big-array.workspace = true
+serde_json.workspace = true
+hex.workspace = true
+
+[dev-dependencies]
+rand.workspace = true

@@ -1,0 +1,25 @@
+[package]
+name = "psl-agent-wallet"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Phase 2 Layer 3: hierarchical key derivation, spending policy enforcement, key revocation, key rotation for the agent execution layer."
+
+[lib]
+name = "psl_agent_wallet"
+path = "src/lib.rs"
+
+[dependencies]
+ed25519-dalek.workspace = true
+blake3.workspace = true
+sha2 = "0.10"
+hmac = "0.12"
+thiserror.workspace = true
+serde.workspace = true
+serde-big-array.workspace = true
+serde_json.workspace = true
+hex.workspace = true
+zeroize = { version = "1.7", features = ["derive"] }
+
+[dev-dependencies]
+rand.workspace = true

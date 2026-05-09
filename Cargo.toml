@@ -8,6 +8,8 @@ members = [
     "rust_runner",
     "ternary_vm",
     "agent_contracts",
+    "agent_wallet",
+    "agent_protocol",
     "pilot/issuer_demo",
 ]
 
