@@ -1,5 +1,16 @@
 # PSL Primitives
 
+> **Status note (2026-05-09):** These C source files belong to the
+> **original WASM-primitive workflow** (gate 1 era). As of v0.1.0 the
+> canonical execution engine is the ternary integer kernel
+> (`ternary_vm/`), and new primitives go there as `TernaryProgram`
+> implementations rather than as C → WASM specialized models. See
+> ADR-0001 for the retirement decision and `docs/ARCHITECTURE.md § 0.2`
+> for the canonical trace contract. The C primitives here remain in
+> the tree because (a) the gate-1 10k bit-exact result is part of the
+> historical receipts, and (b) the legacy reproduction path
+> (`legacy/rust_runner/`) still references them.
+
 These C source files are compiled to WASM, then specialized through the
 existing Transformer-VM toolchain at `$TRANSFORMER_VM_PATH` (default
 `~/Transformer-VM`) to produce per-primitive transformer weights. Each primitive's specialized model is bit-exactly equivalent to

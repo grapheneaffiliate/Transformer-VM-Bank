@@ -3,6 +3,61 @@
 Human-readable history of PSL milestones. Per-gate entries point at the
 load-bearing commit on `origin/main`.
 
+## [Unreleased] — post-v0.1.0 work
+
+### Added
+- **Cryptographic agility infrastructure** (Phase G phase 1, gate 19 → 🟡).
+  New crate `crypto_agility/` with `Scheme`/`Signer`/`Verifier`/`Kem`/
+  `HashScheme_` traits, varint scheme prefixes (LEB128), `VerifierPolicy`
+  presets (ed25519-only / ed25519_or_hybrid / hybrid_only), `Ed25519Signer`
+  + `Ed25519Verifier` impls, `Blake3_256` + `Blake3_512` impls. 23 unit
+  tests + 6 proptest invariants. Three ratifying ADRs:
+  - **ADR-0006** post-quantum strategy (hybrid ed25519+ML-DSA-65 sigs,
+    hybrid X25519+ML-KEM-768 KEM, FN-DSA excluded for fp incompat).
+  - **ADR-0007** cryptographic agility architecture (varint prefixes,
+    hash-of-pubkey state-tree storage, explicit UnknownScheme rejection).
+  - **ADR-0008** BLAKE3-512 only for long-lived irrevocable commitments
+    (`weights_hash`, long-lived `program_hash`).
+  Phase G phases 2-6 (pqcrypto-mldsa/mlkem integration, hybrid sig/KEM
+  impls, agent-layer migration) deferred — require network access for
+  new deps + external cryptographer review per ADR-0006 acceptance
+  criteria.
+- **`docs/INDEX.md`** — canonical entry point listing every non-third-
+  party markdown file in the repo, grouped semantically. Updates in the
+  same commit as any doc add/move/remove (per `GOVERNANCE.md`).
+
+### Changed
+- **Workspace license** corrected from `Apache-2.0` to `MIT` per ADR-0005
+  (inconsistency caught during Phase G).
+- **Documentation refresh (Phase H)**: load-bearing docs gained explicit
+  status notes pointing to current authoritative sources where the
+  original framing is superseded:
+  - `docs/STATUS.md` — header rewritten from gate-4-era framing
+    ("gates 1-4 cleared, 5-7 next") to v0.1.0 reality (gates 1-16 ✅,
+    17-18 🟢, 19 🟡). Added required "last verified" line.
+  - `docs/ARCHITECTURE.md` — added "last refreshed" line; updated § 1
+    decisions recap to drop retired Phase 1.5 PyO3 framing; renumbered
+    duplicate `## 5` and `### 4.x` subsections; updated § 7 verification
+    gates table to all 19 gates with ADR cross-references; added new
+    § 8 "Agent execution layer (Phase 2)" and § 9 "Cryptographic
+    agility layer (Phase G)"; trimmed § 10 "Open contracts" to what's
+    actually still open.
+  - `docs/FINDINGS.md`, `docs/SECURITY.md`, `docs/CONSENSUS_DECISION.md`,
+    `primitives/README.md` — top-level status notes pointing to current
+    authoritative docs (ternary-canonical, ADR-0002, ADR-0006, etc.).
+    Original content preserved as historical record.
+
+### Documentation policy
+- Stale references are **flagged with authoritative pointers**, not
+  deleted. Git history preserves what was true; INDEX.md and inline
+  status notes make current-vs-historical explicit.
+- Going forward (per `GOVERNANCE.md`): every PR that changes code
+  includes the doc updates required by the change. CI (in design)
+  enforces for at least README, CHANGELOG, and any directly-affected
+  doc.
+
+---
+
 ## v0.1.0 — 2026-05-09 — Audit hand-off release
 
 The first release tag for PSL. The core Phase 1 (settlement layer, gates
