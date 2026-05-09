@@ -1,5 +1,28 @@
 # PSL Security Model
 
+> **Status note (2026-05-09):** This document describes the original
+> trust-boundary model around the **WASM-primitive trace**. As of v0.1.0,
+> **the canonical execution engine is the ternary integer kernel**
+> (`ternary_vm/`) and the agent layer (`agent_*/` crates), neither of
+> which uses the WASM-trace mechanism described below. The trust
+> boundaries described here remain *conceptually* correct (signatures
+> outside the trace, hashes outside the trace, application-level state
+> transitions inside) but the *implementation* differs.
+>
+> For the **current authoritative security view**, read in this order:
+>
+> 1. [SECURITY_REVIEW.md](SECURITY_REVIEW.md) — adversary inventory,
+>    crypto primitive selection, side-channel resistance, memory
+>    zeroing.
+> 2. [UNWRAP_AUDIT.md](UNWRAP_AUDIT.md) — production-path `unwrap` /
+>    `expect` audit (40 hits, 0 bugs).
+> 3. [decisions/0006-post-quantum-cryptography-strategy.md](decisions/0006-post-quantum-cryptography-strategy.md) — quantum threat model.
+> 4. The top-level [SECURITY.md](../SECURITY.md) — vulnerability
+>    disclosure channel.
+>
+> This file is preserved as the historical record of the original WASM-
+> trace trust model.
+
 ## Trust boundaries
 
 PSL has three concentric trust surfaces; each requires different verification:

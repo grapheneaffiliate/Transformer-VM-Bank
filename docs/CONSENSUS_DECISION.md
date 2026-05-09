@@ -1,5 +1,15 @@
 # Consensus Layer Decision: malachitebft-rs Audit
 
+> **Status note (2026-05-09):** This document is the **supporting
+> evaluation** that fed into the authoritative consensus decision,
+> which is now codified in **[ADR-0002](decisions/0002-bft-consensus-engine-selection.md)**.
+> ADR-0002 is the current authoritative source: BFT consensus is
+> deferred to v0.2 with three concrete trigger conditions (multi-issuer
+> pre-commitment, regulator written request, or DR-drill failure
+> attributable to single sequencer) and a 60-day SLA from any trigger
+> fire. Read ADR-0002 first; this document remains for the underlying
+> vendor-evaluation receipts.
+
 **Date:** 2026-05-03
 **Decision driver:** Pick consensus for a financial settlement chain (50–150 validators, leader rotation, stable app-logic API).
 **Candidates:** (a) malachitebft-rs, (b) tendermint-rs ABCI + Go Tendermint, (c) defer.

@@ -1,5 +1,22 @@
 # Gate-1 Findings (updated 2026-05-04)
 
+> **Status note (2026-05-09):** This document records the gate-1
+> findings under the **original WASM-primitive workflow**. As of v0.1.0
+> the canonical execution engine is the **ternary integer kernel**
+> (`ternary_vm/`), and the precision-budget framing below is *no longer
+> the active design constraint* for new contracts (the ternary kernel
+> doesn't have a token-trace precision budget; it has a bit-exact
+> integer forward pass). The findings here are preserved as the
+> historical record of the gate-1 work and the empirical lessons that
+> motivated the ternary pivot. See ADR-0001 for the retirement decision
+> and `docs/ARCHITECTURE.md § 0.2` for the canonical trace contract.
+>
+> Sections that are explicitly superseded by the ternary VM are not
+> deleted — they are the receipts that establish *why* the ternary
+> pivot was the right call. New contracts go via `agent_contracts/`
+> using the ternary `TernaryProgram` trait, not the WASM-primitive
+> path documented below.
+
 Honest characterization of the bit-exact gate after working through the
 prescribed fix order.
 

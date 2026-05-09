@@ -1,9 +1,17 @@
 # PSL Architecture (living doc)
 
+**Last refreshed: 2026-05-09 (v0.1.0 cut + Phase H docs cleanup).**
+
 This is the executable spec for the Percepta Settlement Layer. It captures
 the per-component contracts the implementation must satisfy. **The contracts
 in this document are normative.** If implementation drifts, this doc is the
 authority unless explicitly amended in a tagged commit.
+
+For a top-down map of all PSL documentation, see
+[INDEX.md](INDEX.md). For per-gate verification status, see
+[STATUS.md](STATUS.md). For the agent execution layer (Phase 2 / gates
+10-16) which is described later in this doc as § 8, see also the
+[whitepaper draft](whitepaper/PSL.md).
 
 ---
 
@@ -203,12 +211,21 @@ is marked legacy.
 
 1. **Crypto outside the trace.** See § 0.4. Single trust surface for state
    transitions; native code carries authorization.
-2. **Repo lives at the user's local checkout**, depending on Transformer-VM
-   via `$TRANSFORMER_VM_PATH` (defaults to `~/Transformer-VM`; see
-   `REPRODUCE.md`).
-3. **PyO3 → Rust runner port is Phase 1.5, not deferred.** Sovereign pilot
-   ships on PyO3; no production issuer onboards before the Rust runner exists.
+2. **Repo lives at the user's local checkout.** Self-contained as of v0.1.0;
+   no `$TRANSFORMER_VM_PATH` dependency in the Tier-1 reproduction path
+   (per `REPRODUCE.md`). The legacy fp64 reference engine is frozen in
+   `legacy/rust_runner/` per ADR-0001.
+3. **Ternary integer kernel is canonical** for the trace-hash contract
+   (gates 10-16, ADR-0001). Phase 1.5 fp64 work is retired; do not extend
+   the legacy crate. New work uses `ternary_vm/` and the agent layer
+   (`agent_*/` crates).
 4. **Lean toolchain set up from scratch** (Transformer-VM has none).
+5. **Sovereign mode ships v0.1.x; BFT consensus deferred** to v0.2 with
+   three concrete trigger conditions (ADR-0002).
+6. **Cryptographic agility is a first-class architectural concern**
+   (ADR-0007). Every signature, KEM ciphertext, and hash blob carries an
+   explicit varint scheme prefix; verifiers refuse unknown schemes.
+   Hybrid post-quantum is the v0.2 default per ADR-0006.
 
 ---
 
@@ -289,7 +306,10 @@ independent ops. Anything ≥100k tokens means "decompose now."
 
 ## 5. Primitive contracts
 
-### 4.1 `ledger_freeze.c`
+> Subsections are numbered 5.x (numbering bug present in pre-v0.1.0
+> revisions of this file is fixed as of the Phase H docs cleanup).
+
+### 5.1 `ledger_freeze.c`
 
 **Input encoding** (space-separated decimal bytes):
 ```
@@ -311,7 +331,7 @@ The output `account_t` is identical to input except byte 60 (low byte of
 
 **Instruction budget**: ≤ 200 WASM instructions.
 
-### 4.2 `ledger_transfer.c`
+### 5.2 `ledger_transfer.c`
 
 **Input encoding**:
 ```
@@ -334,7 +354,7 @@ last_active updated.
 
 **Instruction budget**: ≤ 600 WASM instructions (u128 arithmetic dominates).
 
-### 4.3 `ledger_mint.c`
+### 5.3 `ledger_mint.c`
 
 **Input encoding**:
 ```
@@ -354,13 +374,13 @@ to_byte_0' ... to_byte_63'
 
 **Instruction budget**: ≤ 400 instructions.
 
-### 4.4 `ledger_burn.c`
+### 5.4 `ledger_burn.c`
 
 Symmetric to mint. Debits `from`. Asserts `from.balance >= amount`.
 
 **Instruction budget**: ≤ 400 instructions.
 
-### 4.5 `ledger_multi_asset.c`
+### 5.5 `ledger_multi_asset.c`
 
 Batched transfer of N (default N=4 for v1; can grow if budget allows) transfer
 triples in a single primitive invocation. Loops bounded by safety counter per
@@ -370,7 +390,7 @@ v2 style guide.
 
 **Instruction budget**: ≤ 1500 instructions for N=4.
 
-### 4.6 `mpt_apply_delta.c`
+### 5.6 `mpt_apply_delta.c`
 
 Takes a list of `(account_index, account_record)` pairs and emits a structured
 byte stream the native MPT layer can hash and apply. This primitive does NOT
@@ -381,7 +401,7 @@ from crypto-heavy hashing.
 
 ---
 
-## 5. Block format
+## 6. Block format
 
 ```rust
 struct BlockHeader {
@@ -404,27 +424,109 @@ re-derive `witness_post` from `witness_pre + tx` via the trace and assert
 
 ---
 
-## 6. Verification gates (in order)
+## 7. Verification gates (in order)
 
-| # | Gate | State |
-| --- | --- | --- |
-| 1 | Primitive bit-exact (10k/primitive, native vs. specialized) | ✅ all 7 active primitives at 10000/10000 |
-| 2 | SMT determinism (`cargo test -p crypto`) | ✅ 22/22 |
-| 3 | Lean lake build | ✅ compiles; 3 sorrys remain (Conservation:42/60, MPT:58) within target dates |
-| 4 | Sovereign sequencer + 3 followers, 100 blocks | ✅ all roots match every block; mutation detected |
-| 5 | Compliance enforcement (view-keys, travel-rule, freeze-authority) | ✅ 9/9 |
-| 6 | Light client cross-verifies 1000 balances | ✅ 8/8 (1000-balance + 6 adversarial) |
-| 7 | End-to-end pilot (register → mint → transfer → burn → verify) | ✅ flow completes; light-client verifies merchant balance |
-| 8 | Pure-Rust runner parity (Phase 1.5) | ⏳ port estimate ~1.5 weeks |
-| 9 | Consortium swap (ABCI + CometBFT) | ⏳ v2 work |
+This is the architecture-doc summary. **`docs/STATUS.md` is the
+authoritative ground-truth table** — re-verify there before relying on
+any state below.
 
-Per-gate command, output, and commit hash live in `docs/STATUS.md`.
+| #  | Gate                                                 | State at v0.1.0 cut |
+| -- | ---                                                  | --- |
+| 1  | Primitive bit-exact (10k/primitive)                  | ✅ all 7 active primitives 10000/10000 |
+| 2  | SMT / crypto determinism                             | ✅ 22/22 |
+| 3  | Lean lake build                                      | ✅ compiles; 3 sorrys with target close dates |
+| 4  | Sequencer + 3 followers, 100 blocks                  | ✅ all roots match every block; mutation detected |
+| 5  | Compliance enforcement                               | ✅ 9/9 |
+| 6  | Light client cross-verifies                          | ✅ 8/8 |
+| 7  | End-to-end pilot                                     | ✅ |
+| 8  | Pure-Rust runner — canonical (legacy fp64 retired)   | ✅ closed via retirement per ADR-0001 |
+| 9  | Consortium / BFT consensus                           | ⏸ deferred per ADR-0002 (3 trigger conditions, 60-day SLA) |
+| 10 | Ternary execution engine (Phase 2 Layer 1)           | ✅ 42 baseline + 11 proptest tests |
+| 11 | Contract DSL standard library (8 contracts)          | ✅ 20 tests |
+| 12 | Identity & wallet (SLIP-0010 + spending policies)    | ✅ 25 tests |
+| 13 | Negotiation protocol (5 messages, idempotent)        | ✅ 25 tests |
+| 14 | Dispute resolution by re-execution                   | ✅ 7 adversarial scenarios |
+| 15 | Reference agents (trader + service)                  | ✅ 2 binaries run end-to-end |
+| 16 | SDK 0.1.0                                            | ✅ Rust canonical + Python/TypeScript bindings |
+| 17 | External security audit                              | 🟢 hand-off package ready (awaits engagement) |
+| 18 | Production-readiness (runbooks + DR drill)           | 🟢 stack shipped (awaits first staging drill) |
+| 19 | Post-quantum cryptographic agility                   | 🟡 phase-1 infrastructure shipped (per Phase G); phases 2-6 pending |
+
+Per-gate command, output, and commit hash: `docs/STATUS.md`.
 
 ---
 
-## 7. Open contracts to be filled in
+## 8. Agent execution layer (Phase 2)
 
-- `crypto/ed25519/` — vendor source, pin upstream commit, document SBOM in `docs/SECURITY.md`.
-- `consensus/src/bft.rs` — concrete adapter selected per P1 audit verdict.
-- `light_client/uniffi/` — UniFFI bindings finalized after Rust API stabilizes.
-- `lean/PSL/MPT.lean` — proof depends on whether we use a verified BLAKE3 in Lean or treat hashing as an opaque collision-resistant function.
+Gates 10-16 shipped a deterministic agent transaction layer on top of the
+settlement layer. The novel property is **dispute resolution by
+deterministic re-execution** — there is no human arbiter and no off-chain
+oracle. Bytes match the executor's claim → dismiss the dispute. Bytes
+differ → slash the executor. The mechanism is a function of `(contract
+code, input)`.
+
+Five layers, each its own crate:
+
+| Layer                          | Crate                | What it provides |
+| ---                            | ---                  | --- |
+| Ternary integer execution VM   | `ternary_vm/`        | Forward kernel for ternary networks (weights ∈ {-1, 0, +1}, integer biases, ReLU). Bit-exact across machines. The trust-critical inner loop. |
+| Contract DSL standard library  | `agent_contracts/`   | 8 standard contracts as `TernaryProgram` instances: transfer, swap, escrow_create/release/refund, time_locked_release, multisig_2of3, conditional_payment. |
+| Identity & wallet              | `agent_wallet/`      | SLIP-0010 ed25519 hierarchical derivation, spending policies (cap-per-window + allowed contracts + allowed counterparties + expiry), revocation set with monotonicity invariant, key rotation. |
+| Negotiation protocol           | `agent_protocol/`    | 5 wire messages (`Propose / Accept / Reject / CounterPropose / Execute`), `ProposalLog` state machine with idempotent replay, `resolve_dispute` re-executor. |
+| SDK                            | `agent_sdk/`         | High-level `AgentSdk` runtime, in-process bus for tests, `OnChainView` trait. UniFFI / napi-rs bindings to Python and TypeScript (in `sdk-examples/`). |
+
+Demo:
+
+```bash
+cargo run -p psl-agent-sdk --release --example trader_agent     # happy path
+cargo run -p psl-agent-sdk --release --example service_agent    # dispute path
+```
+
+Full design: [whitepaper/PSL.md](whitepaper/PSL.md) and the per-layer crate
+documentation. The dispute mechanism in particular is in
+`agent_protocol/src/dispute.rs::resolve_dispute<P: TernaryProgram +
+?Sized>`.
+
+---
+
+## 9. Cryptographic agility layer (Phase G)
+
+Per ADR-0007: every signature, KEM ciphertext, and hash blob in PSL
+carries an explicit varint scheme prefix. Verifiers refuse unknown
+schemes with a typed error; never silent fallback. The architecture
+allows new schemes to be added without hard forks.
+
+`crypto_agility/` defines:
+- `SignatureScheme` enum with reserved discriminants for `Ed25519`
+  (implemented), `HybridEd25519MlDsa65` (reserved), `SlhDsa128s`
+  (reserved).
+- `KemSchemeId` enum for `X25519` and `HybridX25519MlKem768`.
+- `HashScheme` enum for `Blake3_256` and `Blake3_512` (per ADR-0008,
+  `Blake3_512` is for long-lived irrevocable commitments only).
+- `Signer` / `Verifier` / `Kem` / `HashScheme_` traits.
+- `VerifierPolicy` presets for transition windows.
+- LEB128 varint codec.
+
+Phase G phase 1 ships ed25519 + BLAKE3-256/512; phases 2-6 (hybrid
+ML-DSA-65 / ML-KEM-768 integration, agent-layer hybrid migration) are
+queued and require pulling in `pqcrypto-mldsa` / `pqcrypto-mlkem` plus an
+external cryptographer review per ADR-0006 acceptance criteria.
+
+---
+
+## 10. Open contracts to be filled in
+
+- `lean/PSL/MPT.lean` — proof depends on whether we use a verified
+  BLAKE3 in Lean or treat hashing as an opaque collision-resistant
+  function.
+- `lean/PSL/Conservation.lean` — 2 of 3 outstanding sorrys; target
+  close dates 2026-06-15 / 2026-07-15.
+- Hybrid signature/KEM implementations per ADR-0006 phases 2-6.
+- BFT consensus engine selection on first ADR-0002 trigger fire (60-day
+  SLA from trigger).
+
+(Items previously listed here that are now complete: `crypto/ed25519/`
+ships via `ed25519-dalek` with SBOM in `docs/SECURITY.md`; `consensus/`
+trait shipped with sovereign-mode impl + ABCI deferred per ADR-0002;
+`light_client/` ships, UniFFI bindings emit per `agent_sdk/uniffi.toml`
+follow-up.)

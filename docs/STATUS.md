@@ -1,24 +1,41 @@
 # PSL Build Status
 
-**Honest framing**: gates 1-4 cleared. Compliance / light-client / pilot
-gates (5-7) are next. Phase 1.5 work (gate 8: pure-Rust runner) and v2
-consortium-mode swap (gate 9) are scoped but not started.
+**Last verified against repository state on 2026-05-09, commit `HEAD` (the v0.1.0 cut commit).** Re-verify weekly per `GOVERNANCE.md`.
+
+**Status as of v0.1.0 cut**: gates 1-8 ✅ (gate 8 closed via retirement per
+ADR-0001). Gate 9 ⏸ deferred per ADR-0002 with three concrete trigger
+conditions. Gates 10-16 ✅ (Phase 2 agent execution layer shipped — ternary
+contract VM, 8-contract standard library, SLIP-0010 wallet, 5-message
+protocol with deterministic dispute resolution, SDK with reference
+agents). Gates 17 + 18 🟢 (audit hand-off package + production ops stack
+shipped; awaits human action — signed engagement letter and first DR
+drill on staging respectively). Gate 19 🟡 (post-quantum agility
+infrastructure shipped per Phase G phase 1; remaining PQ phases pending
+per ADR-0006).
 
 ## Bootstrap requirements
 
 Before any verification gate can run:
 
-1. **Transformer-VM `.venv` synced.** `uv sync` in
-   `/mnt/c/Users/atchi/Transformer-VM/` requires network access to download
-   `torch==2.10.0` (~3 GB).
-2. **WASI clang** at `/mnt/c/Users/atchi/wasi-sdk/bin/clang.exe` — confirmed
-   present.
-3. **Rust toolchain** — install via `rustup`. `cargo build --workspace`
-   then `cargo test --workspace`.
-4. **Lean toolchain** — `elan` installed at `~/.elan/`. `lean-toolchain`
-   pin selects v4.12.0. `lake build` from `lean/`. Mathlib pulled via
-   precompiled cache (`lake update` triggers `cache get` post-hook).
-5. **Python test deps** — `uv sync` at PSL repo root.
+1. **Rust toolchain** — install via `rustup`, pinned to 1.95.0 per
+   `docs/REPRODUCIBILITY_REPORT.md`. `cargo build --workspace --release`
+   then `cargo test --workspace --release` is the headline reproduction
+   path; runs in ~2 min on a 4-vCPU cloud VM after toolchains land.
+2. **Lean toolchain** (Tier-2, only for gate 3) — `elan` installed at
+   `~/.elan/`. `lean-toolchain` pin selects v4.12.0. `lake build` from
+   `lean/`. Mathlib pulled via precompiled cache (`lake update`
+   triggers `cache get` post-hook).
+3. **Transformer-VM `.venv`** (Tier-2, only for the historical gate-1
+   10k-vector sweep on the C++ engine) — `uv sync` in `Transformer-VM/`
+   requires network access to download `torch==2.10.0` (~3 GB). Default
+   reproduction skips this; the canonical engine is now the pure-Rust
+   ternary kernel (`ternary_vm/`) per ADR-0001.
+4. **Python test deps** (Tier-2) — `uv sync` at PSL repo root, only
+   needed for the legacy gate-1 sweep.
+
+The default Tier-1 reproduction (gates 2-7 + 10-16 + 19) requires only
+the Rust toolchain and ~5 minutes of build/test time. See `REPRODUCE.md`
+for the two-tier breakdown.
 
 ## Gate status
 
