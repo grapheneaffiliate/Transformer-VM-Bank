@@ -5,7 +5,7 @@ members = [
     "consensus",
     "sequencer",
     "light_client",
-    "rust_runner",
+    "legacy/rust_runner",
     "ternary_vm",
     "agent_contracts",
     "agent_wallet",

@@ -33,19 +33,52 @@ This matches the contract used today by both `wasm-eval` (graph evaluator at
 equality of the predicted token list, identical to the assertion at
 `evaluator.py:339` and `test_specialize.py:325`.
 
-### 0.2 Trace hash
+### 0.2 Trace hash (canonical, ternary)
 
-PSL defines (because Transformer-VM does not):
+As of Phase 2 (gates 10-16 + ADR-0001), the canonical trace contract
+is the ternary-integer one. Same input + same `weights_hash` →
+bit-identical output on **any** conformant integer-arithmetic
+verifier. No fp64 reduction-order surface, no canonical-engine pin.
 
 ```
-trace_hash(P, x) := BLAKE3(utf8(" ".join(trace(P, x))))
+trace_hash_ternary(P, x) := BLAKE3(
+    weights_hash(P)
+ || canonical_input_encoding(x)
+ || canonical_output_encoding(y)
+)
 ```
 
-Specifically: the canonicalized representation is the predicted tokens joined
-by single ASCII spaces, with no leading or trailing whitespace, encoded as
-UTF-8, hashed with BLAKE3 to a 32-byte digest. The reference implementation is
-`tools/verify_trace.py` (third-party verifier) and `sequencer/src/trace.rs::hash_trace`
-(production path).
+where `y = TernaryNetwork::forward(x)` for the canonical
+construction of primitive `P`. `weights_hash(P)` is the BLAKE3 over
+the canonical packed weights payload (`ternary_vm::weights::pack_weights`).
+Canonical input/output encodings are 4-byte big-endian length prefix
+followed by 8-byte big-endian per `i64`.
+
+Reference implementation: `ternary_vm/src/trace_hash.rs`.
+
+### 0.A Legacy trace hash (frozen, fp64 autoregressive)
+
+Per ADR-0001, the previous fp64 token-sequence contract is frozen
+and lives in the `legacy/` subtree. Documented here for verifiers
+that must reproduce historical block-headers.
+
+```
+trace_hash_legacy(P, x) := BLAKE3(utf8(" ".join(trace(P, x))))
+```
+
+Where `trace(P, x)` is the predicted-token sequence (including input
+prefix) the Transformer-VM specialized model produces under
+greedy-argmax decoding. The canonicalized representation is the
+predicted tokens joined by single ASCII spaces, with no leading or
+trailing whitespace, encoded as UTF-8, hashed with BLAKE3 to a
+32-byte digest. Reference implementations:
+`tools/verify_trace.py` (third-party verifier) and
+`legacy/rust_runner/src/generate.rs` (frozen production path).
+
+New code MUST NOT depend on the legacy contract. Existing block
+headers signed under the legacy contract remain verifiable via the
+frozen `legacy/rust_runner` crate; the CI guard
+`tools/ci/check_legacy_isolation.sh` enforces no new dependencies.
 
 ### 0.3 Canonical engine ordering (pinned 2026-05-04)
 

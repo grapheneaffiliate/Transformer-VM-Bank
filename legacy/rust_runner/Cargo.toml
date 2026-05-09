@@ -3,7 +3,7 @@ name = "psl-rust-runner"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Phase 1.5: pure-Rust port of Transformer-VM's specialized-model runner"
+description = "LEGACY (frozen per ADR-0001) — Phase 1.5 pure-Rust port of Transformer-VM's specialized-model runner. Use psl-ternary-vm instead."
 
 [lib]
 name = "psl_rust_runner"
@@ -14,7 +14,7 @@ name = "psl-runner"
 path = "src/bin/runner.rs"
 
 [dependencies]
-psl-crypto = { path = "../crypto" }
+psl-crypto = { path = "../../crypto" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
