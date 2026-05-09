@@ -174,7 +174,124 @@ are pinned via `Cargo.lock` in tree — no floating versions.
 - Monetary / regulatory frameworks (KYC, travel rule) live in
   `compliance/` and are out of scope for this audit.
 
-## 8. After the audit
+## 8. Adversary model
+
+PSL must remain safe under each of the following adversaries acting
+independently:
+
+### Passive observer
+- **Capability:** read-only access to the public block stream,
+  registry subtree, and reputation subtree.
+- **Concern:** privacy / linkability of agent activity.
+- **Mitigation:** none at the trace layer (compliance-aware view-key
+  encryption is a separate, opt-in layer in `compliance/`). PSL does
+  not promise unlinkability against a passive observer; this is
+  documented in `docs/SOVEREIGN_MODE_TRUST.md`.
+
+### Active network attacker
+- **Capability:** rewrite / replay / drop network messages between
+  the SDK and the sequencer, and between two agents.
+- **Concern:** message forgery, replay, downgrade.
+- **Mitigation:** every wire message is signed. `proposal_hash` is
+  content-addressed → replay collapses. The SDK trusts only signed
+  bodies, never transport metadata.
+
+### Byzantine sequencer
+- **Capability:** the sovereign sequencer's signing key is
+  compromised or the operator goes rogue.
+- **Concern:** forged blocks, hidden state changes, censorship,
+  fork attempts.
+- **Mitigation:** followers re-execute every block via the canonical
+  `TernaryProgram`. Any state-root mismatch is immediately public
+  (gate 4). Hidden forks are detectable by any follower comparing
+  signed headers. **Real-time prevention requires gate 9 BFT**;
+  sovereign-mode detection is reactive, not preventative — see
+  `docs/SOVEREIGN_MODE_TRUST.md`.
+
+### Byzantine agent (executor)
+- **Capability:** an executor with a valid registration signs an
+  `Execute` message claiming a wrong contract output.
+- **Concern:** counterparty believes the wrong state has been
+  reached.
+- **Mitigation:** dispute resolution. The disputer files a `Dispute`
+  pointing at the discrepancy; the sequencer re-executes via the
+  canonical engine and slashes the executor on mismatch (covered
+  by `agent_protocol/tests/adversarial_dispute.rs`).
+
+### Byzantine agent (disputer)
+- **Capability:** an agent files frivolous / sybil disputes against
+  honest executors.
+- **Concern:** griefing, reputation attack.
+- **Mitigation:** each dispute resolution is deterministic; honest
+  executor's reputation is unaffected. Disputer's reputation
+  decreases per dismissed dispute. Sequencer rate-limits dispute
+  submissions per pubkey; rate-limit threshold is operator-
+  configurable.
+
+### Malicious DSL contract author (future)
+- **Capability:** publishes a custom contract with a backdoor (e.g.,
+  output that subtly diverges from declared semantics).
+- **Concern:** counterparties accept the contract believing it does
+  what its name says.
+- **Mitigation:** every custom contract has a `program_hash`
+  committed in its registration record. Counterparties compute the
+  hash themselves from the published source / weights and refuse to
+  transact with mismatching hashes. The DSL frontend (Layer 2
+  follow-up; not yet shipped) will provide tooling to compute
+  canonical hashes from source.
+
+## 9. Cryptographic primitive selection
+
+| Primitive   | Library             | Audit status                                            |
+| ---         | ---                 | ---                                                     |
+| ed25519     | `ed25519-dalek 2.x` | Multiple external audits; current maintained release    |
+| BLAKE3      | `blake3 1.5.x`      | Original spec authors; reference implementation         |
+| HMAC-SHA512 | `hmac` + `sha2`     | RustCrypto org; widely audited                          |
+| Symmetric AEAD (future view-key) | `aes-gcm 0.10.x` | RustCrypto AEAD trait; widely audited |
+
+**No homemade crypto.** Every cryptographic operation is delegated
+to one of the libraries above. PSL's only cryptographic original work
+is the `program_hash` and `trace_hash_ternary` constructions, which
+are domain-separated BLAKE3 wrappers — see `ternary_vm/src/trace_hash.rs`
+and `agent_contracts/src/program.rs`.
+
+## 10. Side-channel resistance
+
+`ed25519-dalek 2.x` documents constant-time implementations of all
+secret-key operations (sign, key derivation, verification of
+batched signatures). PSL relies on this directly; we do not
+implement any signing-side code that branches on secret bytes.
+
+The ternary execution kernel does not branch on secret data either
+— inputs are user-supplied bytes, not secrets. Timing of forward
+pass varies with `nnz` per row but not with input value, so a
+timing attacker observing the wall-clock of `forward()` learns the
+*structure* of the network (already public via `weights_hash`) but
+not the input.
+
+## 11. Memory zeroing (sensitive material)
+
+Every site that holds a private key, view-key, or other long-term
+secret material wraps it in `zeroize::Zeroizing<…>`:
+
+| Site                                  | Type             | Zeroize |
+| ---                                   | ---              | ---     |
+| `agent_wallet::slip10::Ed25519MasterKey::private`   | `[u8; 32]` | ✓ via `Zeroizing` |
+| `agent_wallet::slip10::Ed25519MasterKey::chain_code`| `[u8; 32]` | ✓ via `Zeroizing` |
+| `agent_wallet::slip10::Ed25519ChildKey::private`    | `[u8; 32]` | ✓ via `Zeroizing` |
+| `agent_wallet::slip10::Ed25519ChildKey::chain_code` | `[u8; 32]` | ✓ via `Zeroizing` |
+| `ed25519_dalek::SigningKey` (held inside our `AgentIdentity`) | internal | ✓ — library zeroizes on drop per its own audit |
+
+The audit checklist for any new secret-holding code:
+1. Wrap in `Zeroizing<…>` or use a type that implements `Drop` to
+   zeroize.
+2. Never log / format secret values.
+3. Never include secret values in `Debug` output (`Zeroizing`
+   forbids this by default).
+4. Keep the lifetime of the secret as short as possible — derive,
+   use, drop.
+
+## 12. After the audit
 
 Each finding gets a row in `docs/AUDIT_FINDINGS.md` (created at
 audit kickoff) with severity, status, fix commit, and re-audit
