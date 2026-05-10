@@ -26,6 +26,30 @@ zeroize = { version = "1.8", features = ["derive"] }
 pqcrypto-mldsa = "0.1"
 pqcrypto-traits = "0.3"
 
+# Post-quantum: ML-KEM-768 (FIPS 203). pqcrypto-mlkem wraps the NIST
+# reference (PQClean) C implementation. **Confirmed implements
+# implicit rejection per FIPS 203 §6.3** — a malformed ciphertext to
+# `decapsulate(...)` returns a deterministic pseudorandom shared
+# secret rather than panicking or returning Err. Verified by a probe
+# test before adopting the dep (see PR #12 description). Constant-
+# time on the data path per PQClean's documented invariants.
+pqcrypto-mlkem = "0.1"
+
+# Classical KEM half: X25519 ECDH. The dalek crate is the canonical
+# Rust X25519 implementation, audited multiple times, constant-time
+# on the field-arithmetic path per the curve25519-dalek invariants.
+x25519-dalek = { version = "2.0", features = ["static_secrets"] }
+
+# KDF combiner per ADR-0011 § "KDF combiner specification".
+# RustCrypto-maintained; widely deployed (TLS 1.3 stacks).
+hkdf = "0.12"
+sha2 = "0.10"
+
+# Symmetric AEAD per ADR-0011. RustCrypto-maintained, audited.
+# Hardware-accelerated on essentially all production CPUs (AES-NI,
+# ARM AES extensions).
+aes-gcm = "0.10"
+
 [dev-dependencies]
 proptest = { workspace = true }
 hex = { workspace = true }

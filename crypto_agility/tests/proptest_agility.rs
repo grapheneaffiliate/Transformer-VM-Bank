@@ -11,8 +11,9 @@
 use proptest::prelude::*;
 use psl_crypto_agility::codec::{decode_varint, encode_varint};
 use psl_crypto_agility::{
-    Blake3_256, Blake3_512, Ed25519Signer, Ed25519Verifier, HashScheme_, SignatureScheme, Signer,
-    Verifier, VerifierError,
+    Blake3_256, Blake3_512, Ed25519Signer, Ed25519Verifier, HashScheme_, MlKemCiphertext,
+    MlKemPublicKey, SignatureScheme, Signer, Verifier, VerifierError, X25519Ciphertext,
+    X25519PublicKey,
 };
 
 proptest! {
@@ -74,5 +75,34 @@ proptest! {
         let a = Blake3_512.hash(&data);
         let b = Blake3_512.hash(&data);
         prop_assert_eq!(a, b);
+    }
+
+    /// Per the engineer-reviewer's PR #11 review: the from_bytes()
+    /// parsers for KEM types must NEVER panic on arbitrary input.
+    /// Every malformed input maps to a `Result::Err` (no `unwrap`,
+    /// no `expect`, no array-bounds panic). Random byte vectors of
+    /// varied lengths exercise the parser surface; this proptest
+    /// asserts every input maps to either Ok(_) (correct length) or
+    /// Err(_) (any other length) — but NEVER a panic.
+    #[test]
+    fn x25519_pubkey_from_bytes_never_panics(bytes in prop::collection::vec(any::<u8>(), 0..2048)) {
+        let _result = X25519PublicKey::from_bytes(&bytes);
+        // Either Ok or Err; if we got here without panicking the
+        // test passes.
+    }
+
+    #[test]
+    fn x25519_ciphertext_from_bytes_never_panics(bytes in prop::collection::vec(any::<u8>(), 0..2048)) {
+        let _result = X25519Ciphertext::from_bytes(&bytes);
+    }
+
+    #[test]
+    fn mlkem_pubkey_from_bytes_never_panics(bytes in prop::collection::vec(any::<u8>(), 0..2048)) {
+        let _result = MlKemPublicKey::from_bytes(&bytes);
+    }
+
+    #[test]
+    fn mlkem_ciphertext_from_bytes_never_panics(bytes in prop::collection::vec(any::<u8>(), 0..2048)) {
+        let _result = MlKemCiphertext::from_bytes(&bytes);
     }
 }
