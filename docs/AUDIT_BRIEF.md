@@ -76,7 +76,21 @@ canonical_input || canonical_output)` — short, content-addressed,
 finite time by re-executing the contract; the sequencer re-runs
 the same program on the same input and the verdict is mechanical.
 
-## 4. Primary entry points for your read
+## 4. Post-quantum readiness
+
+**Post-Quantum Readiness.** v0.1.0 ships hybrid post-quantum
+cryptography from the foundation. Hybrid ed25519 + ML-DSA-65
+signatures (ADR-0006); hybrid X25519 + ML-KEM-768 key encapsulation
+with forward secrecy (ADR-0011); BLAKE3-512 for long-lived
+commitments (ADR-0008); cryptographic agility via scheme-id varint
+prefixes (ADR-0007) enables future scheme migrations without hard
+fork. All cryptographic primitives use audited implementations
+(RustCrypto, curve25519-dalek, NIST PQClean reference). Cross-platform
+determinism CI-verified on x86_64 and aarch64. Awaits external
+cryptographer review of the hybrid combiner per ADR-0006 / ADR-0011
+acceptance criteria — see gate 19.
+
+## 5. Primary entry points for your read
 
 Read in this order:
 
@@ -95,7 +109,7 @@ Read in this order:
 7. `agent_protocol/src/dispute.rs` — `resolve_dispute` driver.
 8. `agent_sdk/src/agent.rs` — runtime that ties it all together.
 
-## 5. Test artifacts you can re-run
+## 6. Test artifacts you can re-run
 
 ```bash
 git clone https://github.com/grapheneaffiliate/Transformer-VM-Bank.git
@@ -114,7 +128,7 @@ Coverage:
 - 5 fuzz harnesses (`docs/FUZZING.md`); ready to run for the
   audit's recommended 1-CPU-hour budget on a CI machine you control.
 
-## 6. Known issues + limitations
+## 7. Known issues + limitations
 
 Documented honestly:
 
@@ -128,7 +142,7 @@ Documented honestly:
   documented target close dates (see `docs/STATUS.md` "Lean sorry
   tracker" section). No new `sorry`s introduced in Phase 2.
 
-## 7. Recommended audit scope + deliverables
+## 8. Recommended audit scope + deliverables
 
 We propose:
 
@@ -150,7 +164,7 @@ We propose:
 
 Estimated total: **3-5 weeks of auditor time**, depending on depth.
 
-## 8. Engagement logistics
+## 9. Engagement logistics
 
 - **Repository access:** public on GitHub. Read-only for the
   audit; we accept findings via private GitHub Security Advisory.
@@ -163,7 +177,7 @@ Estimated total: **3-5 weeks of auditor time**, depending on depth.
   acceptance + 30-day partner-courtesy window; CVEs filed for any
   pre-disclosure vulnerabilities discovered.
 
-## 9. Contact
+## 10. Contact
 
 Open a GitHub Security Advisory on the repo, or email
 `security@psl.example` (fill in actual address before sending).
@@ -171,7 +185,7 @@ Open a GitHub Security Advisory on the repo, or email
 PGP key for sensitive correspondence: published in
 `SECURITY.md` at repo root.
 
-## 10. Appendix: prior security work
+## 11. Appendix: prior security work
 
 Phase 1 (Q1-Q2 2026) shipped the gate-1 through gate-7 sequencer +
 light client + pilot stack. No external audit was conducted on
