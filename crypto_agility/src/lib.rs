@@ -30,6 +30,7 @@ pub mod hybrid;
 pub mod kem;
 pub mod scheme;
 pub mod signer;
+pub mod witness_enc;
 
 pub use errors::{HashError, HybridFailure, KemError, SignerError, VerifierError};
 pub use hash::{Blake3_256, Blake3_512, HashScheme, HashScheme_};
@@ -38,6 +39,11 @@ pub use hybrid::{
     HybridVerifier, ED25519_PUBKEY_BYTES, ED25519_SIG_BYTES, HYBRID_PUBKEY_BYTES, HYBRID_SIG_BYTES,
     MLDSA65_PUBKEY_BYTES, MLDSA65_SIG_BYTES,
 };
-pub use kem::{Kem, KemScheme, SharedSecret};
+pub use kem::{
+    EphemeralMlKemSecretKey, EphemeralX25519SecretKey, HybridCiphertext, HybridKemKeypair,
+    HybridX25519MlKem768Kem, Kem, KemScheme, MlKemCiphertext, MlKemPublicKey,
+    RecipientMlKemSecretKey, RecipientX25519SecretKey, SharedSecret, X25519Ciphertext,
+    X25519PublicKey,
+};
 pub use scheme::{KemSchemeId, SignatureScheme};
 pub use signer::{Ed25519Signer, Ed25519Verifier, Signer, Verifier, VerifierPolicy};

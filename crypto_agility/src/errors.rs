@@ -108,13 +108,25 @@ impl HybridFailure {
     }
 }
 
-/// Errors emitted by [`crate::Kem`] implementations.
+/// Errors emitted by [`crate::Kem`] implementations and by the
+/// witness-encryption layer ([`crate::witness_enc`]).
+///
+/// **Note on the absent `DecapFailed` variant.** ML-KEM (FIPS 203)
+/// implements *implicit rejection*: decapsulation never fails at
+/// the type level. On a malformed ciphertext, decap returns a
+/// deterministic pseudorandom secret (constant-time, no signal to
+/// the caller). The only rejection point is
+/// [`KemError::AuthenticationFailed`] from the AEAD layer. Per
+/// ADR-0011 § "Decapsulation semantics".
 #[derive(Debug, Error)]
 pub enum KemError {
-    /// The KEM scheme requested is not implemented.
-    #[error("KEM scheme {0:#x} is not implemented in this build")]
-    SchemeNotImplemented(u32),
-    /// The recipient's public key is malformed.
+    /// The KEM scheme requested is not implemented in this build.
+    /// Covers both "scheme reserved but not yet implemented" and
+    /// "wire blob has an unknown scheme prefix."
+    #[error("KEM scheme {0:#x} is not supported in this build")]
+    SchemeNotSupported(u32),
+    /// The recipient's public key is malformed (wrong length,
+    /// invalid encoding for the scheme).
     #[error("malformed recipient public key for scheme {scheme:#x}: {detail}")]
     MalformedPublicKey {
         /// Scheme.
@@ -122,18 +134,35 @@ pub enum KemError {
         /// Detail.
         detail: &'static str,
     },
-    /// The ciphertext is malformed.
-    #[error("malformed ciphertext for scheme {scheme:#x}: {detail}")]
+    /// The ciphertext or wire blob is malformed (wrong length,
+    /// invalid encoding for the scheme).
+    #[error("malformed ciphertext/blob for scheme {scheme:#x}: {detail}")]
     MalformedCiphertext {
         /// Scheme.
         scheme: u32,
         /// Detail.
         detail: &'static str,
     },
-    /// Decapsulation failed (typically ciphertext was not produced by
-    /// a valid encapsulation under the recipient's pubkey).
-    #[error("decapsulation failed under scheme {0:#x}")]
-    DecapFailed(u32),
+    /// The encrypted blob is shorter than the minimum size for the
+    /// declared scheme. Hard-fail per ADR-0011 § "Decoder hard-fail
+    /// rules" — no silent truncation tolerance.
+    #[error("encrypted blob is truncated for scheme {scheme:#x}: got {got} bytes, expected at least {min}")]
+    TruncatedBlob {
+        /// Scheme.
+        scheme: u32,
+        /// Actual blob length.
+        got: usize,
+        /// Minimum acceptable length for the scheme.
+        min: usize,
+    },
+    /// AEAD authentication failed. **This is the load-bearing
+    /// rejection point** for the witness-encryption layer.
+    /// Implicit-rejection ML-KEM means decap can't fail visibly;
+    /// AEAD auth-tag verification is what catches malformed
+    /// ciphertexts, wrong contexts, swapped components, and any
+    /// other transcript-binding violation.
+    #[error("AEAD authentication failed (witness ciphertext rejected)")]
+    AuthenticationFailed,
 }
 
 /// Errors emitted by [`crate::HashScheme_`] implementations.
