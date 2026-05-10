@@ -6,8 +6,10 @@ transaction layer that resolves every dispute by re-execution, not arbitration.*
 PSL ships two things in one repository:
 
 1. A deterministic settlement layer for tokenized assets (USD, CBDC,
-   gold, treasuries) — bit-exactly re-executable, ed25519 + BLAKE3
-   native crypto, mobile light-client.
+   gold, treasuries) — bit-exactly re-executable, hybrid post-quantum
+   crypto from v0.1.0 (ed25519 + ML-DSA-65 signatures, X25519 +
+   ML-KEM-768 KEM, BLAKE3 hashing per ADR-0006/0007/0008/0011),
+   mobile light-client.
 2. **An agent execution layer on top of it.** Two agents negotiate a
    transaction off-chain (5 signed messages), execute it on-chain, and
    if either side disputes, the chain resolves the dispute by
@@ -43,7 +45,7 @@ resolution be a function of the protocol, not an off-chain process.
 | 16   | SDK 0.1.0                                            | ✅ |
 | 17   | External security audit hand-off                     | 🟢 awaits engagement letter |
 | 18   | Production-readiness (runbooks + DR drill plan)      | 🟢 awaits first staging DR drill |
-| 19   | Post-quantum cryptographic agility (Phase G phase 1) | 🟡 infrastructure shipped; phases 2-6 + external cryptographer review pending |
+| 19   | Post-quantum cryptographic agility (full ADR-0011 5-commit plan + cross-platform CI) | 🟢 awaits external cryptographer review (ADR-0006 / ADR-0011 acceptance criteria) |
 
 Per-gate command, output, commit hash: `docs/STATUS.md`. **Doc index:** `docs/INDEX.md`.
 
@@ -117,7 +119,7 @@ sequencer/        — sovereign-mode block producer
 consensus/        — Consensus trait (sovereign, ABCI follow-up per ADR-0002)
 light_client/     — MPT inclusion proofs; UniFFI-ready for iOS/Android
 crypto/           — ed25519 + BLAKE3 + Merkle-Patricia Trie (state root)
-crypto_agility/   — scheme-prefixed signatures/KEM/hashes (Phase G phase 1; PQ-ready trait shape per ADR-0007)
+crypto_agility/   — scheme-prefixed signatures/KEM/hashes (hybrid ed25519+ML-DSA-65 sigs, hybrid X25519+ML-KEM-768 KEM with forward-secret witness encryption per ADR-0007/0011)
 
 legacy/rust_runner/  — frozen per ADR-0001; do not extend
 lean/                — Lean 4 + mathlib formalization (3 sorrys with target dates)

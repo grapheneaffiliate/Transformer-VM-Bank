@@ -67,6 +67,9 @@ updates in the same commit (per `GOVERNANCE.md`).
 - [FUZZING.md](FUZZING.md) — Five fuzz harness inventory + how to run
   campaigns offline + how CI schedules them.
 - [AUDIT_BRIEF.md](AUDIT_BRIEF.md) — Auditor's day-1 entry document.
+- [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md) — Canonical tracker for
+  audit + incident findings. Empty as of v0.1.0; populated on first
+  finding from gate-17 audit or runbook-driven incident.
   In-scope crate list, threat model summary, where the trust boundaries
   are.
 
@@ -120,6 +123,18 @@ process.
 - [ADR-0008](decisions/0008-blake3-512-for-long-lived-commitments.md)
   — BLAKE3-512 only for long-lived irrevocable commitments
   (`weights_hash`, long-lived `program_hash`).
+- [ADR-0011](decisions/0011-hybrid-kem-x25519-mlkem768.md) —
+  Hybrid X25519 + ML-KEM-768 KEM with HKDF-SHA-512 transcript
+  combiner, forward-secret per-witness ephemeral keypairs,
+  decapsulation total at the type level (implicit rejection per
+  FIPS 203 §6.3).
+- [ADR-0012](decisions/0012-defer-sled-migration-to-v0.2.md) —
+  Defer sequencer storage migration off `sled` to v0.2 with four
+  trigger conditions; two leading backend candidates
+  (`rust-rocksdb`, `redb`) listed without prejudging.
+
+ADR numbers 0009 and 0010 are unused; the sequence skips to 0011.
+Future ADRs continue from 0013.
 
 ## External-facing artifacts
 
