@@ -654,6 +654,55 @@ mod tests {
         assert_ne!(honest_ss.as_bytes(), wrong_ss.as_bytes());
     }
 
+    /// One-shot fixture generator for the pinned-decap byte-identity
+    /// cross-platform test (task #47). Prints hex constants
+    /// paste-ready for
+    /// `tests/cross_platform_determinism.rs::pinned_decap_byte_identical_across_architectures`.
+    ///
+    /// **Ignored by default; do not re-run unless intentionally
+    /// re-generating the fixture.** Pinned constants in the cross-
+    /// platform test are the load-bearing oracle for cross-arch
+    /// byte-identity; rotating them invalidates the property under
+    /// test.
+    ///
+    /// Re-run with:
+    ///   cargo test -p psl-crypto-agility --release \
+    ///     gen_pinned_decap_fixture -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn gen_pinned_decap_fixture() {
+        let kp = HybridKemKeypair::generate();
+        let kem = HybridX25519MlKem768Kem::new();
+        let (ct, _) = kem.encapsulate(&kp.public);
+        let ss = kem.decapsulate(&ct, &kp.secret);
+
+        println!("\n// === pinned-decap fixture (paste into cross_platform_determinism.rs) ===");
+        println!(
+            "const SK_X25519_HEX: &str = \"{}\";",
+            hex_lower(&kp.secret.x25519.0)
+        );
+        println!(
+            "const SK_MLKEM_HEX: &str = \"{}\";",
+            hex_lower(&kp.secret.ml_kem.0)
+        );
+        println!(
+            "const CT_X25519_HEX: &str = \"{}\";",
+            hex_lower(ct.x25519.as_bytes())
+        );
+        println!(
+            "const CT_MLKEM_HEX: &str = \"{}\";",
+            hex_lower(ct.ml_kem.as_bytes())
+        );
+        println!(
+            "const EXPECTED_SS_HEX: &str = \"{}\";",
+            hex_lower(ss.as_bytes())
+        );
+    }
+
+    fn hex_lower(b: &[u8]) -> String {
+        b.iter().map(|x| format!("{x:02x}")).collect()
+    }
+
     /// Hybrid ciphertext byte sizes match ADR-0011: 32 (X25519) +
     /// 1088 (ML-KEM) = 1120 bytes total in component form.
     #[test]
