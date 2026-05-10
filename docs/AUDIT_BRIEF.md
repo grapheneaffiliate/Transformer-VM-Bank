@@ -90,7 +90,35 @@ determinism CI-verified on x86_64 and aarch64. Awaits external
 cryptographer review of the hybrid combiner per ADR-0006 / ADR-0011
 acceptance criteria — see gate 19.
 
-## 5. Primary entry points for your read
+## 5. Performance baseline
+
+Sequencer throughput on `bench_sequencer_tps_10k_blocks`
+(`sequencer/tests/integration.rs`, `#[ignore]`d regression bench;
+15,106 mixed signed transactions across 10,000 blocks):
+
+| Configuration | TPS | Per-tx mean |
+| --- | ---: | ---: |
+| Sequencer + 3 followers, in-process, cross-replica root-agreement check every block | ~925 tx/s | 1.08 ms |
+| Single-replica sequencer | ~3,990 tx/s | 251 µs |
+| Composed estimate including real ternary trace_hash (back-of-envelope) | ~1,750 tx/s single-replica | — |
+
+What's measured: real ed25519 sign + verify, real MPT writes, real
+state-root computation, cross-replica consistency (4-replica run).
+What's excluded: real ternary VM trace_hash (uses
+`NativeTraceExecutor` synthetic stub), `sled` durable commit (uses
+in-memory `State`; sled migration deferred per ADR-0012), network
+transport (in-process). Hardware: WSL2 Ubuntu host, release build.
+
+The composed estimate (~1,750 tx/s) adds ~34 trace-hashes per transfer
+× ~9.5 µs each (gate-10's measured `byte_add` throughput of 105k
+vec/s) onto the 251 µs single-replica baseline. Trace-work-vs-
+sequencer-work composition arithmetic; not a direct measurement.
+
+Comfortably above the gate-9 sovereign-pilot trigger threshold of 100
+TPS. Tail latency (p99 / p99.9) and hardware-spec-pinned regression
+gating are queued as v0.2 maturation work.
+
+## 6. Primary entry points for your read
 
 Read in this order:
 
@@ -109,7 +137,7 @@ Read in this order:
 7. `agent_protocol/src/dispute.rs` — `resolve_dispute` driver.
 8. `agent_sdk/src/agent.rs` — runtime that ties it all together.
 
-## 6. Test artifacts you can re-run
+## 7. Test artifacts you can re-run
 
 ```bash
 git clone https://github.com/grapheneaffiliate/Transformer-VM-Bank.git
@@ -128,7 +156,7 @@ Coverage:
 - 5 fuzz harnesses (`docs/FUZZING.md`); ready to run for the
   audit's recommended 1-CPU-hour budget on a CI machine you control.
 
-## 7. Known issues + limitations
+## 8. Known issues + limitations
 
 Documented honestly:
 
@@ -142,7 +170,7 @@ Documented honestly:
   documented target close dates (see `docs/STATUS.md` "Lean sorry
   tracker" section). No new `sorry`s introduced in Phase 2.
 
-## 8. Recommended audit scope + deliverables
+## 9. Recommended audit scope + deliverables
 
 We propose:
 
@@ -164,7 +192,7 @@ We propose:
 
 Estimated total: **3-5 weeks of auditor time**, depending on depth.
 
-## 9. Engagement logistics
+## 10. Engagement logistics
 
 - **Repository access:** public on GitHub. Read-only for the
   audit; we accept findings via private GitHub Security Advisory.
@@ -177,7 +205,7 @@ Estimated total: **3-5 weeks of auditor time**, depending on depth.
   acceptance + 30-day partner-courtesy window; CVEs filed for any
   pre-disclosure vulnerabilities discovered.
 
-## 10. Contact
+## 11. Contact
 
 Open a GitHub Security Advisory on the repo, or email
 `security@psl.example` (fill in actual address before sending).
@@ -185,7 +213,7 @@ Open a GitHub Security Advisory on the repo, or email
 PGP key for sensitive correspondence: published in
 `SECURITY.md` at repo root.
 
-## 11. Appendix: prior security work
+## 12. Appendix: prior security work
 
 Phase 1 (Q1-Q2 2026) shipped the gate-1 through gate-7 sequencer +
 light client + pilot stack. No external audit was conducted on

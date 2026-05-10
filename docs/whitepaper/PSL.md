@@ -516,6 +516,25 @@ docker-compose observability (`ops/`), Terraform reference
 deployment (`infra/`), pre-committed DR drill protocol
 (`docs/DR_DRILL_PLAN.md`).
 
+Throughput: the sequencer regression bench
+(`bench_sequencer_tps_10k_blocks` in `sequencer/tests/integration.rs`)
+processes 15,106 mixed signed transactions across 10,000 blocks with
+real ed25519 signatures, real MPT writes, and real state-root
+computation. On a WSL2 Ubuntu host with release build, the measured
+sustained throughput is **~925 tx/s with sequencer + 3 followers
+verifying state-root agreement on every block**, and **~3,990 tx/s
+single-replica**. Composing in real ternary trace_hash
+(~34 trace-hashes per transfer × ~9.5 µs each from gate-10's
+measured `byte_add` throughput) yields a back-of-envelope estimate of
+**~1,750 tx/s single-replica end-to-end with real trace_hash**. All
+numbers comfortably exceed the gate-9 sovereign-pilot trigger
+threshold of 100 TPS. Bench excludes `sled` durable commit (in-
+memory `State`; sled migration deferred per ADR-0012) and network
+transport (in-process; production = mutual-TLS HTTPS). Tail latency
+(p99 / p99.9), hardware-pinned regression gating, and direct
+measurement with the real ternary VM (replacing
+`NativeTraceExecutor`) are queued as v0.2 maturation work.
+
 ## 10. Open questions and future work
 
 - **BFT consensus for federated mode.** Sovereign-mode v0.1.0 ships

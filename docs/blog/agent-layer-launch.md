@@ -95,12 +95,35 @@ zeros on precondition failure; no panics, no fallthroughs).
 
 The full table is in `docs/STATUS.md`.
 
+## How fast does it run
+
+The sequencer regression bench
+(`bench_sequencer_tps_10k_blocks`) processes 15,106 mixed signed
+transactions across 10,000 blocks with real ed25519 signatures, real
+MPT writes, and real state-root computation:
+
+- **Sequencer + 3 followers, in-process, root-agreement check every
+  block:** ~925 tx/s (1.08 ms per tx).
+- **Single-replica sequencer:** ~3,990 tx/s (251 µs per tx).
+- **Composed estimate including real ternary trace_hash** (~34
+  trace-hashes per transfer × ~9.5 µs each from gate-10's measured
+  `byte_add` throughput): ~1,750 tx/s single-replica end-to-end.
+
+Comfortably above the 100-TPS sovereign-pilot trigger threshold.
+Caveats: bench uses a synthetic trace executor (real ternary VM
+trace adds the ~9.5 µs × 34 above), in-memory state (no `sled`
+durable commit; deferred per ADR-0012), in-process transport (not
+mutual-TLS HTTPS). Hardware: WSL2 Ubuntu host. Reproduce via
+`cargo test -p psl-sequencer --test integration --release
+bench_sequencer_tps_10k_blocks -- --ignored --nocapture`.
+
 ## What's deliberately NOT in v0.1.0
 
 - **A public testnet.** ADR-0004 explains the deferral. Local
   reference deployment via `infra/` Terraform is the substitute.
-- **BFT consensus.** ADR-0002 deferred ABCI + CometBFT to v0.2 with
-  three concrete trigger conditions. Sovereign-mode ships first.
+- **BFT consensus.** ADR-0002 defers the engine choice (Malachite
+  vs CometBFT vs other) to trigger fire, with a 60-day SLA.
+  Sovereign-mode ships first.
 - **Mobile SDKs (Swift / Kotlin).** Architecturally trivial via
   UniFFI; not in v0.1.0 scope.
 
