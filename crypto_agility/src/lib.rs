@@ -47,3 +47,7 @@ pub use kem::{
 };
 pub use scheme::{KemSchemeId, SignatureScheme};
 pub use signer::{Ed25519Signer, Ed25519Verifier, Signer, Verifier, VerifierPolicy};
+pub use witness_enc::{
+    decrypt as witness_decrypt, encrypt as witness_encrypt, generate_recipient_keypair,
+    ContextString,
+};
