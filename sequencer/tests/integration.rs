@@ -224,6 +224,138 @@ fn sequencer_and_3_followers_agree_on_100_mixed_blocks() {
     );
 }
 
+/// TPS benchmark — sequencer + 3 followers driving N blocks of mixed
+/// traffic. Times only the block-production loop (excludes setup +
+/// pre-funding). Reports total transactions, elapsed wall-clock, and
+/// computed TPS.
+///
+/// Methodology: same workload shape as
+/// `sequencer_and_3_followers_agree_on_100_mixed_blocks` (gate 4) but
+/// scaled to 10,000 blocks for reliable timing. Each block: 1
+/// transfer (always) + occasional mint/burn/freeze/multi_asset on
+/// every-Nth-block cadence. Real signed ed25519 transactions, real
+/// MPT state mutations, all 4 replicas verify state-root agreement
+/// every block.
+///
+/// **What this measures:** sequencer kernel throughput including
+/// signature verification, MPT writes, state-root computation,
+/// and cross-replica consistency check. **What this excludes:**
+/// network transport (in-process), trace_hash from real
+/// Transformer-VM weights (uses `NativeTraceExecutor` stub —
+/// deterministic but not the analytical model), `sled` durable-
+/// commit overhead (in-memory `State`).
+///
+/// Ignored by default; run with:
+///   cargo test -p psl-sequencer --test integration --release \
+///     bench_sequencer_tps_10k_blocks -- --ignored --nocapture
+#[test]
+#[ignore]
+fn bench_sequencer_tps_10k_blocks() {
+    use std::time::Instant;
+
+    const N_BLOCKS: u64 = 10_000;
+    // Replica count. Set via env var to compare single-sequencer vs
+    // 4-replica costs. Default = 4 (sequencer + 3 followers, matches
+    // gate-4 integration test shape).
+    let n_replicas: usize = std::env::var("PSL_BENCH_REPLICAS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(4);
+
+    let exec = NativeTraceExecutor;
+    let states: Vec<Arc<RwLock<State>>> = (0..n_replicas).map(|_| fresh_state()).collect();
+    let issuer = KeyPair::from_seed([1u8; 32]);
+    install_issuer(&states, &issuer);
+
+    let alice = KeyPair::from_seed([42u8; 32]);
+    let bob = KeyPair::from_seed([43u8; 32]);
+
+    let mint_alice = build_signed_tx(
+        TxKind::Mint,
+        1,
+        0,
+        &issuer,
+        Some(alice.public()),
+        1_000_000_000_000_000_000,
+        0,
+    );
+    apply_to_all(&exec, &states, &mint_alice, &[], 0).unwrap();
+    let mint_bob = build_signed_tx(
+        TxKind::Mint,
+        1,
+        0,
+        &issuer,
+        Some(bob.public()),
+        1_000_000_000_000_000_000,
+        0,
+    );
+    apply_to_all(&exec, &states, &mint_bob, &[], 0).unwrap();
+
+    let mut rng = StdRng::seed_from_u64(7);
+    let mut alice_nonce = 0u64;
+    let mut tx_count: u64 = 0;
+
+    let start = Instant::now();
+    for block in 1..=N_BLOCKS {
+        let amount = rng.gen_range(1..1_000);
+        let recipient = [rng.gen::<u8>(); 32];
+        let tx = build_signed_tx(
+            TxKind::Transfer,
+            1,
+            alice_nonce + 1,
+            &alice,
+            Some(recipient),
+            amount,
+            0,
+        );
+        alice_nonce += 1;
+        apply_to_all(&exec, &states, &tx, &[], block as u32).unwrap();
+        tx_count += 1;
+
+        if block % 5 == 0 {
+            let m = build_signed_tx(TxKind::Mint, 1, 0, &issuer, Some(alice.public()), 1_000, 0);
+            apply_to_all(&exec, &states, &m, &[], block as u32).unwrap();
+            tx_count += 1;
+        }
+        if block % 7 == 0 {
+            let b = build_signed_tx(TxKind::Burn, 1, 0, &issuer, Some(bob.public()), 100, 0);
+            apply_to_all(&exec, &states, &b, &[], block as u32).unwrap();
+            tx_count += 1;
+        }
+        if block % 11 == 0 {
+            let target = [(block as u8); 32];
+            let f = build_signed_tx(TxKind::Freeze, 1, 0, &issuer, Some(target), 0, 1);
+            apply_to_all(&exec, &states, &f, &[], block as u32).unwrap();
+            tx_count += 1;
+        }
+        if block % 13 == 0 {
+            let recipients: Vec<[u8; 32]> = (0..3).map(|i| [block as u8 + i as u8; 32]).collect();
+            let ma = build_signed_tx(TxKind::MultiAsset, 1, alice_nonce + 1, &alice, None, 50, 0);
+            alice_nonce += 1;
+            apply_to_all(&exec, &states, &ma, &recipients, block as u32).unwrap();
+            tx_count += 1;
+        }
+        assert_roots_agree(&states);
+    }
+    let elapsed = start.elapsed();
+    let secs = elapsed.as_secs_f64();
+    let tps = tx_count as f64 / secs;
+    let block_per_sec = N_BLOCKS as f64 / secs;
+
+    println!();
+    println!("=== sequencer TPS benchmark ({n_replicas} replicas, in-process) ===");
+    println!("  blocks:        {N_BLOCKS}");
+    println!("  transactions:  {tx_count}");
+    println!("  elapsed:       {secs:.3} s");
+    println!("  TPS:           {tps:.0} tx/s");
+    println!("  blocks/sec:    {block_per_sec:.0} blk/s");
+    println!(
+        "  per-tx mean:   {:.1} µs",
+        (secs * 1_000_000.0) / tx_count as f64
+    );
+    println!("=========================================================");
+}
+
 #[test]
 fn published_root_mutation_detected() {
     let exec = NativeTraceExecutor;
