@@ -304,7 +304,176 @@ The codebase enforces:
 3. **No silent failures.** All input-driven errors return `Result`.
 4. **Tests are the spec.** Adversarial scenarios are first-class.
 
-## 7. Comparison to related systems
+## 7. Post-quantum cryptographic readiness
+
+PSL ships with hybrid post-quantum cryptography from v0.1.0, not
+as a future migration. This section summarises the threat model,
+the strategy, the implementation status, and the remaining work.
+
+### 7.1 Threat model
+
+Two categories of quantum attack matter for a settlement layer
+that must remain verifiable for decades:
+
+- **Shor's algorithm against discrete-log signatures.** A
+  cryptographically-relevant quantum computer (CRQC) breaks
+  ed25519 in polynomial time. Every signature ever made becomes
+  forgeable. Without mitigation, the chain becomes unrecoverable.
+- **Grover's algorithm against hashes.** Quadratic speedup on
+  preimage attacks. BLAKE3-256's effective preimage security
+  drops from 256 to 128 bits under quantum. Still very strong for
+  short-lived hashes; insufficient margin for long-lived
+  irrevocable commitments under a multi-decade durability
+  requirement.
+
+The active threat today is **harvest-now-decrypt-later (HNDL)**:
+an adversary capturing encrypted material today can decrypt it
+once a CRQC exists. View-key encryption and witness-payload
+encryption migrate first because the captured-once-and-stored
+exposure window is open today; signature migration is more
+patient because signatures are verified-once-and-discarded.
+
+### 7.2 Strategy: hybrid, agile, irreversible-where-it-must-be
+
+Three principles, in order of priority (per ADR-0006):
+
+1. **Hybrid before pure post-quantum.** Combine classical
+   (ed25519, X25519) with post-quantum (ML-DSA-65, ML-KEM-768)
+   such that an attack must break **both** to succeed. This is
+   what Cloudflare, Google, Signal, and Apple iMessage shipped in
+   2024-2025. Until a CRQC exists, classical security is the
+   floor; once one exists, PQ becomes the floor. The classical
+   half is essentially-free additional security.
+2. **Cryptographic agility in the wire format.** Every signature,
+   public key, and encryption blob carries an explicit varint
+   scheme prefix per ADR-0007. Verifiers dispatch by scheme.
+   Adding a new scheme is a one-byte prefix change, not a hard
+   fork. Verifiers refuse unknown schemes with a typed error
+   (never silent fallback).
+3. **Some commitments are irreversible — choose them carefully.**
+   `weights_hash` and long-lived `program_hash` are committed
+   on-chain and cannot be retroactively re-hashed. Per ADR-0008
+   they widen to BLAKE3-512 (256-bit Grover-halved quantum
+   margin). Short-lived hashes (per-tx trace_hash, MPT roots,
+   block-header hashes) stay BLAKE3-256 with a documented forward
+   path.
+
+### 7.3 Algorithm choices (locked)
+
+| Role                                | Scheme                              | NIST level | ADR |
+| ---                                 | ---                                 | --- | --- |
+| Signatures                          | ed25519 + ML-DSA-65 (hybrid concat) | 3 | ADR-0006 |
+| Key encapsulation                   | X25519 + ML-KEM-768 (hybrid HKDF)   | 3 | ADR-0011 |
+| Symmetric AEAD                      | AES-256-GCM                         | n/a | ADR-0011 |
+| Long-lived hashes (`weights_hash`, `program_hash`) | BLAKE3-512 | n/a | ADR-0008 |
+| Short-lived hashes (`trace_hash`, `proposal_hash`, MPT) | BLAKE3-256 | n/a | ADR-0008 |
+
+Schemes explicitly **not** chosen: SLH-DSA (signatures 7-30 KB,
+too large for per-message use; reserved for future validator-only
+use via the agility layer); FN-DSA / Falcon (reference
+implementations require constant-time floating-point arithmetic,
+permanently excluded by PSL's no-fp-on-verifier-path rule).
+
+### 7.4 Hybrid composition
+
+**Hybrid signature** uses the concatenation combiner per NIST SP
+800-227 (draft) and IETF
+`draft-ietf-pquip-hybrid-signature-spectrums`:
+
+```
+hybrid_sig(msg) = ed25519_sig(msg) || ml_dsa_sig(msg)
+```
+
+Verification accepts iff **both** signatures verify. No XOR
+mixing, no novel combiner.
+
+**Hybrid KEM** uses HKDF-SHA-512 over a transcript binding both
+shared secrets and both ciphertexts per IETF
+`draft-ietf-tls-hybrid-design`:
+
+```
+hybrid_ss := HKDF-SHA-512(
+    salt = "PSL-hybrid-kem-salt-v1",
+    ikm  = varint(scheme_id) || x25519_ss || ml_kem_ss
+                             || x25519_eph_pk || ml_kem_ct,
+    info = context_string,
+).expand(32)
+```
+
+The transcript includes both ciphertexts so neither component can
+be substituted independently — a swap-attack on the hybrid
+ciphertext fails AEAD authentication downstream. Context strings
+provide domain separation across uses (witness encryption, view-
+key delivery, travel-rule metadata).
+
+### 7.5 Forward secrecy for witness encryption
+
+Per-witness ephemeral hybrid keypairs. The lifecycle (per
+ADR-0011 § "Ephemeral key lifecycle"):
+
+1. Generate fresh hybrid ephemeral keypair (X25519 + ML-KEM-768).
+2. Encapsulate to recipient's long-term hybrid public key.
+3. Build canonical transcript (above).
+4. Derive AEAD key via HKDF with `ContextString::as_bytes()` as
+   `info`.
+5. Encrypt witness payload with AES-256-GCM under the derived key.
+6. **Zeroize ephemeral private keys immediately** (load-bearing
+   forward-secrecy invariant; type system enforces via
+   `ZeroizeOnDrop` derive).
+7. Zeroize derived AEAD key on scope exit.
+
+Even if the recipient's long-term key is later compromised, past
+witnesses remain protected because the ephemeral private keys are
+gone. This is the HNDL defense.
+
+### 7.6 Implementation status (gate 19 🟢)
+
+The PQ migration shipped in 5 PRs (#11 → #15) as the ADR-0011
+implementation plan:
+
+| # | What | Tests added |
+| --- | --- | --- |
+| #11 | Spec + skeleton (types + trait stubs) | Trait-shape sanity |
+| #12 | KEM impl (HybridX25519MlKem768Kem) | 6 KEM tests + 4 from_bytes-never-panic proptests |
+| #13 | Witness encryption impl | 7 of 8 ADR-0011 blocking tests (round-trip, forward secrecy, implicit rejection, component swap, wrong-context, zeroization, edge sizes) |
+| #14 | Agent-layer cascade (Propose.program_hash widening + ProposalHash newtype) | 249 workspace tests pass |
+| #15 | Cross-platform CI matrix (x86_64 + aarch64) | 252 workspace tests pass on both architectures |
+
+Total: **252 workspace tests pass on both x86_64 and aarch64
+GitHub-hosted runners**, byte-identical pinned digests for the
+HKDF salt + 3 context strings (deterministic-by-construction
+inputs to AEAD-key derivation).
+
+The cryptographic pieces use audited reference implementations:
+- ed25519 + X25519 via `ed25519-dalek` + `x25519-dalek` (Trail of
+  Bits + NCC Group audits).
+- ML-DSA-65 + ML-KEM-768 via `pqcrypto-mldsa` + `pqcrypto-mlkem`
+  (NIST PQClean reference C, audited as part of NIST's
+  standardization).
+- BLAKE3 via the `blake3` crate (reference implementation,
+  widely deployed).
+- HKDF + AES-256-GCM via RustCrypto's `hkdf` + `aes-gcm`
+  (community-audited).
+
+### 7.7 Remaining work
+
+Gate 19 sits at 🟢. The only remaining ✅ blocker per ADR-0006
+acceptance criteria is **external cryptographer review** of the
+hybrid combiner, transcript construction, and ephemeral-key
+lifecycle. This is a focused 1-2 week scoped engagement (smaller
+than the full audit per gate 17), yielding a signed cryptographer
+review of the hybrid combiner. Outreach is planned per ADR-0003
+publication strategy.
+
+The agility layer enables future scheme migrations without hard
+fork: when ML-DSA-65 needs to migrate (e.g., to ML-DSA-87 if
+cryptanalysis reveals a flaw, or to a successor scheme entirely),
+the migration is a new `SignatureScheme` discriminant + a new
+`Verifier` impl. Existing on-chain artifacts remain verifiable
+under their original scheme via the documented
+backwards-compatibility mechanism.
+
+## 8. Comparison to related systems
 
 | System              | Determinism property                            | Dispute mechanism                          |
 | ---                 | ---                                             | ---                                        |
@@ -320,7 +489,7 @@ be invoked at the application layer between specific transacting
 agents, rather than implicitly at the consensus layer between
 validators.
 
-## 8. Implementation status
+## 9. Implementation status
 
 Per `docs/STATUS.md` (which is the authoritative ground-truth
 table): 18 gates defined; 16 closed ✅; 2 (external audit, first DR
@@ -335,7 +504,7 @@ docker-compose observability (`ops/`), Terraform reference
 deployment (`infra/`), pre-committed DR drill protocol
 (`docs/DR_DRILL_PLAN.md`).
 
-## 9. Open questions and future work
+## 10. Open questions and future work
 
 - **BFT consensus for federated mode.** Sovereign-mode v0.1.0 ships
   with a documented trust assumption. ADR-0002 defines three
@@ -343,18 +512,19 @@ deployment (`infra/`), pre-committed DR drill protocol
   pre-commitment, regulator written request, DR drill failure
   attributable to single-sequencer). Engineering on tendermint-rs
   ABCI + CometBFT begins on first trigger fire; 60-day SLA.
-- **Post-quantum cryptography.** Hybrid ed25519 + ML-DSA-65 (FIPS
-  204) for signatures; hybrid X25519 + ML-KEM-768 (FIPS 203) for
-  KEM; BLAKE3-512 for long-lived commitments (`weights_hash`).
-  Migration is a dedicated workstream; ADR-0006/0007/0008 once
-  ratified.
+- **Post-quantum cryptography.** Shipped in v0.1.0 — hybrid ed25519
+  + ML-DSA-65 signatures, hybrid X25519 + ML-KEM-768 KEM with
+  forward secrecy, BLAKE3-512 for long-lived commitments,
+  cryptographic agility via scheme-id varint prefixes (gate 19 🟢,
+  ADR-0006/0007/0008/0011). Remaining work: external cryptographer
+  review of the hybrid combiner — see § 7.7.
 - **Public test network.** Deferred to v0.2 per ADR-0004 (rationale:
   cannot operate a public testnet under audit-pending +
   DR-drill-pending posture).
 - **Mobile SDK bindings (Swift, Kotlin).** Architecturally trivial
   via UniFFI; not in v0.1.0 scope.
 
-## 10. Conclusion
+## 11. Conclusion
 
 Cross-machine deterministic re-execution as a **contract-level
 dispute primitive** rests on a single non-negotiable property: no
