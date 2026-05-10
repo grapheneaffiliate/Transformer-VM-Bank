@@ -170,24 +170,89 @@ Decoder hard-fails on:
 - Length mismatch — including one-byte-short (signature-malleability
   defense)
 
-## 4. Planned for v0.2: program_hash → BLAKE3-512
+## 4. v0.1.x: program_hash → BLAKE3-512 (architectural pieces shipped)
 
-**Status:** planned. No action required at v0.1.x.
+**Status:** types + contracts shipped in v0.1.x. Full agent-layer
+wire-format break (Propose/CounterPropose etc.) deferred to v0.2.
 **ADR:** [ADR-0008](decisions/0008-blake3-512-for-long-lived-commitments.md).
 
-When this lands:
-- All standard-library contract `program_hash` values change (the
-  identifier-on-chain changes; the contract semantics do not).
-- `agent_protocol` will need to either accept both 32B and 64B
-  proposal-hash discriminators during a transition window, or
-  truncate v2 to 32B for indexing while holding the full 64B
-  separately.
-- Migration tool (forthcoming) will surface affected on-chain
-  contract registrations and provide a re-registration template.
+### What landed in v0.1.x
+- `ProgramHash` is a **newtype** (`pub struct ProgramHash(pub [u8;
+  64])`), not a type alias. Compiler refuses to silently mix it
+  with [`crate::ProposalHash`] or pubkeys.
+- `ProgramHashV1` is a **frozen** newtype around `[u8; 32]` for
+  historical-block verification.
+- New helpers `program::v1::program_hash_v1` and
+  `program::v2::program_hash_v2`. New `build_program_hashes()`
+  computes both in one call.
+- All 8 standard contracts compute and store **both** digests at
+  `build()` time. The trait exposes both methods:
+  `program_hash() -> [u8; 32]` (legacy compat for the v0.1.x
+  agent layer) and `program_hash_v2() -> ProgramHash` (canonical).
+- Frozen v1 KAT (benign + adversarial: distinct names, ordering,
+  empty-list).
 
-Architecturally trivial; queued as its own PR for review-surface
-reasons (cascades through `agent_protocol`'s
-`HashMap<[u8; 32], _>` keys).
+### Action for SDK consumers
+- New code committing to a contract identity for long-lived
+  on-chain references (e.g., a contract registry, a partner
+  whitelist) should use `contract.program_hash_v2()`, not
+  `program_hash()`. The 64-byte form is the post-quantum-safe
+  commitment per ADR-0008.
+- Existing code reading `program_hash()` continues to work
+  unchanged; the 32-byte form remains valid for the v0.1.x agent
+  layer (Propose's wire field, agent_sdk's contract HashMap).
+
+### What's deferred to v0.2
+- `agent_protocol::message::Propose.program_hash` field (wire
+  format) widens from `[u8; 32]` to `ProgramHash`.
+- `agent_sdk::AgentSdk::contracts` HashMap re-keys from `[u8; 32]`
+  to `ProgramHash`.
+- All Propose::sign call sites cascade.
+
+These are bundled as a follow-up PR for review-surface reasons —
+the agent-layer wire-format break deserves dedicated review attention
+separate from the type-system / contract-identity work shipped here.
+
+## 5. The hash-width principle (per ADR-0008)
+
+When deciding what hash width a new commitment should use, apply
+this principle:
+
+**Long-lived irrevocable commitments → BLAKE3-512 (64-byte newtype).**
+A commitment is long-lived if it is referenced for the lifetime of
+the chain after being committed. Examples:
+- `weights_hash` (committed in every trace; each trace references
+  it for the contract's lifetime).
+- `program_hash` (the on-chain contract identifier; permanent for
+  the lifetime of the contract).
+- Long-lived contract identity hashes (e.g., a multi-year escrow
+  identifier).
+
+**Ephemeral content hashes → BLAKE3-256 (32 bytes, may be a newtype
+for type-safety).** A commitment is ephemeral if it is content-
+addressed within a single protocol round and not referenced
+afterwards. Examples:
+- `proposal_hash` (the BLAKE3 of a `Propose` message; lives only
+  for the proposal lifecycle).
+- Per-execution `trace_hash` (committed in the block but the
+  block's `trace_hash` field itself is the content hash, not the
+  commitment-to-program identity).
+- Dispute message hashes, transient negotiation state.
+
+**If a new hash doesn't cleanly fit either bucket, that's a signal
+it needs an ADR before it ships.** Borderline cases (a hash that's
+"medium-lived") are usually a sign that the design intent is
+unclear; surface that ambiguity in an ADR rather than picking
+silently.
+
+The two buckets exist because Grover's algorithm gives a quadratic
+speedup against preimage attacks: BLAKE3-256's effective preimage
+security drops to 128 bits under quantum, BLAKE3-512's to 256.
+128 bits is still very strong but not multi-decade durable; 256
+bits is the conservative margin for irrevocable commitments. For
+ephemeral content hashes the 128-bit margin is fine — by the time
+quantum attacks become practical, the ephemeral value has long
+since been consumed.
 
 ## 5. Planned for v0.2: state tree → hash-of-pubkey storage
 

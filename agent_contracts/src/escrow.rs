@@ -12,7 +12,7 @@
 
 use crate::error::ContractError;
 use crate::guarded::{no_op_output, wrapped_transfer};
-use crate::program::{ProgramHash, TernaryProgram};
+use crate::program::{build_program_hashes, ProgramHash, TernaryProgram};
 use psl_ternary_vm::network::TernaryNetwork;
 use psl_ternary_vm::primitives::{byte_add_with_carry, byte_sub_with_borrow};
 
@@ -20,14 +20,16 @@ fn build_subnets() -> (TernaryNetwork, TernaryNetwork) {
     (byte_add_with_carry::build(), byte_sub_with_borrow::build())
 }
 
-fn hash_program(name: &str, byte_add: &TernaryNetwork, byte_sub: &TernaryNetwork) -> ProgramHash {
-    let mut h = blake3::Hasher::new();
-    h.update(name.as_bytes());
-    h.update(byte_add.header.weights_hash());
-    h.update(byte_sub.header.weights_hash());
-    let mut out = [0u8; 32];
-    out.copy_from_slice(h.finalize().as_bytes());
-    out
+/// Per-contract `build()` helper. Returns both the legacy v1 32-byte
+/// program_hash and the canonical v2 64-byte ProgramHash newtype per
+/// ADR-0008.
+fn hash_program(
+    name: &str,
+    byte_add: &TernaryNetwork,
+    byte_sub: &TernaryNetwork,
+) -> ([u8; 32], ProgramHash) {
+    let (v2, v1) = build_program_hashes(name, &[byte_add, byte_sub]);
+    (v1.0, v2)
 }
 
 // ── escrow_create ────────────────────────────────────────────────────
@@ -40,16 +42,18 @@ fn hash_program(name: &str, byte_add: &TernaryNetwork, byte_sub: &TernaryNetwork
 pub struct EscrowCreate {
     pub byte_add: TernaryNetwork,
     pub byte_sub: TernaryNetwork,
-    pub program_hash: ProgramHash,
+    pub program_hash: [u8; 32],
+    pub program_hash_v2: ProgramHash,
 }
 impl EscrowCreate {
     pub fn build() -> Self {
         let (byte_add, byte_sub) = build_subnets();
-        let program_hash = hash_program("escrow_create", &byte_add, &byte_sub);
+        let (program_hash, program_hash_v2) = hash_program("escrow_create", &byte_add, &byte_sub);
         Self {
             byte_add,
             byte_sub,
             program_hash,
+            program_hash_v2,
         }
     }
 }
@@ -57,8 +61,11 @@ impl TernaryProgram for EscrowCreate {
     fn name(&self) -> &'static str {
         "escrow_create"
     }
-    fn program_hash(&self) -> ProgramHash {
+    fn program_hash(&self) -> [u8; 32] {
         self.program_hash
+    }
+    fn program_hash_v2(&self) -> ProgramHash {
+        self.program_hash_v2
     }
     fn run(&self, input: &[u8]) -> Result<Vec<u8>, ContractError> {
         if input.len() != 56 {
@@ -96,16 +103,18 @@ impl TernaryProgram for EscrowCreate {
 pub struct EscrowRelease {
     pub byte_add: TernaryNetwork,
     pub byte_sub: TernaryNetwork,
-    pub program_hash: ProgramHash,
+    pub program_hash: [u8; 32],
+    pub program_hash_v2: ProgramHash,
 }
 impl EscrowRelease {
     pub fn build() -> Self {
         let (byte_add, byte_sub) = build_subnets();
-        let program_hash = hash_program("escrow_release", &byte_add, &byte_sub);
+        let (program_hash, program_hash_v2) = hash_program("escrow_release", &byte_add, &byte_sub);
         Self {
             byte_add,
             byte_sub,
             program_hash,
+            program_hash_v2,
         }
     }
 }
@@ -113,8 +122,11 @@ impl TernaryProgram for EscrowRelease {
     fn name(&self) -> &'static str {
         "escrow_release"
     }
-    fn program_hash(&self) -> ProgramHash {
+    fn program_hash(&self) -> [u8; 32] {
         self.program_hash
+    }
+    fn program_hash_v2(&self) -> ProgramHash {
+        self.program_hash_v2
     }
     fn run(&self, input: &[u8]) -> Result<Vec<u8>, ContractError> {
         if input.len() != 57 {
@@ -153,16 +165,18 @@ impl TernaryProgram for EscrowRelease {
 pub struct EscrowRefund {
     pub byte_add: TernaryNetwork,
     pub byte_sub: TernaryNetwork,
-    pub program_hash: ProgramHash,
+    pub program_hash: [u8; 32],
+    pub program_hash_v2: ProgramHash,
 }
 impl EscrowRefund {
     pub fn build() -> Self {
         let (byte_add, byte_sub) = build_subnets();
-        let program_hash = hash_program("escrow_refund", &byte_add, &byte_sub);
+        let (program_hash, program_hash_v2) = hash_program("escrow_refund", &byte_add, &byte_sub);
         Self {
             byte_add,
             byte_sub,
             program_hash,
+            program_hash_v2,
         }
     }
 }
@@ -170,8 +184,11 @@ impl TernaryProgram for EscrowRefund {
     fn name(&self) -> &'static str {
         "escrow_refund"
     }
-    fn program_hash(&self) -> ProgramHash {
+    fn program_hash(&self) -> [u8; 32] {
         self.program_hash
+    }
+    fn program_hash_v2(&self) -> ProgramHash {
+        self.program_hash_v2
     }
     fn run(&self, input: &[u8]) -> Result<Vec<u8>, ContractError> {
         if input.len() != 57 {

@@ -1100,6 +1100,7 @@ name = "psl-agent-contracts"
 version = "0.1.0"
 dependencies = [
  "blake3",
+ "hex",
  "psl-ternary-vm",
  "rand 0.8.6",
  "thiserror",

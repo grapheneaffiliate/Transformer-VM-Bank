@@ -4,21 +4,27 @@
 
 use crate::error::ContractError;
 use crate::guarded::{no_op_output, u64_ge, wrapped_transfer};
-use crate::program::{ProgramHash, TernaryProgram};
+use crate::program::{build_program_hashes, ProgramHash, TernaryProgram};
 use psl_ternary_vm::network::TernaryNetwork;
 use psl_ternary_vm::primitives::{byte_add_with_carry, byte_sub_with_borrow};
 
 fn build_subnets() -> (TernaryNetwork, TernaryNetwork) {
     (byte_add_with_carry::build(), byte_sub_with_borrow::build())
 }
-fn hash_program(name: &str, byte_add: &TernaryNetwork, byte_sub: &TernaryNetwork) -> ProgramHash {
-    let mut h = blake3::Hasher::new();
-    h.update(name.as_bytes());
-    h.update(byte_add.header.weights_hash());
-    h.update(byte_sub.header.weights_hash());
-    let mut out = [0u8; 32];
-    out.copy_from_slice(h.finalize().as_bytes());
-    out
+
+/// Per-contract `build()` helper. Returns both the legacy v1 32-byte
+/// program_hash (the `[u8; 32]` form that the v0.1.x agent layer
+/// indexes on) and the canonical v2 64-byte ProgramHash newtype per
+/// ADR-0008. Each contract stores both so the trait's
+/// `program_hash()` (32B) and `program_hash_v2()` (64B newtype)
+/// methods just return cached values.
+fn hash_program(
+    name: &str,
+    byte_add: &TernaryNetwork,
+    byte_sub: &TernaryNetwork,
+) -> ([u8; 32], ProgramHash) {
+    let (v2, v1) = build_program_hashes(name, &[byte_add, byte_sub]);
+    (v1.0, v2)
 }
 
 // ── time_locked_release ──────────────────────────────────────────────
@@ -32,16 +38,19 @@ fn hash_program(name: &str, byte_add: &TernaryNetwork, byte_sub: &TernaryNetwork
 pub struct TimeLockedRelease {
     pub byte_add: TernaryNetwork,
     pub byte_sub: TernaryNetwork,
-    pub program_hash: ProgramHash,
+    pub program_hash: [u8; 32],
+    pub program_hash_v2: ProgramHash,
 }
 impl TimeLockedRelease {
     pub fn build() -> Self {
         let (byte_add, byte_sub) = build_subnets();
-        let program_hash = hash_program("time_locked_release", &byte_add, &byte_sub);
+        let (program_hash, program_hash_v2) =
+            hash_program("time_locked_release", &byte_add, &byte_sub);
         Self {
             byte_add,
             byte_sub,
             program_hash,
+            program_hash_v2,
         }
     }
 }
@@ -49,8 +58,11 @@ impl TernaryProgram for TimeLockedRelease {
     fn name(&self) -> &'static str {
         "time_locked_release"
     }
-    fn program_hash(&self) -> ProgramHash {
+    fn program_hash(&self) -> [u8; 32] {
         self.program_hash
+    }
+    fn program_hash_v2(&self) -> ProgramHash {
+        self.program_hash_v2
     }
     fn run(&self, input: &[u8]) -> Result<Vec<u8>, ContractError> {
         if input.len() != 72 {
@@ -91,16 +103,18 @@ impl TernaryProgram for TimeLockedRelease {
 pub struct Multisig2of3 {
     pub byte_add: TernaryNetwork,
     pub byte_sub: TernaryNetwork,
-    pub program_hash: ProgramHash,
+    pub program_hash: [u8; 32],
+    pub program_hash_v2: ProgramHash,
 }
 impl Multisig2of3 {
     pub fn build() -> Self {
         let (byte_add, byte_sub) = build_subnets();
-        let program_hash = hash_program("multisig_2of3", &byte_add, &byte_sub);
+        let (program_hash, program_hash_v2) = hash_program("multisig_2of3", &byte_add, &byte_sub);
         Self {
             byte_add,
             byte_sub,
             program_hash,
+            program_hash_v2,
         }
     }
 }
@@ -108,8 +122,11 @@ impl TernaryProgram for Multisig2of3 {
     fn name(&self) -> &'static str {
         "multisig_2of3"
     }
-    fn program_hash(&self) -> ProgramHash {
+    fn program_hash(&self) -> [u8; 32] {
         self.program_hash
+    }
+    fn program_hash_v2(&self) -> ProgramHash {
+        self.program_hash_v2
     }
     fn run(&self, input: &[u8]) -> Result<Vec<u8>, ContractError> {
         if input.len() != 59 {
@@ -150,16 +167,19 @@ impl TernaryProgram for Multisig2of3 {
 pub struct ConditionalPayment {
     pub byte_add: TernaryNetwork,
     pub byte_sub: TernaryNetwork,
-    pub program_hash: ProgramHash,
+    pub program_hash: [u8; 32],
+    pub program_hash_v2: ProgramHash,
 }
 impl ConditionalPayment {
     pub fn build() -> Self {
         let (byte_add, byte_sub) = build_subnets();
-        let program_hash = hash_program("conditional_payment", &byte_add, &byte_sub);
+        let (program_hash, program_hash_v2) =
+            hash_program("conditional_payment", &byte_add, &byte_sub);
         Self {
             byte_add,
             byte_sub,
             program_hash,
+            program_hash_v2,
         }
     }
 }
@@ -167,8 +187,11 @@ impl TernaryProgram for ConditionalPayment {
     fn name(&self) -> &'static str {
         "conditional_payment"
     }
-    fn program_hash(&self) -> ProgramHash {
+    fn program_hash(&self) -> [u8; 32] {
         self.program_hash
+    }
+    fn program_hash_v2(&self) -> ProgramHash {
+        self.program_hash_v2
     }
     fn run(&self, input: &[u8]) -> Result<Vec<u8>, ContractError> {
         if input.len() != 57 {
