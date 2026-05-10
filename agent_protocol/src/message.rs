@@ -386,6 +386,71 @@ mod tests {
         assert!(matches!(p.verify(), Err(ProtocolError::SignatureInvalid)));
     }
 
+    /// A v1-shaped Propose (old `b"PSL-PROPOSE-V1"` tag, 32-byte
+    /// program_hash) signed by the sender is rejected by the v2
+    /// verifier. The rejection mechanism is cryptographic: the v2
+    /// `canonical_bytes()` includes `b"PSL-PROPOSE-V2"` + a 64-byte
+    /// `ProgramHash`, so a v1 signature over a v1-shaped transcript
+    /// cannot validate against the v2 transcript. SignatureInvalid
+    /// is the expected error — no silent acceptance, no fallthrough.
+    ///
+    /// This test makes the cross-version isolation explicit per the
+    /// engineer-reviewer's PR #14 caution about tag-bump behavior.
+    #[test]
+    fn v1_shaped_propose_rejected_by_v2_verifier() {
+        let alice = sk(1);
+        let bob = sk(2);
+
+        // Construct a v1-shaped canonical-bytes transcript manually —
+        // old tag `b"PSL-PROPOSE-V1"` + 32-byte program_hash. This is
+        // the byte sequence a v1 sender would have signed.
+        let v1_program_hash = [0xa1u8; 32];
+        let parameters: Vec<u8> = vec![1, 2, 3];
+        let from = alice.verifying_key().to_bytes();
+        let to = bob.verifying_key().to_bytes();
+        let valid_from_unix: u64 = 100;
+        let valid_until_unix: u64 = 200;
+        let nonce: u64 = 7;
+
+        let mut v1_canonical = Vec::with_capacity(128);
+        v1_canonical.extend_from_slice(b"PSL-PROPOSE-V1");
+        v1_canonical.extend_from_slice(&v1_program_hash); // 32 bytes
+        push_bytes(&mut v1_canonical, &parameters);
+        v1_canonical.extend_from_slice(&from);
+        v1_canonical.extend_from_slice(&to);
+        v1_canonical.extend_from_slice(&valid_from_unix.to_be_bytes());
+        v1_canonical.extend_from_slice(&valid_until_unix.to_be_bytes());
+        v1_canonical.extend_from_slice(&nonce.to_be_bytes());
+
+        let v1_sig = alice.sign(&v1_canonical).to_bytes();
+
+        // Now place that signature into a v2 Propose envelope. The
+        // v2 envelope uses 64-byte ProgramHash; we widen the v1 hash
+        // by zero-extension (the specific extension doesn't matter —
+        // any v2 transcript will diverge from the v1-signed bytes).
+        let mut v2_program_hash_bytes = [0u8; 64];
+        v2_program_hash_bytes[..32].copy_from_slice(&v1_program_hash);
+        let v2_envelope = Propose {
+            program_hash: psl_agent_contracts::ProgramHash(v2_program_hash_bytes),
+            parameters,
+            from,
+            to,
+            valid_from_unix,
+            valid_until_unix,
+            nonce,
+            sig: v1_sig,
+        };
+
+        // The v2 verifier reconstructs canonical_bytes with
+        // `b"PSL-PROPOSE-V2"` + 64-byte program_hash; the v1
+        // signature does not validate. This is the load-bearing
+        // cross-version isolation.
+        assert!(matches!(
+            v2_envelope.verify(),
+            Err(ProtocolError::SignatureInvalid)
+        ));
+    }
+
     #[test]
     fn accept_reject_counter_execute_sign_and_verify() {
         let alice = sk(1);
