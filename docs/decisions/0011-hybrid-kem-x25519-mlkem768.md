@@ -8,7 +8,54 @@
 
 Maintainer-reviewer feedback applied before implementation cut. Recorded
 inline so the reasoning travels with the ADR rather than living only in
-PR-thread history:
+PR-thread history.
+
+### Round 2 (skeleton review)
+
+7. **`decapsulate` is truly infallible at the type level.** Original
+   spec said "Result only for parsing errors." Reviewer pushed back:
+   any `Result` variant gives reviewers a hook to write match arms
+   for failures that don't exist semantically, defeating the
+   implicit-rejection design. Resolved: trait uses **typed
+   parameters** (`Ciphertext`, `SecretKey`, `PublicKey` associated
+   types). Constructor-validation lives on the type
+   (`Ciphertext::from_bytes(...) -> Result<Self, KemError>`); once
+   you hold a `Ciphertext`, decapsulate is total: `fn
+   decapsulate(&self, ct: &Self::Ciphertext, sk: &Self::SecretKey)
+   -> SharedSecret`. No `Result`, no `match` for failure modes that
+   don't exist.
+
+8. **Secret-key vs public-key newtype split.** `HybridKemKeypair`
+   originally had raw `[u8; 32]` and `Vec<u8>` fields with
+   `Zeroize/ZeroizeOnDrop` derived on the whole struct. Reviewer's
+   point (per #43-style structural-invariant work): the type
+   system should enforce "secret material zeroizes; public
+   material does not" rather than relying on a struct-level derive
+   to do both. Resolved: secret-side gets dedicated types
+   (`EphemeralX25519SecretKey`, `EphemeralMlKemSecretKey`,
+   `RecipientX25519SecretKey`, `RecipientMlKemSecretKey`) each with
+   `Zeroize/ZeroizeOnDrop`. Public-side gets `X25519PublicKey` /
+   `MlKemPublicKey` with `Clone` only. Mixing is a type error.
+
+9. **`ContextString` is a typed enum, not raw `&[u8]` constants.**
+   Originally `pub const CONTEXT_WITNESS_ENC: &[u8] = b"PSL-WitnessEnc-v1";`.
+   Reviewer's point: the "borderline contexts require an ADR" rule
+   is enforceable in code if contexts are an enum (adding a variant
+   requires touching this file → natural speed bump for the ADR
+   discipline; a string literal at a call site doesn't carry the
+   same friction). Resolved: `pub enum ContextString { WitnessEncV1,
+   ViewKeyV1, TravelRuleV1 }` with `as_bytes(&self) -> &'static
+   [u8]`. `encrypt` / `decrypt` take `ContextString`, not `&[u8]`.
+
+10. **`build_kem_transcript` is centralized.** Originally the
+    transcript would have been inlined into encap and decap
+    separately — recipe for the two paths to drift. Resolved:
+    single `pub(crate) fn build_kem_transcript(...) -> Vec<u8>`
+    function (skeleton signature locked here) called from both
+    sides. Byte order of the transcript is documented inline in
+    the function body matching this ADR exactly.
+
+### Round 1 (initial review)
 
 1. **`format_version` byte removed.** Originally proposed as a separate
    axis from `scheme_id`. Reviewer argued one axis is cleaner: any

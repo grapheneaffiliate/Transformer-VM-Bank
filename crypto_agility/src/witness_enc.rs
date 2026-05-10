@@ -44,14 +44,39 @@
 
 use crate::errors::KemError;
 
-/// Context string for compliance-private witness payload encryption.
-pub const CONTEXT_WITNESS_ENC: &[u8] = b"PSL-WitnessEnc-v1";
+/// Domain-separation context for hybrid-KEM-derived AEAD keys. Per
+/// ADR-0011 Refinement 9: contexts are a typed enum, not raw `&[u8]`
+/// constants at call sites. Adding a new context requires adding a
+/// variant here, which requires touching this file — the natural
+/// speed bump that enforces "borderline contexts require an ADR
+/// first."
+///
+/// **Historical context strings stay active forever.** When a v2 of
+/// any context launches (e.g., `WitnessEncV2`), the v1 variant
+/// remains a legitimate decryption path for as long as historical
+/// encrypted material exists. Old encrypted witnesses are not
+/// re-encrypted.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ContextString {
+    /// Compliance-private witness payload encryption (v1).
+    WitnessEncV1,
+    /// Regulator view-key delivery (v1).
+    ViewKeyV1,
+    /// Travel-rule metadata encryption (v1).
+    TravelRuleV1,
+}
 
-/// Context string for regulator view-key delivery.
-pub const CONTEXT_VIEW_KEY: &[u8] = b"PSL-ViewKey-v1";
-
-/// Context string for travel-rule metadata encryption.
-pub const CONTEXT_TRAVEL_RULE: &[u8] = b"PSL-TravelRule-v1";
+impl ContextString {
+    /// On-wire bytes used as the HKDF `info` parameter for AEAD-key
+    /// derivation. Per ADR-0011 Refinement 9 + § "Context strings".
+    pub fn as_bytes(self) -> &'static [u8] {
+        match self {
+            Self::WitnessEncV1 => b"PSL-WitnessEnc-v1",
+            Self::ViewKeyV1 => b"PSL-ViewKey-v1",
+            Self::TravelRuleV1 => b"PSL-TravelRule-v1",
+        }
+    }
+}
 
 /// HKDF salt — fixed domain-separation tag per ADR-0011. **Locked.**
 pub const HKDF_SALT: &[u8] = b"PSL-hybrid-kem-salt-v1";
@@ -69,22 +94,25 @@ pub const AEAD_TAG_BYTES: usize = 16;
 pub const MIN_BLOB_BYTES: usize =
     1 + EPH_X25519_PUBKEY_BYTES + MLKEM768_CIPHERTEXT_BYTES + AEAD_NONCE_BYTES + AEAD_TAG_BYTES;
 
-/// Encrypt `plaintext` for the recipient identified by `recipient_pk`
-/// (the recipient's hybrid public key bytes), under the given
-/// `context_string` for KDF domain separation. AEAD AAD is
-/// `additional_data` (typically the encrypted blob's identity in
-/// the surrounding protocol).
+use crate::kem::{HybridX25519MlKem768Kem, MlKemPublicKey, X25519PublicKey};
+
+/// Encrypt `plaintext` for the recipient under the given typed
+/// context. AEAD AAD is `additional_data` (typically the encrypted
+/// blob's identity in the surrounding protocol).
 ///
 /// Returns the wire-format encrypted blob per the module docstring.
 ///
 /// **Skeleton.** Implementation lands in the next commit. The
 /// signature is locked per ADR-0011 so the surface is reviewable
-/// against the spec.
+/// against the spec — note typed parameters per Refinement 7 + 9
+/// (recipient-key types instead of raw `&[u8]`; `ContextString`
+/// enum instead of raw context bytes).
 pub fn encrypt(
-    _recipient_pk: &[u8],
+    _recipient_x25519_pk: &X25519PublicKey,
+    _recipient_ml_kem_pk: &MlKemPublicKey,
     _plaintext: &[u8],
     _additional_data: &[u8],
-    _context_string: &[u8],
+    _context: ContextString,
 ) -> Result<Vec<u8>, KemError> {
     unimplemented!(
         "witness_enc::encrypt impl lands in the next commit on this branch \
@@ -92,28 +120,64 @@ pub fn encrypt(
     )
 }
 
-/// Decrypt a wire-format encrypted blob using the recipient's
-/// hybrid secret key + the context_string used at encryption time.
-/// AEAD AAD must match what was passed to `encrypt`.
+/// Decrypt a wire-format encrypted blob using the recipient's typed
+/// hybrid secret keys + the context used at encryption time. AEAD
+/// AAD must match what was passed to `encrypt`.
 ///
-/// Returns the plaintext on successful AEAD authentication.
-/// Returns [`KemError::AuthenticationFailed`] for any failure
-/// (wrong sk, tampered ciphertext, swapped components, wrong
-/// context, malformed AEAD tag) — see ADR-0011 § "Decapsulation
-/// semantics" for why the rejection point is the AEAD layer.
+/// Returns the plaintext on successful AEAD authentication. Returns
+/// [`KemError::AuthenticationFailed`] for any failure (wrong sk,
+/// tampered ciphertext, swapped components, wrong context,
+/// malformed AEAD tag) — see ADR-0011 § "Decapsulation semantics"
+/// for why the rejection point is the AEAD layer.
 ///
 /// **Skeleton.** Implementation lands in the next commit.
 pub fn decrypt(
-    _recipient_sk: &[u8],
+    _recipient_x25519_sk: &crate::kem::RecipientX25519SecretKey,
+    _recipient_ml_kem_sk: &crate::kem::RecipientMlKemSecretKey,
     _encrypted_blob: &[u8],
     _additional_data: &[u8],
-    _context_string: &[u8],
+    _context: ContextString,
 ) -> Result<Vec<u8>, KemError> {
     unimplemented!(
         "witness_enc::decrypt impl lands in the next commit on this branch \
          per ADR-0011 § Implementation commit order"
     )
 }
+
+/// **Centralized transcript construction** per ADR-0011 Refinement
+/// 10. Single source of truth so encap-side and decap-side cannot
+/// drift. Byte order documented inline matching ADR § "KDF combiner
+/// specification".
+///
+/// ```text
+/// transcript := varint(scheme_id)              // KemSchemeId, locked at 0x02
+///            || x25519_shared_secret            // 32 bytes
+///            || ml_kem_shared_secret            // 32 bytes
+///            || x25519_ephemeral_pubkey         // 32 bytes
+///            || ml_kem_ciphertext               // 1088 bytes
+/// ```
+///
+/// Order is locked: shared secrets first in classical-then-PQ
+/// order, then binding material in the same order. Matches IETF
+/// `draft-ietf-tls-hybrid-design` byte-for-byte.
+///
+/// **Skeleton.** Implementation lands in the next commit; signature
+/// + doc lock the contract.
+#[allow(dead_code)] // Used by encrypt/decrypt impl in the next commit.
+pub(crate) fn build_kem_transcript(
+    _x25519_shared_secret: &[u8; 32],
+    _ml_kem_shared_secret: &[u8; 32],
+    _x25519_ephemeral_pubkey: &[u8; 32],
+    _ml_kem_ciphertext: &[u8],
+) -> Vec<u8> {
+    unimplemented!(
+        "build_kem_transcript impl lands in the next commit per \
+         ADR-0011 § KDF combiner specification"
+    )
+}
+
+#[allow(unused_imports)]
+use HybridX25519MlKem768Kem as _;
 
 #[cfg(test)]
 mod tests {
@@ -125,9 +189,12 @@ mod tests {
     /// wrong-context test #5 once impl lands.)
     #[test]
     fn context_strings_are_byte_distinct() {
-        assert_ne!(CONTEXT_WITNESS_ENC, CONTEXT_VIEW_KEY);
-        assert_ne!(CONTEXT_VIEW_KEY, CONTEXT_TRAVEL_RULE);
-        assert_ne!(CONTEXT_WITNESS_ENC, CONTEXT_TRAVEL_RULE);
+        let we = ContextString::WitnessEncV1.as_bytes();
+        let vk = ContextString::ViewKeyV1.as_bytes();
+        let tr = ContextString::TravelRuleV1.as_bytes();
+        assert_ne!(we, vk);
+        assert_ne!(vk, tr);
+        assert_ne!(we, tr);
     }
 
     /// Sanity: the minimum blob length matches ADR-0011's wire
