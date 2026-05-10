@@ -1,8 +1,42 @@
 # ADR-0011 — Hybrid X25519 + ML-KEM-768 KEM with forward-secret witness encryption
 
-**Status:** proposed (awaiting maintainer-reviewer sign-off + external cryptographer review per ADR-0006).
+**Status:** accepted by maintainer-reviewer; awaiting external cryptographer review per ADR-0006.
 **Date:** 2026-05-10.
 **Companion:** [ADR-0006](0006-post-quantum-cryptography-strategy.md) (PQ strategy locks the schemes), [ADR-0007](0007-cryptographic-agility-architecture.md) (agility wire format), [ADR-0008](0008-blake3-512-for-long-lived-commitments.md) (long-lived hash commitments).
+
+## Refinements applied during review (2026-05-10)
+
+Maintainer-reviewer feedback applied before implementation cut. Recorded
+inline so the reasoning travels with the ADR rather than living only in
+PR-thread history:
+
+1. **`format_version` byte removed.** Originally proposed as a separate
+   axis from `scheme_id`. Reviewer argued one axis is cleaner: any
+   wire-format change effectively is a ciphersuite change for parser
+   purposes, and the two-axis encoding adds confusion ("scheme_id=0x02,
+   format_version=2 means it's actually a different ciphersuite now")
+   without saving discriminant space. Resolved to single-axis with an
+   explicit "any wire-format change → new scheme_id" rule. See
+   § "Versioning rule (locked)" below.
+2. **`scheme_id` varint single-byte constraint** documented explicitly.
+   Downstream parsers may assume `eph_x25519_pubkey` starts at byte 1;
+   a varint shift would silently break them. Single-byte encoding
+   covers ~125 future scheme migrations before the constraint binds.
+3. **Test #6 split into 6(a) ephemeral private keys + 6(b) derived
+   AEAD key.** Reviewer's point: the AEAD key is the symmetric secret;
+   if it leaks the witness is decryptable forever regardless of
+   ephemeral-key zeroization. Both buffers must be zeroized and tested.
+4. **Edge-size payload tests added** (sizes 0, 1, 16, 1024, 1MB) per
+   reviewer's "AEAD libraries occasionally have off-by-one issues at
+   boundary sizes" observation.
+5. **Cross-platform determinism CI clarified** — encap is intentionally
+   non-deterministic (uses fresh randomness per FIPS 203); test uses a
+   seeded-RNG fixture for reproducibility. Decap + KDF derivation +
+   ciphertext bytes must be byte-identical given the same fixtured
+   inputs. See test #8.
+6. **Historical context strings stay active forever** for decryption
+   even after a context-version bump. Old encrypted material is not
+   re-encrypted.
 
 ## Context
 
@@ -97,6 +131,16 @@ same shared secrets. Context strings used by v0.1.x:
 New contexts are added in their own ADR with the version number
 incremented per-context as the underlying format evolves.
 
+**Historical context strings stay active forever.** When a v2 of
+any context launches (e.g., `PSL-WitnessEnc-v2`), the v1 context
+string remains a legitimate decryption path for as long as
+historical encrypted material exists. Old encrypted witnesses are
+not re-encrypted; they need to remain decryptable for the lifetime
+of the chain. The decryption API exposes both versions as
+first-class paths, not as "v1 is deprecated, only v2 is supported."
+A future migration may add `PSL-WitnessEnc-v2` to the table; the
+v1 row stays.
+
 ### Decapsulation semantics
 
 ML-KEM has **implicit rejection** per FIPS 203 §6.3 (`MLKEM.Decaps`):
@@ -179,7 +223,6 @@ A test asserts the ephemeral private key bytes are zeroed after
 
 ```
 encrypted_blob := varint(scheme_id)        // KemSchemeId, currently 0x02 = HybridX25519MlKem768
-               || varint(format_version)   // u32, currently 1
                || eph_x25519_pubkey        // 32 bytes (= x25519 ciphertext)
                || mlkem_ciphertext         // 1088 bytes per FIPS 203
                || nonce                    // 12 bytes (AES-GCM nonce)
@@ -189,15 +232,54 @@ encrypted_blob := varint(scheme_id)        // KemSchemeId, currently 0x02 = Hybr
 **Decoder hard-fail rules** (no silent acceptance):
 
 - Unknown `scheme_id` → `KemError::SchemeNotSupported`.
-- Unknown `format_version` for the given scheme → `KemError::FormatVersionNotSupported`.
-- Length shorter than `1 + 1 + 32 + 1088 + 12 + 16` (= 1150 bytes minimum, empty plaintext)
-  → `KemError::TruncatedBlob`.
+- Length shorter than `1 + 32 + 1088 + 12 + 16` (= 1149 bytes
+  minimum, empty plaintext) → `KemError::TruncatedBlob`.
 - AEAD authentication failure → `KemError::AuthenticationFailed`.
 
-The format-version byte exists from day one for forward
-compatibility. Currently `version = 1`. A future format-2 (e.g.,
-larger nonce, different AEAD) increments this; the decoder
-dispatches per-version per-scheme.
+#### Versioning rule (locked)
+
+There is **one discriminant axis**: `scheme_id`. Any change to how
+this blob is constructed, parsed, or interpreted gets a **new
+`scheme_id` discriminant** per ADR-0007.
+
+Examples that get a new `scheme_id`:
+- Cryptographic scheme change (e.g., upgrade to ML-KEM-1024).
+- AEAD change (e.g., AES-256-GCM → ChaCha20-Poly1305).
+- Nonce-size change.
+- Adding a header field.
+- Changing the canonical encoding of any existing field.
+
+Examples that do **not** get a new `scheme_id`:
+- Internal refactor that produces byte-identical output.
+- Bugfix that preserves wire format.
+- Documentation updates.
+
+This is a single-axis design (no separate `format_version` byte).
+A separate format-version axis was considered and rejected: it
+adds confusion ("scheme_id=0x02, format_version=2 means it's
+actually a different ciphersuite now") without saving discriminant
+space (the varint scheme_id has 127 single-byte slots; v0.1.x uses
+2). Auditors and verifiers track one number, not two.
+
+#### Varint encoding constraint
+
+`scheme_id` is encoded as an LEB128 varint per ADR-0007. **For the
+foreseeable future it MUST fit in one byte** (value ≤ 127).
+Single-byte encoding keeps fixed-offset assumptions in test
+fixtures and downstream parsers safe. If a future migration
+needs scheme_id > 127, that requires:
+
+1. An ADR superseding this one (because the wire-format invariant
+   changes).
+2. An audit of every downstream parser for fixed-offset
+   assumptions about where `eph_x25519_pubkey` starts (currently
+   byte 1 because the leading varint is 1 byte; it would shift to
+   byte 2 for varints in the 128-16383 range).
+3. A new `scheme_id` discriminant for the post-shift format.
+
+PSL is currently at 2 of 127 slots. The constraint is
+non-binding for ~125 future scheme migrations; calling it out so
+nobody silently exhausts the slots.
 
 ### View-key scope
 
@@ -253,22 +335,46 @@ Each must pass before the implementation lands:
    Verifies the context-string is correctly threaded into the KDF
    transcript.
 
-6. **Zeroization.** Hold a reference to the ephemeral keypair
-   bytes via the `Zeroize` trait's contract. Run encryption. Drop
-   the reference. Assert the underlying buffer is zeroed. This
-   asserts the load-bearing forward-secrecy primitive.
+6. **Zeroization (both ephemeral private keys AND derived AEAD
+   key).** Two assertions, not one:
+   (a) Hold a reference to the ephemeral keypair bytes via the
+       `Zeroize` trait's contract. Run encryption. Drop the
+       reference. Assert the underlying buffer is zeroed.
+   (b) Hold a reference to the derived AEAD key bytes. Run
+       encryption (which performs AEAD encrypt + zeroize). Assert
+       the AEAD key buffer is zeroed.
 
-7. **Format version round-trip.** Encrypt with `format_version=1`,
-   decode the blob, assert the format-version byte is correctly
-   recovered. Attempt to decode a hand-crafted blob with
-   `format_version=99`, assert `FormatVersionNotSupported`.
+   Both are load-bearing for forward secrecy. Ephemeral private
+   keys gate the asymmetric path; the AEAD key IS the symmetric
+   secret — if it leaks (e.g., dumped from process memory), the
+   witness is decryptable forever, regardless of what happens to
+   the asymmetric keys.
 
-8. **Cross-platform determinism (CI).** Same plaintext + same
-   recipient pubkey → same ciphertext bytes on x86_64 and
-   aarch64 GitHub runners (modulo the per-call randomness in
-   ephemeral-keypair generation; the test uses a fixed RNG seed
-   for reproducibility). Asserts the wire format is byte-stable
-   across architectures.
+7. **Edge-size payloads.** AEAD libraries occasionally have
+   off-by-one issues at boundary plaintext sizes. Round-trip
+   asserts pass for plaintexts of size **0, 1, 16 (AES block
+   size), 1024, and 1MB**. AES-256-GCM's documented maximum
+   plaintext is ~64GB; PSL won't approach that, but exercising
+   chunking behavior at 1MB catches AEAD-internal regressions.
+
+8. **Cross-platform determinism (CI).** Be explicit about what's
+   deterministic vs not:
+   - **Encapsulation generates fresh randomness** (intentionally
+     non-deterministic by FIPS 203 design). For test
+     reproducibility, the cross-platform CI test uses a *seeded
+     RNG fixture* so the encap output is identical across
+     architectures.
+   - **Decapsulation given the same `(eph_pk, ml_kem_ct, sk)` MUST
+     produce the same shared secret** on every conformant
+     architecture. This is byte-exact and tested without RNG
+     fixturing (decap takes no randomness).
+   - **Derived AEAD key from the same `(shared_secrets, transcript)`
+     MUST be byte-identical** across architectures (HKDF-SHA-512
+     is deterministic by construction).
+   - **Final ciphertext byte-equal** on x86_64 and aarch64 GitHub
+     runners using the seeded-RNG fixture. Wire format must be
+     bit-stable across architectures (this is what crosses partner
+     boundaries).
 
 ## What we MUST NOT do
 
@@ -304,6 +410,31 @@ Each must pass before the implementation lands:
    acceptance criteria. The HKDF combiner mistake category is the
    one with the worst silent-failure profile in cryptographic
    protocol design.
+
+## Implementation commit order
+
+Per the engineer-reviewer's preference for surgical-review surfaces.
+Each commit is independently reviewable; if a later commit needs to
+revise a decision in this ADR, the change goes back to the spec
+*before* the impl continues, not silently in the impl commit.
+
+1. **ADR + KEM crate skeleton** (this commit, plus type/trait stubs).
+   Reviewer can see the spec and the type signatures land first.
+2. **KEM crate impl + KEM-only tests.** `HybridX25519MlKem768Kem`
+   implements the `Kem` trait. Tests #1, #2, #3, #4, #6(a), #8.
+3. **Witness encryption module + WE-specific tests.** Wraps the KEM
+   plus AEAD encrypt/decrypt with the wire format above. Tests #5,
+   #6(b), #7. Updates `MIGRATION_GUIDE.md` view-key scope.
+4. **Agent-layer wire-format cascade** (deferred from PR #10 per
+   the bundle-once discipline): `Propose.program_hash` widening
+   `[u8; 32]` → `ProgramHash`, `agent_sdk` HashMap re-keying,
+   `ProposalHash` newtype, all `Propose::sign` call sites. Updates
+   `agent_protocol`, `agent_sdk`, all tests.
+5. **Cross-platform CI matrix.** Adds aarch64 GitHub runner job to
+   `.github/workflows/ci.yml` for the byte-exact cross-platform
+   determinism property (test #8). Without this commit the
+   property is asserted only on x86_64; with it, the matrix
+   verifies it across both target architectures.
 
 ## Acceptance criteria
 
