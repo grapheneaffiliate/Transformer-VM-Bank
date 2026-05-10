@@ -49,7 +49,7 @@
 use crate::error::TernaryError;
 use crate::network::{argmax, SparseTernaryLayer, TernaryNetwork};
 use crate::thermo;
-use crate::weights::{pack_weights, WeightsHeader};
+use crate::weights::{pack_weights_dual, WeightsHeader};
 
 const A_MAX: i64 = 255;
 const B_MAX: i64 = 255;
@@ -73,8 +73,10 @@ pub fn build() -> TernaryNetwork {
     let layer4 = build_layer4_projection();
     let layers = vec![layer1, layer2, layer3, layer4];
 
-    // Compute weights_hash by serializing through pack_weights.
-    let (_, digest) = pack_weights(
+    // Compute weights_hash (v1: BLAKE3-256, v2: BLAKE3-512) via the
+    // dual-version helper. Both digests are stored on the header per
+    // the dual-version trace_hash contract (ADR-0008).
+    let (_, digest, digest_v2) = pack_weights_dual(
         "byte_add_with_carry",
         INPUT_DIM as u32,
         OUTPUT_DIM as u32,
@@ -86,6 +88,7 @@ pub fn build() -> TernaryNetwork {
         input_dim: INPUT_DIM as u32,
         output_dim: OUTPUT_DIM as u32,
         weights_hash: digest,
+        weights_hash_v2: digest_v2,
     };
     TernaryNetwork::new(header, layers)
 }

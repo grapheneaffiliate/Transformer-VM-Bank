@@ -155,6 +155,7 @@ proptest! {
                 input_dim: 8,
                 output_dim: 8,
                 weights_hash: [0; 32],
+                weights_hash_v2: [0; 64],
             },
             vec![layer],
         );

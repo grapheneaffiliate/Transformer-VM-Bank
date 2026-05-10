@@ -59,4 +59,7 @@ pub mod weights;
 
 pub use error::TernaryError;
 pub use network::{SparseTernaryLayer, TernaryNetwork};
+// `trace_hash_ternary` re-export kept for v0.1.0 backwards compat;
+// see trace_hash module for the v1/v2 dual-version contract per ADR-0008.
+#[allow(deprecated)]
 pub use trace_hash::trace_hash_ternary;

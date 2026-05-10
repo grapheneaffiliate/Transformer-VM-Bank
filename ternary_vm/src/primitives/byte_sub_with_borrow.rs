@@ -39,7 +39,7 @@
 use crate::error::TernaryError;
 use crate::network::{argmax, SparseTernaryLayer, TernaryNetwork};
 use crate::thermo;
-use crate::weights::{pack_weights, WeightsHeader};
+use crate::weights::{pack_weights_dual, WeightsHeader};
 
 const M_MAX: i64 = 255;
 const S_MAX: i64 = 255;
@@ -56,7 +56,7 @@ pub fn build() -> TernaryNetwork {
     let layer3 = build_layer3_thermo_decode();
     let layer4 = build_layer4_projection();
     let layers = vec![layer1, layer2, layer3, layer4];
-    let (_, digest) = pack_weights(
+    let (_, digest, digest_v2) = pack_weights_dual(
         "byte_sub_with_borrow",
         INPUT_DIM as u32,
         OUTPUT_DIM as u32,
@@ -68,6 +68,7 @@ pub fn build() -> TernaryNetwork {
         input_dim: INPUT_DIM as u32,
         output_dim: OUTPUT_DIM as u32,
         weights_hash: digest,
+        weights_hash_v2: digest_v2,
     };
     TernaryNetwork::new(header, layers)
 }

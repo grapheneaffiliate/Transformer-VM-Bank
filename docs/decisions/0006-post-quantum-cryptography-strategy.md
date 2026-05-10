@@ -174,11 +174,48 @@ contract.
 
 ## Determinism invariant
 
-Every PQ scheme implementation is **deterministic-by-construction**
-or uses deterministic randomness derived from `(message || private_key)`.
-ML-DSA in deterministic mode is the default. ML-KEM is naturally
-deterministic on decapsulation. Per-scheme determinism statement
-documented in the Scheme implementation file.
+The load-bearing invariant is **verification-determinism**: given a
+committed `(signature, message, pubkey)` tuple, the verify function
+returns the same answer on every call, on every architecture, every
+time. This is what dispute-by-re-execution depends on: the judge
+re-evaluates the contract and re-checks the on-chain signature; the
+verify result must be reproducible.
+
+Per-scheme statement (this section is the source of truth; the
+implementation files reference it):
+
+| Scheme                              | Sign deterministic? | Verify deterministic? |
+| ---                                 | ---                 | ---                   |
+| Ed25519                             | yes (RFC 8032)      | yes                   |
+| HybridEd25519MlDsa65                | **no** (note below) | yes                   |
+| HybridX25519MlKem768 KEM            | yes (decap natural) | yes                   |
+| Hash schemes (BLAKE3-256/512)       | yes (pure function) | n/a                   |
+
+**Note on HybridEd25519MlDsa65 sign-side randomness.** The current
+implementation in `crypto_agility/src/hybrid.rs` uses ML-DSA-65 via
+`pqcrypto-mldsa`, which exposes the FIPS 204 §5.4 standard `Sign`
+algorithm — randomized. Re-signing the same `(message, secret_key)`
+produces different signature bytes per call. Both signatures verify
+under the same pubkey, but they are not byte-identical.
+
+This is **FIPS-compliant** and the recommended deployment mode
+because the per-call randomness improves side-channel resistance
+during signing. It does not affect dispute-by-re-execution because:
+- The chain commits a specific signature once (in the on-chain
+  block / message).
+- All replays / re-verifications check against the *committed*
+  signature bytes.
+- Verification is fully deterministic.
+
+**Follow-up for cryptographer review.** FIPS 204 also defines
+`Sign_internal` (deterministic mode, signing randomness `rnd =
+0^32`). `pqcrypto-mldsa` 0.1.x does not expose this; switching to
+deterministic mode would require either a vendored implementation
+or migration to a different crate (`ml-dsa` from RustCrypto, when
+its API stabilizes past 0.1.0-rc.10). The cryptographer review per
+this ADR's acceptance criteria should weigh in on whether
+deterministic-mode is required given the verification-determinism
+guarantee above. Tracked as a one-line follow-up if recommended.
 
 ## Consequences
 

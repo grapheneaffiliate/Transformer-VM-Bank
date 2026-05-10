@@ -45,7 +45,7 @@
 use crate::error::TernaryError;
 use crate::network::{SparseTernaryLayer, TernaryNetwork};
 use crate::thermo;
-use crate::weights::{pack_weights, WeightsHeader};
+use crate::weights::{pack_weights_dual, WeightsHeader};
 
 const FLAG_MAX: i64 = 1;
 const BYTE_MAX: i64 = 255;
@@ -62,13 +62,15 @@ pub fn build() -> TernaryNetwork {
     let layer1 = build_layer1();
     let layer2 = build_layer2();
     let layers = vec![layer1, layer2];
-    let (_, digest) = pack_weights("freeze_apply", INPUT_DIM as u32, OUTPUT_DIM as u32, &layers);
+    let (_, digest, digest_v2) =
+        pack_weights_dual("freeze_apply", INPUT_DIM as u32, OUTPUT_DIM as u32, &layers);
     let header = WeightsHeader {
         version: 1,
         primitive: "freeze_apply".into(),
         input_dim: INPUT_DIM as u32,
         output_dim: OUTPUT_DIM as u32,
         weights_hash: digest,
+        weights_hash_v2: digest_v2,
     };
     TernaryNetwork::new(header, layers)
 }
