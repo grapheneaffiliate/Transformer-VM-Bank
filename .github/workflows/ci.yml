@@ -63,3 +63,47 @@ jobs:
           cargo test --workspace --release
           cargo run -p psl-agent-sdk --release --example trader_agent
           cargo run -p psl-agent-sdk --release --example service_agent
+
+  # Cross-platform determinism per ADR-0011 test #8.
+  #
+  # Runs the full workspace test suite + the cross_platform_determinism
+  # integration test on BOTH x86_64 and aarch64 GitHub-hosted runners.
+  # The cross_platform_determinism test pins BLAKE3-256 of the HKDF salt
+  # and each ContextString — these values must match byte-for-byte
+  # across architectures or the AEAD-key derivation diverges.
+  #
+  # Per the engineer-reviewer's PR #14 confirmation: uses GitHub-
+  # hosted ubuntu-24.04 + ubuntu-24.04-arm runners (NOT self-hosted).
+  # GitHub's runner trust surface is well-trodden and small;
+  # self-hosted would add an audit surface that the v0.1.0 posture
+  # doesn't justify.
+  cross-platform-determinism:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - { os: ubuntu-24.04,     arch: x86_64 }
+          - { os: ubuntu-24.04-arm, arch: aarch64 }
+    runs-on: ${{ matrix.runner.os }}
+    name: cross-platform-determinism (${{ matrix.runner.arch }})
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.95.0"
+      - uses: Swatinem/rust-cache@v2
+      - name: Cross-platform determinism test (${{ matrix.runner.arch }})
+        run: |
+          # The cross_platform_determinism integration test asserts
+          # BLAKE3-256 of the HKDF salt + each ContextString matches
+          # pinned golden values. If the ${{ matrix.runner.arch }}
+          # run produces a different digest from the x86_64 baseline,
+          # the test fails and CI surfaces the divergence.
+          cargo test -p psl-crypto-agility --release --test cross_platform_determinism
+      - name: Full crypto_agility tests (${{ matrix.runner.arch }})
+        run: |
+          # Belt-and-suspenders: also runs the full crypto_agility
+          # test suite (round-trips, hybrid signatures, witness
+          # encryption tests #1-7). If any of these are non-
+          # deterministic across architectures, this job catches it.
+          cargo test -p psl-crypto-agility --release
