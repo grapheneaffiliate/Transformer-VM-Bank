@@ -56,15 +56,56 @@ pub enum VerifierError {
     /// message+pubkey under the chosen scheme.
     #[error("signature does not verify under scheme {0:#x}")]
     BadSignature(u32),
-    /// Hybrid signature: one component verified, the other did not.
-    /// Carries which component failed for diagnostic logging.
-    /// **Both** must verify for the hybrid signature to verify
-    /// (concatenation combiner per ADR-0006).
-    #[error("hybrid signature: component {component} failed verification")]
-    HybridComponentFailed {
-        /// Which component failed (`"classical"` or `"pq"`).
-        component: &'static str,
-    },
+    /// Hybrid signature did not verify. **Opaque by design** — does
+    /// not disclose which of the two components failed, because
+    /// disclosing that becomes a side-channel oracle for an adversary
+    /// probing which component has been independently compromised.
+    /// (E.g., "the classical component failed but PQ passed" is a
+    /// signal to a quantum adversary that ed25519 is the live attack
+    /// surface; the inverse signals classical-time forgery on
+    /// ML-DSA.)
+    ///
+    /// For local diagnostics only, the inner detail is logged at
+    /// `tracing::trace` level via [`HybridFailure`] — never
+    /// serialized into this error variant, never returned across a
+    /// process boundary, never exposed over the wire.
+    ///
+    /// **Both** components must verify for the hybrid signature to
+    /// verify (concatenation combiner per ADR-0006).
+    #[error("hybrid signature did not verify")]
+    HybridSignatureInvalid,
+}
+
+/// Trace-level diagnostic for hybrid-signature verification failures.
+///
+/// Emitted via `tracing::trace!()` from the hybrid verifier when a
+/// component fails. **Never** carried in [`VerifierError`]; never
+/// serialized; never returned across a process boundary. Local
+/// observability only.
+///
+/// If you need this information at warn/error level (for example, in
+/// a development environment where you want to know which component
+/// is breaking), enable a tracing subscriber that captures
+/// `tracing::trace` events from the `psl_crypto_agility::hybrid`
+/// target.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HybridFailure {
+    /// The classical (ed25519) component did not verify; the PQ
+    /// component was not checked or also failed.
+    ClassicalComponent,
+    /// The PQ (ML-DSA-65) component did not verify; the classical
+    /// component verified successfully.
+    PqComponent,
+}
+
+impl HybridFailure {
+    /// Short tag for trace-level logging.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::ClassicalComponent => "classical",
+            Self::PqComponent => "pq",
+        }
+    }
 }
 
 /// Errors emitted by [`crate::Kem`] implementations.

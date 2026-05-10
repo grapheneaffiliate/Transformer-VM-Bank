@@ -61,6 +61,20 @@ Generated from `cargo metadata --format-version 1` (run on
 | `Apache-2.0`                                           | 1     |
 | `(MIT OR Apache-2.0) AND Unicode-3.0`                  | 1     |
 
+## Ignored advisories
+
+Per [`/deny.toml`](../deny.toml) `[advisories].ignore`:
+
+| Advisory          | Crate     | Class        | Rationale                                                                      |
+| ---               | ---       | ---          | ---                                                                            |
+| RUSTSEC-2025-0057 | fxhash    | unmaintained | Hash function crate; algorithm is stable. No security implication. Resolves on sled migration (see [`SAFETY.md`](SAFETY.md) § "Tracked: sled migration"). |
+| RUSTSEC-2024-0384 | instant   | unmaintained | Replaced upstream by `web-time`; comes via sled's older `parking_lot 0.11`. Resolves on sled migration. |
+| RUSTSEC-2024-0436 | paste     | unmaintained | Proc-macro crate, declared stable-and-feature-complete by author. Compile-time only; no I/O surface. Comes via `pqcrypto-mldsa` (added PR #7). |
+
+cargo-audit invocation in `.github/workflows/security.yml` mirrors
+this list via `--ignore` flags. Both tools must agree; update both
+if the list changes.
+
 ## Unknown / missing-license dependencies
 
 **None.** Every transitive dep declares a license expression that

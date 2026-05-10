@@ -113,6 +113,36 @@ allowance because the legacy crate is frozen anyway.
 Until the lint lands, the `unsafe` inventory above is maintained by
 hand and re-verified by CI grep (planned).
 
+## Tracked: sled migration
+
+The sequencer's backing storage (`psl-sequencer` + `psl-consensus`)
+uses [`sled` 0.34.7](https://docs.rs/sled). sled went on hiatus
+upstream and the 0.34 line is the last release. This is the source
+of three "unmaintained" RUSTSEC advisories currently ignored in
+[`/deny.toml`](../deny.toml):
+
+- **RUSTSEC-2025-0057** (`fxhash` unmaintained) — via sled's
+  internal hashing.
+- **RUSTSEC-2024-0384** (`instant` unmaintained) — via sled's older
+  `parking_lot 0.11`.
+- **RUSTSEC-2024-0436** (`paste` unmaintained) — via
+  `pqcrypto-mldsa` (separate from sled, but same "unmaintained-not-
+  exploitable" class).
+
+None of these are exploit-grade vulnerabilities. They are
+**unmaintained-status warnings** — the upstream crates are no
+longer accepting changes, not actively buggy. Per the cargo-deny
+ignore rationale (see `/deny.toml`), each ignore has a written
+justification that an auditor can verify.
+
+**v0.2 plan:** migrate sequencer state storage off sled to a
+maintained alternative (`rust-rocksdb` is the obvious candidate;
+`redb` is a pure-Rust option with single-writer semantics). When
+the migration lands, the three RUSTSEC ignores plus the
+bitflags=1.3.2 skip in `/deny.toml` can be removed. Tracked in the
+follow-up task list; ADR-worth-writing first to lock the
+alternative selection.
+
 ## Other safety considerations
 
 ### Panic-path audit
