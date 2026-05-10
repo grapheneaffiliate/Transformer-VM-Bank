@@ -103,18 +103,25 @@ transactions across 10,000 blocks with real ed25519 signatures, real
 MPT writes, and real state-root computation:
 
 - **Sequencer + 3 followers, in-process, root-agreement check every
-  block:** ~925 tx/s (1.08 ms per tx).
-- **Single-replica sequencer:** ~3,990 tx/s (251 µs per tx).
+  block:** ~925 tx/s (mean 1.08 ms; p99 2.72 ms; p99.9 4.20 ms).
+- **Single-replica sequencer:** ~3,990 tx/s (mean 251 µs; p99 737 µs;
+  p99.9 1.42 ms).
 - **Composed estimate including real ternary trace_hash** (~34
   trace-hashes per transfer × ~9.5 µs each from gate-10's measured
   `byte_add` throughput): ~1,750 tx/s single-replica end-to-end.
 
-Comfortably above the 100-TPS sovereign-pilot trigger threshold.
+Pinned reference hardware: Intel Core i7-7700 @ 3.60 GHz, 4 cores /
+8 threads, x86_64, WSL2 Ubuntu, release build. Bench captures
+`uname -a` + `lscpu` at run time. Comfortably above the 100-TPS
+sovereign-pilot trigger threshold; the p99.9 of 4.2 ms is the
+meaningful worst-case settlement time for capacity planning.
+
 Caveats: bench uses a synthetic trace executor (real ternary VM
 trace adds the ~9.5 µs × 34 above), in-memory state (no `sled`
 durable commit; deferred per ADR-0012), in-process transport (not
-mutual-TLS HTTPS). Hardware: WSL2 Ubuntu host. Reproduce via
-`cargo test -p psl-sequencer --test integration --release
+mutual-TLS HTTPS). Perf-CI auto-regression gate and direct real-
+trace measurement deferred to v0.2. Reproduce via `cargo test
+-p psl-sequencer --test integration --release
 bench_sequencer_tps_10k_blocks -- --ignored --nocapture`.
 
 ## What's deliberately NOT in v0.1.0

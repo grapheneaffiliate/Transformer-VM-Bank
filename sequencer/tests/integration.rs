@@ -226,8 +226,9 @@ fn sequencer_and_3_followers_agree_on_100_mixed_blocks() {
 
 /// TPS benchmark — sequencer + 3 followers driving N blocks of mixed
 /// traffic. Times only the block-production loop (excludes setup +
-/// pre-funding). Reports total transactions, elapsed wall-clock, and
-/// computed TPS.
+/// pre-funding). Reports total transactions, elapsed wall-clock,
+/// computed TPS, **and tail-latency percentiles (p50 / p95 / p99 /
+/// p99.9 / max) plus captured hardware spec at run time.**
 ///
 /// Methodology: same workload shape as
 /// `sequencer_and_3_followers_agree_on_100_mixed_blocks` (gate 4) but
@@ -236,6 +237,16 @@ fn sequencer_and_3_followers_agree_on_100_mixed_blocks() {
 /// every-Nth-block cadence. Real signed ed25519 transactions, real
 /// MPT state mutations, all 4 replicas verify state-root agreement
 /// every block.
+///
+/// **Per-tx timing:** wraps each `apply_to_all` call in
+/// `Instant::now()` and stores durations into a `Vec<Duration>` for
+/// percentile computation. Overhead is ~tens of nanoseconds per call,
+/// well below the per-tx work (251 µs single-replica baseline).
+///
+/// **Hardware spec capture:** shells out to `lscpu` and `uname -a`
+/// at run time and prints the output before the numbers, so the
+/// reported TPS is reproducible / comparable on the same hardware.
+/// Gracefully degrades if the commands aren't available.
 ///
 /// **What this measures:** sequencer kernel throughput including
 /// signature verification, MPT writes, state-root computation,
@@ -251,7 +262,7 @@ fn sequencer_and_3_followers_agree_on_100_mixed_blocks() {
 #[test]
 #[ignore]
 fn bench_sequencer_tps_10k_blocks() {
-    use std::time::Instant;
+    use std::time::{Duration, Instant};
 
     const N_BLOCKS: u64 = 10_000;
     // Replica count. Set via env var to compare single-sequencer vs
@@ -261,6 +272,8 @@ fn bench_sequencer_tps_10k_blocks() {
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(4);
+
+    print_hardware_spec();
 
     let exec = NativeTraceExecutor;
     let states: Vec<Arc<RwLock<State>>> = (0..n_replicas).map(|_| fresh_state()).collect();
@@ -294,6 +307,8 @@ fn bench_sequencer_tps_10k_blocks() {
     let mut rng = StdRng::seed_from_u64(7);
     let mut alice_nonce = 0u64;
     let mut tx_count: u64 = 0;
+    // Pre-allocate for the expected 15,106 mixed transactions.
+    let mut tx_durations: Vec<Duration> = Vec::with_capacity(16_000);
 
     let start = Instant::now();
     for block in 1..=N_BLOCKS {
@@ -309,30 +324,40 @@ fn bench_sequencer_tps_10k_blocks() {
             0,
         );
         alice_nonce += 1;
+        let tx_start = Instant::now();
         apply_to_all(&exec, &states, &tx, &[], block as u32).unwrap();
+        tx_durations.push(tx_start.elapsed());
         tx_count += 1;
 
         if block % 5 == 0 {
             let m = build_signed_tx(TxKind::Mint, 1, 0, &issuer, Some(alice.public()), 1_000, 0);
+            let tx_start = Instant::now();
             apply_to_all(&exec, &states, &m, &[], block as u32).unwrap();
+            tx_durations.push(tx_start.elapsed());
             tx_count += 1;
         }
         if block % 7 == 0 {
             let b = build_signed_tx(TxKind::Burn, 1, 0, &issuer, Some(bob.public()), 100, 0);
+            let tx_start = Instant::now();
             apply_to_all(&exec, &states, &b, &[], block as u32).unwrap();
+            tx_durations.push(tx_start.elapsed());
             tx_count += 1;
         }
         if block % 11 == 0 {
             let target = [(block as u8); 32];
             let f = build_signed_tx(TxKind::Freeze, 1, 0, &issuer, Some(target), 0, 1);
+            let tx_start = Instant::now();
             apply_to_all(&exec, &states, &f, &[], block as u32).unwrap();
+            tx_durations.push(tx_start.elapsed());
             tx_count += 1;
         }
         if block % 13 == 0 {
             let recipients: Vec<[u8; 32]> = (0..3).map(|i| [block as u8 + i as u8; 32]).collect();
             let ma = build_signed_tx(TxKind::MultiAsset, 1, alice_nonce + 1, &alice, None, 50, 0);
             alice_nonce += 1;
+            let tx_start = Instant::now();
             apply_to_all(&exec, &states, &ma, &recipients, block as u32).unwrap();
+            tx_durations.push(tx_start.elapsed());
             tx_count += 1;
         }
         assert_roots_agree(&states);
@@ -341,6 +366,20 @@ fn bench_sequencer_tps_10k_blocks() {
     let secs = elapsed.as_secs_f64();
     let tps = tx_count as f64 / secs;
     let block_per_sec = N_BLOCKS as f64 / secs;
+
+    // Sort once for percentile lookups.
+    tx_durations.sort_unstable();
+    let pct = |q: f64| -> f64 {
+        // Nearest-rank percentile; q in [0, 100].
+        let idx = ((q / 100.0) * (tx_durations.len() as f64)).ceil() as usize;
+        let idx = idx.saturating_sub(1).min(tx_durations.len() - 1);
+        tx_durations[idx].as_secs_f64() * 1_000_000.0
+    };
+    let p50 = pct(50.0);
+    let p95 = pct(95.0);
+    let p99 = pct(99.0);
+    let p999 = pct(99.9);
+    let max_us = tx_durations.last().unwrap().as_secs_f64() * 1_000_000.0;
 
     println!();
     println!("=== sequencer TPS benchmark ({n_replicas} replicas, in-process) ===");
@@ -353,7 +392,49 @@ fn bench_sequencer_tps_10k_blocks() {
         "  per-tx mean:   {:.1} µs",
         (secs * 1_000_000.0) / tx_count as f64
     );
+    println!("  per-tx p50:    {p50:.1} µs");
+    println!("  per-tx p95:    {p95:.1} µs");
+    println!("  per-tx p99:    {p99:.1} µs");
+    println!("  per-tx p99.9:  {p999:.1} µs");
+    println!("  per-tx max:    {max_us:.1} µs");
     println!("=========================================================");
+}
+
+/// Best-effort hardware-spec dump for bench reproducibility. Tries
+/// `lscpu` (Linux) and `uname -a` (Unix-like). Prints whatever it
+/// gets. If a command fails or isn't available, prints a one-line
+/// note and continues — the bench numbers still report.
+fn print_hardware_spec() {
+    use std::process::Command;
+    println!();
+    println!("=== hardware spec (captured at bench run time) ===");
+    match Command::new("uname").arg("-a").output() {
+        Ok(out) if out.status.success() => {
+            print!("uname -a: {}", String::from_utf8_lossy(&out.stdout));
+        }
+        _ => println!("uname -a: (not available on this platform)"),
+    }
+    match Command::new("lscpu").output() {
+        Ok(out) if out.status.success() => {
+            // Only the high-signal lines: model, sockets, cores, threads, MHz.
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            for line in stdout.lines() {
+                let line = line.trim();
+                if line.starts_with("Model name:")
+                    || line.starts_with("CPU(s):")
+                    || line.starts_with("Thread(s) per core:")
+                    || line.starts_with("Core(s) per socket:")
+                    || line.starts_with("Socket(s):")
+                    || line.starts_with("CPU max MHz:")
+                    || line.starts_with("Architecture:")
+                {
+                    println!("lscpu:    {line}");
+                }
+            }
+        }
+        _ => println!("lscpu:    (not available on this platform)"),
+    }
+    println!("==================================================");
 }
 
 #[test]
