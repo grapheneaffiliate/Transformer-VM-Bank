@@ -76,7 +76,7 @@ Comfortably above the gate-9 sovereign-pilot trigger threshold of
 100 TPS. Single 922 ms max outlier on the 4-replica run is OS-
 scheduler noise (not load-bearing); the p99.9 is the meaningful tail.
 Perf-CI auto-regression gate and real-trace measurement deferred to
-v0.2.
+v0.2 per ADR-0013.
 
 Reproduce (the bench prints captured `uname -a` + `lscpu` so any
 re-run records its own hardware):

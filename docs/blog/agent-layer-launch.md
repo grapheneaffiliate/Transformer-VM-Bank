@@ -120,7 +120,7 @@ Caveats: bench uses a synthetic trace executor (real ternary VM
 trace adds the ~9.5 µs × 34 above), in-memory state (no `sled`
 durable commit; deferred per ADR-0012), in-process transport (not
 mutual-TLS HTTPS). Perf-CI auto-regression gate and direct real-
-trace measurement deferred to v0.2. Reproduce via `cargo test
+trace measurement deferred to v0.2 per ADR-0013. Reproduce via `cargo test
 -p psl-sequencer --test integration --release
 bench_sequencer_tps_10k_blocks -- --ignored --nocapture`.
 

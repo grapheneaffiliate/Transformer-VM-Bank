@@ -132,9 +132,15 @@ process.
   Defer sequencer storage migration off `sled` to v0.2 with four
   trigger conditions; two leading backend candidates
   (`rust-rocksdb`, `redb`) listed without prejudging.
+- [ADR-0013](decisions/0013-defer-tps-bench-maturation-to-v0.2.md)
+  — Defer TPS bench maturation (perf-CI auto-regression gate +
+  direct measurement of the real ternary VM in the sequencer trace
+  path) to v0.2 with four trigger conditions. PR #25's percentile +
+  hardware-spec improvements shipped first as the near-term
+  measurement-floor work.
 
 ADR numbers 0009 and 0010 are unused; the sequence skips to 0011.
-Future ADRs continue from 0013.
+Future ADRs continue from 0014.
 
 ## External-facing artifacts
 
