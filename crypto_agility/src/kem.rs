@@ -45,9 +45,30 @@ use rand::{rngs::OsRng, RngCore};
 use x25519_dalek::{PublicKey as X25519DalekPublicKey, StaticSecret as X25519DalekSecret};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-/// A KEM-derived shared secret. Wrapped in `ZeroizeOnDrop` so the
-/// secret is wiped from memory on drop. Callers should derive the
-/// AEAD key via HKDF and drop the `SharedSecret` immediately after.
+/// **Intermediate** KEM output — NOT the AEAD key.
+///
+/// This is the raw concatenation of the KEM's component shared
+/// secrets (for [`HybridX25519MlKem768Kem`]: `x25519_ss ||
+/// ml_kem_ss`, 64 bytes total). You **must** run it through HKDF
+/// with the proper transcript binding (see
+/// [`crate::witness_enc::build_kem_transcript`]) before using as
+/// an AEAD key.
+///
+/// **Using `SharedSecret` directly as an AEAD key bypasses the
+/// transcript binding and breaks the cross-component-swap defense.**
+/// The transcript includes both ciphertext components plus the
+/// scheme identifier; without it, an adversary can swap the
+/// ML-KEM ciphertext component between two encryptions and the
+/// derivation wouldn't notice (the raw shared secrets would still
+/// concatenate to bytes that look the same shape). The transcript
+/// binding is the load-bearing defense; bypassing it is a class-
+/// of-bug not a one-off mistake.
+///
+/// Wrapped in `ZeroizeOnDrop` so the secret is wiped from memory
+/// on drop. Callers should derive the AEAD key via HKDF
+/// (specifically: [`crate::witness_enc::encrypt`] /
+/// [`crate::witness_enc::decrypt`] do this for you) and drop the
+/// `SharedSecret` immediately after.
 #[derive(ZeroizeOnDrop)]
 pub struct SharedSecret(Vec<u8>);
 
