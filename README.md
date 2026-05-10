@@ -35,7 +35,7 @@ resolution be a function of the protocol, not an off-chain process.
 | 6    | Light client cross-verifies 1000 balances + 6 adv.   | ✅ |
 | 7    | End-to-end pilot (register → mint → xfer → burn)     | ✅ |
 | 8    | Pure-Rust runner (canonical engine; legacy fp64 retired per ADR-0001) | ✅ |
-| 9    | Consortium swap (ABCI + CometBFT)                    | ⏸ deferred (ADR-0002) |
+| 9    | Consortium swap (BFT consensus engine)               | ⏸ deferred (ADR-0002); engine choice deferred to trigger fire |
 | 10   | Ternary execution engine — Phase 2 Layer 1           | ✅ |
 | 11   | Contract DSL standard library (8 contracts)          | ✅ |
 | 12   | Identity & wallet (SLIP-0010 + spending policies)    | ✅ |
