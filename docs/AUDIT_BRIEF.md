@@ -121,14 +121,15 @@ vec/s) onto the 251 µs single-replica baseline. Trace-work-vs-
 sequencer-work composition arithmetic; not a direct measurement.
 Direct measurement (replacing `NativeTraceExecutor` with the real
 ternary VM in the sequencer trace path) is queued as v0.2 maturation
-work.
+work per ADR-0013.
 
 The 4-replica p99.9 of 4.2 ms is the meaningful worst-case settlement
 time for capacity planning; a single 922 ms max outlier in the 15,106-
 sample distribution is OS-scheduler noise on WSL2 (not load-bearing).
 Comfortably above the gate-9 sovereign-pilot trigger threshold of 100
 TPS. Perf-CI auto-regression gate (separate runner pool with pinned
-hardware + threshold-based merge gating) deferred to v0.2.
+hardware + threshold-based merge gating) deferred to v0.2 per
+ADR-0013.
 
 ## 6. Primary entry points for your read
 

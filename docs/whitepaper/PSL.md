@@ -537,7 +537,8 @@ threshold of 100 TPS. Bench excludes `sled` durable commit (in-
 memory `State`; sled migration deferred per ADR-0012) and network
 transport (in-process; production = mutual-TLS HTTPS). Direct
 measurement of the real ternary VM in the sequencer trace path and a
-perf-CI auto-regression gate are queued as v0.2 maturation work.
+perf-CI auto-regression gate are queued as v0.2 maturation work per
+ADR-0013.
 
 ## 10. Open questions and future work
 
