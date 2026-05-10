@@ -13,6 +13,14 @@ rand = { workspace = true }
 thiserror = { workspace = true }
 zeroize = { version = "1.8", features = ["derive"] }
 
+# Post-quantum: ML-DSA-65 (FIPS 204). pqcrypto-mldsa wraps the NIST
+# reference (PQClean) C implementation; constant-time on the data path,
+# audited as part of NIST's standardization. We use the standard
+# randomized Sign (FIPS 204 §5.4); verification is deterministic. See
+# `hybrid.rs` for the determinism invariant note.
+pqcrypto-mldsa = "0.1"
+pqcrypto-traits = "0.3"
+
 [dev-dependencies]
 proptest = { workspace = true }
 hex = { workspace = true }

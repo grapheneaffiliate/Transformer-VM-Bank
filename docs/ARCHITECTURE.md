@@ -48,21 +48,53 @@ is the ternary-integer one. Same input + same `weights_hash` →
 bit-identical output on **any** conformant integer-arithmetic
 verifier. No fp64 reduction-order surface, no canonical-engine pin.
 
+#### v1 (frozen)
+
 ```
-trace_hash_ternary(P, x) := BLAKE3(
-    weights_hash(P)
+trace_hash_v1(P, x) := BLAKE3-256(
+    weights_hash_v1(P)            // 32 bytes (BLAKE3-256)
  || canonical_input_encoding(x)
  || canonical_output_encoding(y)
 )
 ```
 
-where `y = TernaryNetwork::forward(x)` for the canonical
-construction of primitive `P`. `weights_hash(P)` is the BLAKE3 over
-the canonical packed weights payload (`ternary_vm::weights::pack_weights`).
-Canonical input/output encodings are 4-byte big-endian length prefix
-followed by 8-byte big-endian per `i64`.
+where `y = TernaryNetwork::forward(x)`, `weights_hash_v1(P)` is
+BLAKE3-256 of the canonical packed weights payload. Canonical
+input/output encodings are 4-byte big-endian length prefix followed
+by 8-byte big-endian per `i64`.
 
-Reference implementation: `ternary_vm/src/trace_hash.rs`.
+Reference implementation: `ternary_vm/src/trace_hash.rs::v1`.
+**Frozen** per ADR-0008 — do not modify. Frozen-KAT tests
+(benign + adversarial) catch any drift.
+
+#### v2 (current canonical, per ADR-0008)
+
+```
+trace_hash_v2(P, x) := BLAKE3-256(
+    weights_hash_v2(P)            // 64 bytes (BLAKE3-512)
+ || canonical_input_encoding(x)
+ || canonical_output_encoding(y)
+)
+```
+
+The trace-hash output stays 32 bytes (per ADR-0008, short-lived
+hashes don't need width bump). Only the `weights_hash` commitment
+widens to 64 bytes (BLAKE3-512), giving long-lived program identity
+the full 256-bit Grover-halved quantum margin.
+
+Reference implementation: `ternary_vm/src/trace_hash.rs::v2`.
+
+#### Cutover policy
+
+There is no live PSL chain at v0.1.0 (audit-pending). The cutover is
+"any block produced under v2 sequencer code". When a chain is
+operating, the cutover is recorded as a block-height boundary in the
+chain's genesis-config addendum; pre-cutover blocks verify under v1,
+at-or-after-cutover under v2. Both verifiers ship in the same
+binary; the version is selected per the block's
+`trace_hash_format_version` field.
+
+The legacy fp64 contract is § 0.A below.
 
 ### 0.A Legacy trace hash (frozen, fp64 autoregressive)
 

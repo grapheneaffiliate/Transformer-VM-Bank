@@ -21,7 +21,7 @@
 use crate::error::TernaryError;
 use crate::network::{SparseTernaryLayer, TernaryNetwork};
 use crate::thermo;
-use crate::weights::{pack_weights, WeightsHeader};
+use crate::weights::{pack_weights_dual, WeightsHeader};
 
 const RECORD_LEN: usize = 64;
 const BYTE_THERMO_LEN: usize = 256;
@@ -32,7 +32,7 @@ pub const OUTPUT_DIM: usize = RECORD_LEN;
 pub fn build() -> TernaryNetwork {
     let layer1 = build_layer1();
     let layers = vec![layer1];
-    let (_, digest) = pack_weights(
+    let (_, digest, digest_v2) = pack_weights_dual(
         "mpt_emit_record",
         INPUT_DIM as u32,
         OUTPUT_DIM as u32,
@@ -44,6 +44,7 @@ pub fn build() -> TernaryNetwork {
         input_dim: INPUT_DIM as u32,
         output_dim: OUTPUT_DIM as u32,
         weights_hash: digest,
+        weights_hash_v2: digest_v2,
     };
     TernaryNetwork::new(header, layers)
 }

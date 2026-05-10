@@ -187,6 +187,7 @@ mod tests {
                 input_dim: 3,
                 output_dim: 3,
                 weights_hash: [0; 32],
+                weights_hash_v2: [0; 64],
             },
             vec![layer],
         );
@@ -212,6 +213,7 @@ mod tests {
                 input_dim: 2,
                 output_dim: 2,
                 weights_hash: [0; 32],
+                weights_hash_v2: [0; 64],
             },
             vec![layer],
         );
@@ -236,6 +238,7 @@ mod tests {
                 input_dim: 1,
                 output_dim: 1,
                 weights_hash: [0; 32],
+                weights_hash_v2: [0; 64],
             },
             vec![layer],
         );

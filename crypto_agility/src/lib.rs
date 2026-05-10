@@ -26,12 +26,18 @@
 pub mod codec;
 pub mod errors;
 pub mod hash;
+pub mod hybrid;
 pub mod kem;
 pub mod scheme;
 pub mod signer;
 
 pub use errors::{HashError, KemError, SignerError, VerifierError};
 pub use hash::{Blake3_256, Blake3_512, HashScheme, HashScheme_};
+pub use hybrid::{
+    decode_hybrid_blob, encode_hybrid_pubkey_blob, encode_hybrid_sig_blob, HybridSigner,
+    HybridVerifier, ED25519_PUBKEY_BYTES, ED25519_SIG_BYTES, HYBRID_PUBKEY_BYTES, HYBRID_SIG_BYTES,
+    MLDSA65_PUBKEY_BYTES, MLDSA65_SIG_BYTES,
+};
 pub use kem::{Kem, KemScheme, SharedSecret};
 pub use scheme::{KemSchemeId, SignatureScheme};
 pub use signer::{Ed25519Signer, Ed25519Verifier, Signer, Verifier, VerifierPolicy};

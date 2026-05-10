@@ -18,13 +18,32 @@ import PSL.Account
 
 namespace PSL.MPT
 
-/-- 32-byte BLAKE3 digest, modeled as a list of bytes. -/
-def Hash : Type := List (Fin 256)
+/--
+  BLAKE3 digest of length `n` bytes, modeled as a list-of-bytes.
+  Parameterized over length so v1 (32 bytes, BLAKE3-256) and v2
+  (64 bytes, BLAKE3-512) per ADR-0008 share one definition.
+  Proofs about `Digest n` generalize across both versions.
+-/
+def Digest (_n : Nat) : Type := List (Fin 256)
 
-instance : Inhabited Hash := ⟨List.replicate 32 0⟩
+/-- Pre-Phase-G alias. The MPT theorems target 32-byte digests (the
+    short-lived MPT-root surface stays BLAKE3-256 per ADR-0008). New
+    code that names the v1/v2 dichotomy explicitly should use
+    `Digest 32` / `Digest 64` directly. -/
+def Hash : Type := Digest 32
 
-/-- Opaque hash function modeled as collision-resistant. -/
-opaque hash : List (Fin 256) → Hash
+instance : Inhabited (Digest 32) := ⟨List.replicate 32 0⟩
+instance : Inhabited (Digest 64) := ⟨List.replicate 64 0⟩
+instance : Inhabited Hash        := ⟨List.replicate 32 0⟩
+
+/-- Opaque hash function. Length-parametric so the same opaque
+    primitive models both BLAKE3-256 and BLAKE3-512 (the BLAKE3
+    construction reads at any output length; v1 reads 32 bytes, v2
+    reads 64). -/
+opaque hashTo (n : Nat) : List (Fin 256) → Digest n
+
+/-- Convenience: 32-byte hash for the MPT layer. -/
+def hash : List (Fin 256) → Hash := hashTo 32
 
 axiom hash_collision_resistant :
   ∀ (a b : List (Fin 256)),

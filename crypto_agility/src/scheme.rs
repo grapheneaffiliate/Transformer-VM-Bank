@@ -42,7 +42,7 @@ impl SignatureScheme {
     /// Whether this scheme is implemented in the current crate
     /// version. Reserved-but-unimplemented schemes return `false`.
     pub fn is_implemented(self) -> bool {
-        matches!(self, Self::Ed25519)
+        matches!(self, Self::Ed25519 | Self::HybridEd25519MlDsa65)
     }
 }
 

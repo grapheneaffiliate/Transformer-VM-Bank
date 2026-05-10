@@ -35,23 +35,40 @@ use crate::network::SparseTernaryLayer;
 
 /// Compact in-memory header. The on-disk format is more verbose; this
 /// is what the runtime carries.
+///
+/// Carries **both** the v1 and v2 weights_hash per ADR-0008 dual-version
+/// trace-hash contract (`docs/decisions/0008-blake3-512-for-long-lived-commitments.md`).
+/// `pack_weights` populates both from the same canonical packed payload
+/// (one BLAKE3 finalize at 32 bytes, one at 64 bytes). Verifiers pick
+/// the field matching the trace-hash contract version they are
+/// verifying.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct WeightsHeader {
     pub version: u32,
     pub primitive: String,
     pub input_dim: u32,
     pub output_dim: u32,
-    /// BLAKE3-256 digest of the canonical packed-weights byte stream
-    /// (see module docstring). Filled in by `pack_weights` /
-    /// `load_weights`; defaulted to zero before the first hash.
+    /// **v1 weights_hash.** BLAKE3-256 digest of the canonical packed-
+    /// weights byte stream (see module docstring). Filled in by
+    /// `pack_weights` / `unpack_weights`; defaulted to zero before the
+    /// first hash. **Frozen** per ADR-0008 — `trace_hash_v1` reads
+    /// this field. New networks should be authenticated via v2.
     pub weights_hash: [u8; 32],
+    /// **v2 weights_hash.** BLAKE3-512 digest of the canonical packed-
+    /// weights byte stream — same input as `weights_hash`, just a
+    /// 64-byte XOF read instead of 32. Per ADR-0008 this is the
+    /// load-bearing commitment for new traces (256-bit Grover-halved
+    /// quantum margin). `trace_hash_v2` reads this field.
+    pub weights_hash_v2: [u8; 64],
 }
 
 const MAGIC: &[u8; 8] = b"TVMW0001";
 
 /// Serialize a network to the canonical byte stream and return the
-/// stream + its BLAKE3 digest. The digest is the `weights_hash(P)` used
-/// by `trace_hash_ternary`.
+/// stream + its BLAKE3-256 digest (the v1 weights_hash). The
+/// BLAKE3-512 v2 digest is computed separately on demand via
+/// [`pack_weights_v2`]; both digests are populated on the
+/// `WeightsHeader` by the per-primitive `build()` functions.
 pub fn pack_weights(
     primitive: &str,
     input_dim: u32,
@@ -109,6 +126,44 @@ pub fn pack_weights(
     digest_arr.copy_from_slice(digest.as_bytes());
     buf.extend_from_slice(&digest_arr);
     (buf, digest_arr)
+}
+
+/// Compute the v2 (BLAKE3-512) weights_hash from a canonical packed
+/// weight stream produced by [`pack_weights`].
+///
+/// Per ADR-0008 the v2 digest is BLAKE3 read at 64 bytes via the XOF
+/// API; the first 32 bytes equal the v1 BLAKE3-256 digest as a
+/// determinism property (locked by `Blake3_512` test in
+/// `crypto_agility/src/hash.rs`). v2 is hashed over the **payload**
+/// (packed bytes excluding the trailing 32-byte v1 digest) — same
+/// input domain as v1, just a wider output.
+pub fn weights_hash_v2(packed: &[u8]) -> [u8; 64] {
+    // The packed stream from pack_weights is `payload || v1_digest_32B`.
+    // Hash the payload only, matching v1's input domain.
+    if packed.len() < 32 {
+        return [0u8; 64];
+    }
+    let payload = &packed[..packed.len() - 32];
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(payload);
+    let mut out = [0u8; 64];
+    hasher.finalize_xof().fill(&mut out);
+    out
+}
+
+/// Convenience: pack a network and return both v1 (BLAKE3-256, also
+/// stored at the tail of the byte stream for unpack integrity) and v2
+/// (BLAKE3-512) digests in one call. Per-primitive `build()`
+/// functions use this to populate both fields on `WeightsHeader`.
+pub fn pack_weights_dual(
+    primitive: &str,
+    input_dim: u32,
+    output_dim: u32,
+    layers: &[SparseTernaryLayer],
+) -> (Vec<u8>, [u8; 32], [u8; 64]) {
+    let (buf, digest_v1) = pack_weights(primitive, input_dim, output_dim, layers);
+    let digest_v2 = weights_hash_v2(&buf);
+    (buf, digest_v1, digest_v2)
 }
 
 /// Inverse of `pack_weights`. Verifies the BLAKE3 digest before
@@ -198,6 +253,16 @@ pub fn unpack_weights(
         });
     }
 
+    // Compute v2 (BLAKE3-512) digest from the same payload (everything
+    // before the trailing v1 32-byte digest). This populates both
+    // weights_hash fields on unpack so v1 and v2 trace_hash callers
+    // can both verify against this network.
+    let payload = &bytes[..payload_len];
+    let mut v2 = [0u8; 64];
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(payload);
+    hasher.finalize_xof().fill(&mut v2);
+
     Ok((
         WeightsHeader {
             version,
@@ -205,6 +270,7 @@ pub fn unpack_weights(
             input_dim,
             output_dim,
             weights_hash: digest,
+            weights_hash_v2: v2,
         },
         layers,
     ))
