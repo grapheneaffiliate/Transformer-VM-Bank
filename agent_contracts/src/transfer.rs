@@ -34,34 +34,27 @@ pub const INPUT_LEN: usize = 16 + 16 + 16 + 8;
 pub const OUTPUT_LEN: usize = 16 + 16 + 8;
 
 /// `transfer` contract. Holds the embedded sub-networks and computes
-/// the program_hash up front.
+/// both the legacy v1 32-byte program_hash and the canonical v2
+/// 64-byte ProgramHash newtype up front (per ADR-0008).
 pub struct TransferContract {
     pub byte_add: TernaryNetwork,
     pub byte_sub: TernaryNetwork,
-    pub program_hash: ProgramHash,
+    pub program_hash: [u8; 32],
+    pub program_hash_v2: ProgramHash,
 }
 
 impl TransferContract {
     pub fn build() -> Self {
         let byte_add = byte_add_with_carry::build();
         let byte_sub = byte_sub_with_borrow::build();
-        let program_hash = compute_program_hash(&byte_add, &byte_sub);
+        let (v2, v1) = crate::program::build_program_hashes("transfer", &[&byte_add, &byte_sub]);
         Self {
             byte_add,
             byte_sub,
-            program_hash,
+            program_hash: v1.0,
+            program_hash_v2: v2,
         }
     }
-}
-
-fn compute_program_hash(byte_add: &TernaryNetwork, byte_sub: &TernaryNetwork) -> ProgramHash {
-    let mut h = blake3::Hasher::new();
-    h.update(b"transfer");
-    h.update(byte_add.header.weights_hash());
-    h.update(byte_sub.header.weights_hash());
-    let mut out = [0u8; 32];
-    out.copy_from_slice(h.finalize().as_bytes());
-    out
 }
 
 impl TernaryProgram for TransferContract {
@@ -69,8 +62,12 @@ impl TernaryProgram for TransferContract {
         "transfer"
     }
 
-    fn program_hash(&self) -> ProgramHash {
+    fn program_hash(&self) -> [u8; 32] {
         self.program_hash
+    }
+
+    fn program_hash_v2(&self) -> ProgramHash {
+        self.program_hash_v2
     }
 
     fn run(&self, input: &[u8]) -> Result<Vec<u8>, ContractError> {

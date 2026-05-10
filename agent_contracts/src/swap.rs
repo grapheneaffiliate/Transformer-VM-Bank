@@ -39,23 +39,20 @@ const _CHECK_INPUT_LEN: usize = {
 pub struct SwapContract {
     pub byte_add: TernaryNetwork,
     pub byte_sub: TernaryNetwork,
-    pub program_hash: ProgramHash,
+    pub program_hash: [u8; 32],
+    pub program_hash_v2: ProgramHash,
 }
 
 impl SwapContract {
     pub fn build() -> Self {
         let byte_add = byte_add_with_carry::build();
         let byte_sub = byte_sub_with_borrow::build();
-        let mut h = blake3::Hasher::new();
-        h.update(b"swap");
-        h.update(byte_add.header.weights_hash());
-        h.update(byte_sub.header.weights_hash());
-        let mut program_hash = [0u8; 32];
-        program_hash.copy_from_slice(h.finalize().as_bytes());
+        let (v2, v1) = crate::program::build_program_hashes("swap", &[&byte_add, &byte_sub]);
         Self {
             byte_add,
             byte_sub,
-            program_hash,
+            program_hash: v1.0,
+            program_hash_v2: v2,
         }
     }
 }
@@ -95,8 +92,12 @@ impl TernaryProgram for SwapContract {
         "swap"
     }
 
-    fn program_hash(&self) -> ProgramHash {
+    fn program_hash(&self) -> [u8; 32] {
         self.program_hash
+    }
+
+    fn program_hash_v2(&self) -> ProgramHash {
+        self.program_hash_v2
     }
 
     fn run(&self, input: &[u8]) -> Result<Vec<u8>, ContractError> {
