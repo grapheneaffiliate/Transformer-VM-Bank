@@ -123,13 +123,26 @@ Direct measurement (replacing `NativeTraceExecutor` with the real
 ternary VM in the sequencer trace path) is queued as v0.2 maturation
 work per ADR-0013.
 
-The 4-replica p99.9 of 4.2 ms is the meaningful worst-case settlement
-time for capacity planning; a single 922 ms max outlier in the 15,106-
-sample distribution is OS-scheduler noise on WSL2 (not load-bearing).
-Comfortably above the gate-9 sovereign-pilot trigger threshold of 100
-TPS. Perf-CI auto-regression gate (separate runner pool with pinned
-hardware + threshold-based merge gating) deferred to v0.2 per
-ADR-0013.
+The 4-replica p99.9 of 4.2 ms means 999 of 1000 transactions
+settle in under 4.2 ms (the meaningful tail for capacity planning);
+a single 922 ms max outlier in the 15,106-sample distribution is
+OS-scheduler noise on WSL2 (not load-bearing). Comfortably above
+the gate-9 sovereign-pilot trigger threshold of 100 TPS. Perf-CI
+auto-regression gate (separate runner pool with pinned hardware +
+threshold-based merge gating) deferred to v0.2 per ADR-0013.
+
+### 5.1 Energy posture
+
+PSL's deterministic re-execution architecture avoids the energy
+cost of proof-of-work consensus by design. A sovereign-mode v0.1.0
+sequencer runs as a single Linux process; the energy footprint is
+the energy footprint of that process plus its followers. There is
+no mining, no validator competition, no cryptographic puzzle work.
+We have not yet published quantitative joules-per-transaction
+comparisons against PoW chains or other settlement layers;
+quantification is queued for v0.2 alongside the operational
+benchmarks tracked under ADR-0013. The architectural claim
+(no-PoW, no-puzzle-work) holds independent of measurement.
 
 ## 6. Primary entry points for your read
 
