@@ -499,6 +499,23 @@ be invoked at the application layer between specific transacting
 agents, rather than implicitly at the consensus layer between
 validators.
 
+### 8.1 Energy posture
+
+PSL's deterministic re-execution architecture avoids the energy
+cost of proof-of-work consensus by design. A sovereign-mode v0.1.0
+sequencer runs as a single Linux process; the energy footprint is
+the energy footprint of that process plus its followers. There is
+no mining, no validator competition, no cryptographic puzzle work —
+the same property that makes EVM, Solana SVM, and Move-based chains
+energy-efficient applies to PSL, with the additional architectural
+note that the dispute mechanism itself (re-execute on judge) is a
+bounded-cost operation rather than an open-ended search. We have
+not yet published quantitative joules-per-transaction comparisons
+against PoW chains or other settlement layers; quantification is
+queued for v0.2 alongside the operational benchmarks tracked under
+ADR-0013. The architectural claim (no-PoW, no-puzzle-work, single-
+process sovereign mode) holds independent of measurement.
+
 ## 9. Implementation status
 
 Per `docs/STATUS.md` (which is the authoritative ground-truth

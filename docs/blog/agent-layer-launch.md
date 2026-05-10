@@ -120,9 +120,23 @@ Caveats: bench uses a synthetic trace executor (real ternary VM
 trace adds the ~9.5 µs × 34 above), in-memory state (no `sled`
 durable commit; deferred per ADR-0012), in-process transport (not
 mutual-TLS HTTPS). Perf-CI auto-regression gate and direct real-
-trace measurement deferred to v0.2 per ADR-0013. Reproduce via `cargo test
--p psl-sequencer --test integration --release
+trace measurement deferred to v0.2 per ADR-0013. Reproduce via
+`cargo test -p psl-sequencer --test integration --release
 bench_sequencer_tps_10k_blocks -- --ignored --nocapture`.
+
+## And what about energy
+
+PSL's deterministic re-execution architecture avoids the energy
+cost of proof-of-work consensus by design. A sovereign-mode v0.1.0
+sequencer runs as a single Linux process; the energy footprint is
+the energy footprint of that process plus its followers. No mining,
+no validator competition, no cryptographic puzzle work. We haven't
+yet published quantitative joules-per-transaction comparisons —
+that quantification is queued for v0.2 alongside the operational
+benchmarks tracked under ADR-0013 — but the architectural claim
+(no-PoW, no-puzzle-work) holds independent of measurement. There
+is no command to reproduce the architectural claim; it follows
+from the design.
 
 ## What's deliberately NOT in v0.1.0
 

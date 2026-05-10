@@ -88,6 +88,18 @@ PSL_BENCH_REPLICAS=1 cargo test -p psl-sequencer --test integration \
   --release bench_sequencer_tps_10k_blocks -- --ignored --nocapture
 ```
 
+## Energy posture
+
+PSL's deterministic re-execution architecture avoids the energy cost
+of proof-of-work consensus by design. A sovereign-mode v0.1.0
+sequencer runs as a single Linux process; the energy footprint is
+the energy footprint of that process plus its in-process followers.
+There is no mining, no validator competition, no cryptographic
+puzzle work. We have not yet published quantitative joules-per-
+transaction comparisons; quantification is queued for v0.2
+alongside the operational benchmarks tracked under
+[ADR-0013](docs/decisions/0013-defer-tps-bench-maturation-to-v0.2.md).
+
 ## The agent layer in 60 seconds
 
 ```
