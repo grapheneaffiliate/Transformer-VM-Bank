@@ -15,7 +15,10 @@ verify yourself:
   Verifies the consensus, state-commitment, formal-model, light-client,
   compliance, and pilot layers PLUS the entire Phase 2 agent execution
   layer (ternary VM, contracts, wallet, protocol, dispute, SDK) PLUS
-  the Phase G phase 1 cryptographic agility crate. Fully reproducible
+  the post-quantum cryptographic agility crate (hybrid ed25519 +
+  ML-DSA-65 signatures, hybrid X25519 + ML-KEM-768 KEM with forward-
+  secret witness encryption, per ADR-0006/0007/0008/0011). Fully
+  reproducible
   on any x86_64 Linux host. **~5 minutes wall-clock total** after Rust
   toolchain is installed; ~15 min more if you also do Lean. The
   headline is `cargo build --workspace --release && cargo test

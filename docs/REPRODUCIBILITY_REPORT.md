@@ -1,6 +1,11 @@
 # PSL Reproducibility Report
 
 **Date prepared:** 2026-05-09. **Commit:** `10ac60b` (Phase B close).
+**Last verified:** 2026-05-10 against post-cleanup HEAD; commands
+and timings unchanged. PRs #16-#20 added documentation, ADRs, and
+two follow-up tests (workspace test count is now 254, was 252 at
+prepare time); no changes to the build/test/run commands or the
+pinned toolchain in this report.
 **Audience:** auditor, institutional partner technical due diligence,
 contributor reproducing the test suite from a clean clone.
 

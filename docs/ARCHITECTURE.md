@@ -482,7 +482,7 @@ any state below.
 | 16 | SDK 0.1.0                                            | ✅ Rust canonical + Python/TypeScript bindings |
 | 17 | External security audit                              | 🟢 hand-off package ready (awaits engagement) |
 | 18 | Production-readiness (runbooks + DR drill)           | 🟢 stack shipped (awaits first staging drill) |
-| 19 | Post-quantum cryptographic agility                   | 🟡 phase-1 infrastructure shipped (per Phase G); phases 2-6 pending |
+| 19 | Post-quantum cryptographic agility                   | 🟢 full ADR-0011 5-commit plan shipped; awaits external cryptographer review per ADR-0006 / ADR-0011 acceptance criteria |
 
 Per-gate command, output, and commit hash: `docs/STATUS.md`.
 
@@ -539,10 +539,15 @@ allows new schemes to be added without hard forks.
 - `VerifierPolicy` presets for transition windows.
 - LEB128 varint codec.
 
-Phase G phase 1 ships ed25519 + BLAKE3-256/512; phases 2-6 (hybrid
-ML-DSA-65 / ML-KEM-768 integration, agent-layer hybrid migration) are
-queued and require pulling in `pqcrypto-mldsa` / `pqcrypto-mlkem` plus an
-external cryptographer review per ADR-0006 acceptance criteria.
+The full ADR-0011 5-commit plan shipped: hybrid ed25519 + ML-DSA-65
+signatures, hybrid X25519 + ML-KEM-768 KEM with forward-secret
+witness encryption (per-witness ephemeral hybrid keypairs, HKDF-
+SHA-512 transcript-binding combiner, AES-256-GCM AEAD), agent-layer
+wire-format cascade (`Propose.program_hash` widened to 64-byte
+`ProgramHash` newtype with v2 tag for cross-version isolation),
+cross-platform determinism CI matrix on x86_64 + aarch64. Only
+remaining work: external cryptographer review per ADR-0006
+acceptance criteria — human-in-the-loop sign-off.
 
 ---
 

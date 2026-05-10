@@ -428,8 +428,8 @@ gone. This is the HNDL defense.
 
 ### 7.6 Implementation status (gate 19 🟢)
 
-The PQ migration shipped in 5 PRs (#11 → #15) as the ADR-0011
-implementation plan:
+The PQ migration shipped as the ADR-0011 5-commit plan (PRs
+#11 → #15) plus follow-up test additions (PR #18):
 
 | # | What | Tests added |
 | --- | --- | --- |
@@ -438,11 +438,14 @@ implementation plan:
 | #13 | Witness encryption impl | 7 of 8 ADR-0011 blocking tests (round-trip, forward secrecy, implicit rejection, component swap, wrong-context, zeroization, edge sizes) |
 | #14 | Agent-layer cascade (Propose.program_hash widening + ProposalHash newtype) | 249 workspace tests pass |
 | #15 | Cross-platform CI matrix (x86_64 + aarch64) | 252 workspace tests pass on both architectures |
+| #18 | Cross-version isolation + pinned (ct, sk) → ss byte-identity | v1-Propose rejection by v2 verifier + pinned-decap byte-identity oracle (254 workspace tests pass) |
 
-Total: **252 workspace tests pass on both x86_64 and aarch64
+Total: **254 workspace tests pass on both x86_64 and aarch64
 GitHub-hosted runners**, byte-identical pinned digests for the
 HKDF salt + 3 context strings (deterministic-by-construction
-inputs to AEAD-key derivation).
+inputs to AEAD-key derivation) plus a pinned (ciphertext, secret
+key) → shared-secret byte-identity oracle locking the strongest
+cross-platform property the KEM can hold.
 
 The cryptographic pieces use audited reference implementations:
 - ed25519 + X25519 via `ed25519-dalek` + `x25519-dalek` (Trail of
@@ -499,8 +502,10 @@ validators.
 ## 9. Implementation status
 
 Per `docs/STATUS.md` (which is the authoritative ground-truth
-table): 18 gates defined; 16 closed ✅; 2 (external audit, first DR
-drill) at 🟢 — material is shipped, awaits human action.
+table): 19 gates defined; 15 closed ✅; 1 ⏸ (gate 9, BFT consensus
+deferred per ADR-0002); 3 at 🟢 (gate 17 external audit, gate 18
+first DR drill, gate 19 external cryptographer review) — material
+is shipped, awaits human action.
 
 Reproducibility: `REPRODUCE.md` plus `docs/REPRODUCIBILITY_REPORT.md`
 records pinned toolchain, per-gate command, expected timing on a

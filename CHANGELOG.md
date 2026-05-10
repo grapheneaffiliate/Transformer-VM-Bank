@@ -5,26 +5,103 @@ load-bearing commit on `origin/main`.
 
 ## [Unreleased] — post-v0.1.0 work
 
-### Added
-- **Cryptographic agility infrastructure** (Phase G phase 1, gate 19 → 🟡).
-  New crate `crypto_agility/` with `Scheme`/`Signer`/`Verifier`/`Kem`/
-  `HashScheme_` traits, varint scheme prefixes (LEB128), `VerifierPolicy`
-  presets (ed25519-only / ed25519_or_hybrid / hybrid_only), `Ed25519Signer`
-  + `Ed25519Verifier` impls, `Blake3_256` + `Blake3_512` impls. 23 unit
-  tests + 6 proptest invariants. Three ratifying ADRs:
-  - **ADR-0006** post-quantum strategy (hybrid ed25519+ML-DSA-65 sigs,
-    hybrid X25519+ML-KEM-768 KEM, FN-DSA excluded for fp incompat).
-  - **ADR-0007** cryptographic agility architecture (varint prefixes,
-    hash-of-pubkey state-tree storage, explicit UnknownScheme rejection).
-  - **ADR-0008** BLAKE3-512 only for long-lived irrevocable commitments
-    (`weights_hash`, long-lived `program_hash`).
-  Phase G phases 2-6 (pqcrypto-mldsa/mlkem integration, hybrid sig/KEM
-  impls, agent-layer migration) deferred — require network access for
-  new deps + external cryptographer review per ADR-0006 acceptance
-  criteria.
-- **`docs/INDEX.md`** — canonical entry point listing every non-third-
-  party markdown file in the repo, grouped semantically. Updates in the
-  same commit as any doc add/move/remove (per `GOVERNANCE.md`).
+### Added — Post-quantum cryptography (gate 19 → 🟢, PRs #11-#15 + #18)
+
+The full ADR-0011 5-commit plan plus follow-up tests shipped to main.
+Hybrid post-quantum cryptography is now load-bearing in v0.1.0.
+
+- **PR #11** — Spec + skeleton for hybrid X25519 + ML-KEM-768 KEM
+  (types, trait surface, no impl yet). Reviewable against ADR-0011
+  before cutting impl.
+- **PR #12** — `HybridX25519MlKem768Kem` impl. Decapsulation total at
+  the type level (implicit rejection per FIPS 203 §6.3); 6 KEM tests +
+  4 from-bytes-never-panic proptests.
+- **PR #13** — Witness encryption impl per ADR-0011 § "AEAD layer":
+  HKDF-SHA-512 transcript-binding combiner, AES-256-GCM, per-witness
+  ephemeral hybrid keypairs zeroized on drop. 7 of 8 ADR-0011 blocking
+  tests (round-trip, forward secrecy, implicit rejection, component
+  swap, wrong-context, zeroization, edge sizes).
+- **PR #14** — Agent-layer wire-format cascade. `Propose.program_hash`
+  widened from 32B to 64B `ProgramHash`; new `ProposalHash` newtype
+  (not a type alias) so the compiler refuses to mix it with other
+  32-byte digests. Tag bumped to `b"PSL-PROPOSE-V2"` for cross-version
+  isolation.
+- **PR #15** — Cross-platform determinism CI matrix. Workflow runs the
+  full crypto_agility test suite + a pinned cross-platform fixture
+  (BLAKE3-256 of HKDF salt + 3 context strings) on
+  `ubuntu-24.04` (x86_64) and `ubuntu-24.04-arm` (aarch64) GitHub-
+  hosted runners. Test count after PR #15: 252 workspace tests pass
+  on both architectures.
+- **PR #18** — Cross-version isolation + pinned-decap byte-identity
+  oracles. Two new tests:
+  (1) `v1_shaped_propose_rejected_by_v2_verifier` documents the
+  cryptographic isolation between v1 and v2 Propose envelopes (the
+  tag is in the signed transcript; a v1 signature cannot validate
+  against v2 canonical bytes).
+  (2) `pinned_decap_byte_identical_across_architectures` locks the
+  strongest cross-platform property the KEM can hold by pinning a
+  fixed (sk, ct) → ss triple to a hex constant; CI verifies on both
+  architectures.
+- **ADR-0011** ratifying the hybrid KEM design + 5-commit plan.
+- **ADR-0012** deferring sequencer storage migration off `sled` to
+  v0.2 with four explicit trigger conditions and two leading backend
+  candidates (`rust-rocksdb`, `redb`) listed without prejudging.
+
+Workspace test count is now **254** on both x86_64 and aarch64.
+
+### Added — Documentation (PRs #16, #17, #19, #20, this PR)
+
+- **PR #16** — Whitepaper `docs/whitepaper/PSL.md` gained §7
+  "Post-quantum cryptographic readiness" (7 subsections covering
+  threat model, strategy, algorithm choices, hybrid composition with
+  combiner specifics, forward-secrecy lifecycle, implementation
+  status with the per-PR shipping table, and remaining work).
+  `docs/AUDIT_BRIEF.md` gained §4 "Post-Quantum Readiness" so
+  external auditors see the PQ posture before reaching the test
+  artifacts section. Subsequent sections renumbered.
+- **PR #17** — Whitepaper §7.6 / §7.7 framing tightening: clarifies
+  that NIST audited the C reference implementations in PQClean (the
+  Rust binding crates wrap that C code and have not been
+  independently audited as Rust crates); replaces an off-target
+  ADR-0003 cite with ADR-0006 / ADR-0011.
+- **PR #19** — ADR-0012 (sled-migration deferral, see above).
+- **PR #20** — `docs/STATUS.md` gained "## Deferred to v0.2"
+  section pointing at ADR-0012, mirroring how gate 9 (BFT, deferred
+  per ADR-0002) is surfaced.
+- **This PR** (v0.1.0 cleanup pass) — repo-wide staleness sweep:
+  README crypto framing now mentions hybrid PQ from v0.1.0; gate 19
+  status reflects 🟢 in README + STATUS header; whitepaper §7.6
+  shipping table extended with PR #18 row + total bumped 252 → 254;
+  STATUS.md gate-19 row reflects shipped-not-pending state;
+  REPRODUCIBILITY_REPORT gains `Last verified` line; INDEX.md gains
+  ADR-0011 + ADR-0012 + AUDIT_FINDINGS entries + 0009/0010-gap note;
+  new `docs/AUDIT_FINDINGS.md` placeholder created (was referenced
+  by 7 docs but didn't exist).
+
+### Added — Original Phase G phase 1 (gate 19 → 🟡 phase, now superseded by PRs #11-#15)
+
+The first cryptographic-agility infrastructure work, kept here for
+historical traceability. Superseded by the full PQ migration above.
+
+- **Cryptographic agility infrastructure**. New crate
+  `crypto_agility/` with `Scheme`/`Signer`/`Verifier`/`Kem`/
+  `HashScheme_` traits, varint scheme prefixes (LEB128),
+  `VerifierPolicy` presets (ed25519-only / ed25519_or_hybrid /
+  hybrid_only), `Ed25519Signer` + `Ed25519Verifier` impls,
+  `Blake3_256` + `Blake3_512` impls. 23 unit tests + 6 proptest
+  invariants. Ratifying ADRs:
+  - **ADR-0006** post-quantum strategy (hybrid ed25519+ML-DSA-65
+    sigs, hybrid X25519+ML-KEM-768 KEM, FN-DSA excluded for fp
+    incompat).
+  - **ADR-0007** cryptographic agility architecture (varint
+    prefixes, hash-of-pubkey state-tree storage, explicit
+    UnknownScheme rejection).
+  - **ADR-0008** BLAKE3-512 only for long-lived irrevocable
+    commitments (`weights_hash`, long-lived `program_hash`).
+- **`docs/INDEX.md`** — canonical entry point listing every non-
+  third-party markdown file in the repo, grouped semantically.
+  Updates in the same commit as any doc add/move/remove (per
+  `GOVERNANCE.md`).
 
 ### Changed
 - **Workspace license** corrected from `Apache-2.0` to `MIT` per ADR-0005
