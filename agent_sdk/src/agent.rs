@@ -20,7 +20,7 @@ use crate::error::SdkError;
 use crate::onchain::OnChainView;
 use crate::transport::Transport;
 use ed25519_dalek::{SigningKey, VerifyingKey};
-use psl_agent_contracts::TernaryProgram;
+use psl_agent_contracts::{ProgramHash, TernaryProgram};
 use psl_agent_protocol::{
     dispute::{resolve_dispute, DisputeOutcome},
     message::{Accept, Execute, ExpectedOutput, Propose, ProtocolMessage, Reject},
@@ -64,8 +64,13 @@ pub enum ProposeDecision {
 /// High-level agent runtime.
 pub struct AgentSdk {
     pub identity: AgentIdentity,
-    /// Programs this agent will execute, keyed by program_hash.
-    contracts: HashMap<[u8; 32], Arc<dyn TernaryProgram + Send + Sync>>,
+    /// Programs this agent will execute, keyed by canonical v2
+    /// `ProgramHash` (BLAKE3-512, 64 bytes) per ADR-0008. The
+    /// 64-byte newtype prevents accidental cross-keying with
+    /// 32-byte agent pubkeys (the four other HashMap<[u8;32],_>
+    /// sites in this crate); the type system enforces the
+    /// distinction at every insert/get site.
+    contracts: HashMap<ProgramHash, Arc<dyn TernaryProgram + Send + Sync>>,
     /// Per-incoming-counterparty spending trackers (we can have one
     /// shared tracker since the policy itself enforces the cap).
     spending: Mutex<SpendingTracker>,
@@ -90,9 +95,11 @@ impl AgentSdk {
         }
     }
 
-    /// Register a contract this agent will execute.
+    /// Register a contract this agent will execute. Indexes the
+    /// contract by its canonical v2 ProgramHash (64-byte BLAKE3-512
+    /// per ADR-0008).
     pub fn register_contract(&mut self, p: Arc<dyn TernaryProgram + Send + Sync>) {
-        self.contracts.insert(p.program_hash(), p);
+        self.contracts.insert(p.program_hash_v2(), p);
     }
 
     /// Build a signed registration record for publishing on-chain.
@@ -109,6 +116,11 @@ impl AgentSdk {
             .values()
             .map(|p| p.name().to_string())
             .collect();
+        // AgentRegistration's `custom` field is a flat list of v1
+        // program-hash bytes for legacy-format registry compatibility;
+        // when the on-chain registry migrates to v2 (ProgramHash 64B),
+        // this collect() switches to .program_hash_v2().0 and the
+        // registry schema bumps. Tracked as a v0.2 follow-up.
         let custom: Vec<[u8; 32]> = self.contracts.values().map(|p| p.program_hash()).collect();
         AgentRegistration::sign(
             &self.identity.child,
@@ -127,7 +139,7 @@ impl AgentSdk {
     /// incoming Accept against it later.
     pub fn propose(
         &self,
-        program_hash: [u8; 32],
+        program_hash: ProgramHash,
         parameters: Vec<u8>,
         to: AgentPubkey,
         valid_from_unix: u64,
@@ -383,7 +395,7 @@ mod tests {
         let mut alice = AgentSdk::new(make_identity(1, "transfer"));
         let mut bob = AgentSdk::new(make_identity(2, "transfer"));
         let contract: Arc<dyn TernaryProgram + Send + Sync> = Arc::new(TransferContract::build());
-        let program_hash = contract.program_hash();
+        let program_hash = contract.program_hash_v2();
         alice.register_contract(contract.clone());
         bob.register_contract(contract);
 

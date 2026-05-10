@@ -7,18 +7,50 @@
 //! delivery and dedupe replays.
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
+use psl_agent_contracts::ProgramHash;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
 
 use crate::error::ProtocolError;
 
-pub type ProposalHash = [u8; 32];
+/// 32-byte BLAKE3 content hash of a `Propose` message's canonical
+/// bytes. **Newtype** (not a type alias) per the engineer-reviewer's
+/// PR #12 recommendation: distinct from any other 32-byte digest
+/// (agent pubkeys, MPT cell hashes, etc.) at the type level so the
+/// compiler refuses to mix them. Per ADR-0008, ProposalHash is an
+/// **ephemeral** content hash and stays BLAKE3-256 (32 bytes) — it
+/// lives only for the proposal's lifecycle, not as a long-lived
+/// commitment.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ProposalHash(pub [u8; 32]);
+
+impl ProposalHash {
+    /// Read access to the underlying bytes (e.g., for hashing into
+    /// a downstream digest, on-chain serialization).
+    pub fn as_bytes(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
+impl From<[u8; 32]> for ProposalHash {
+    fn from(b: [u8; 32]) -> Self {
+        Self(b)
+    }
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Propose {
-    /// Hash of the contract weights this proposal is for. Anchors the
-    /// proposal to a specific deterministic contract.
-    pub program_hash: [u8; 32],
+    /// Hash of the contract this proposal is for. Anchors the
+    /// proposal to a specific deterministic contract by its
+    /// long-lived irrevocable identity.
+    ///
+    /// **Wire format change (PR #14, post-PR #10/13):** widened from
+    /// the legacy v1 32-byte form (`[u8; 32]`, BLAKE3-256) to the
+    /// canonical v2 64-byte newtype `ProgramHash` (BLAKE3-512) per
+    /// ADR-0008. The widening cascades from `agent_contracts`'s
+    /// `program_hash_v2()` trait method — this is the agent-layer
+    /// half of the cascade deferred from PR #10.
+    pub program_hash: ProgramHash,
     /// Caller-side parameters as opaque bytes. The contract decoder
     /// determines the layout.
     pub parameters: Vec<u8>,
@@ -105,9 +137,14 @@ pub enum ProtocolMessage {
 
 impl Propose {
     pub fn canonical_bytes(&self) -> Vec<u8> {
+        // Wire-format change: 14 (tag) + 64 (program_hash) + var
+        // (params) + 32 (from) + 32 (to) + 8+8+8 (timestamps + nonce)
         let mut out = Vec::with_capacity(256);
-        out.extend_from_slice(b"PSL-PROPOSE-V1");
-        out.extend_from_slice(&self.program_hash);
+        out.extend_from_slice(b"PSL-PROPOSE-V2"); // tag bumped: V1 used
+                                                  // 32B program_hash; V2 uses 64B ProgramHash
+                                                  // per ADR-0008. New tag prevents v1 verifiers
+                                                  // from silently accepting v2 messages.
+        out.extend_from_slice(self.program_hash.as_bytes()); // 64 bytes
         push_bytes(&mut out, &self.parameters);
         out.extend_from_slice(&self.from);
         out.extend_from_slice(&self.to);
@@ -122,12 +159,12 @@ impl Propose {
         h.update(&self.canonical_bytes());
         let mut out = [0u8; 32];
         out.copy_from_slice(h.finalize().as_bytes());
-        out
+        ProposalHash(out)
     }
 
     pub fn sign(
         signer: &SigningKey,
-        program_hash: [u8; 32],
+        program_hash: ProgramHash,
         parameters: Vec<u8>,
         to: [u8; 32],
         valid_from_unix: u64,
@@ -162,7 +199,7 @@ impl Accept {
     pub fn canonical_bytes(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(96);
         out.extend_from_slice(b"PSL-ACCEPT-V1");
-        out.extend_from_slice(&self.proposal_hash);
+        out.extend_from_slice(self.proposal_hash.as_bytes());
         out.extend_from_slice(&self.by);
         out.extend_from_slice(&self.accepted_at_unix.to_be_bytes());
         out
@@ -187,7 +224,7 @@ impl Reject {
     pub fn canonical_bytes(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(128);
         out.extend_from_slice(b"PSL-REJECT-V1");
-        out.extend_from_slice(&self.proposal_hash);
+        out.extend_from_slice(self.proposal_hash.as_bytes());
         out.extend_from_slice(&self.by);
         push_str(&mut out, &self.reason);
         out.extend_from_slice(&self.rejected_at_unix.to_be_bytes());
@@ -219,7 +256,7 @@ impl CounterPropose {
     pub fn canonical_bytes(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(128);
         out.extend_from_slice(b"PSL-COUNTER-V1");
-        out.extend_from_slice(&self.original_proposal_hash);
+        out.extend_from_slice(self.original_proposal_hash.as_bytes());
         push_bytes(&mut out, &self.new_parameters);
         out.extend_from_slice(&self.by);
         out.extend_from_slice(&self.nonce.to_be_bytes());
@@ -251,7 +288,7 @@ impl Execute {
     pub fn canonical_bytes(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(256);
         out.extend_from_slice(b"PSL-EXECUTE-V1");
-        out.extend_from_slice(&self.proposal_hash);
+        out.extend_from_slice(self.proposal_hash.as_bytes());
         push_bytes(&mut out, &self.witness);
         push_bytes(&mut out, &self.expected_output.bytes);
         out.extend_from_slice(&self.by);
@@ -318,7 +355,7 @@ mod tests {
         let bob = sk(2);
         let p = Propose::sign(
             &alice,
-            [0xa1u8; 32],
+            psl_agent_contracts::ProgramHash([0xa1u8; 64]),
             vec![1, 2, 3],
             bob.verifying_key().to_bytes(),
             100,
@@ -338,7 +375,7 @@ mod tests {
         let bob = sk(2);
         let mut p = Propose::sign(
             &alice,
-            [0xa1u8; 32],
+            psl_agent_contracts::ProgramHash([0xa1u8; 64]),
             vec![1, 2, 3],
             bob.verifying_key().to_bytes(),
             100,
@@ -352,7 +389,7 @@ mod tests {
     #[test]
     fn accept_reject_counter_execute_sign_and_verify() {
         let alice = sk(1);
-        let h: ProposalHash = [0x55u8; 32];
+        let h: ProposalHash = ProposalHash([0x55u8; 32]);
         let a = Accept::sign(&alice, h, 1000);
         let r = Reject::sign(&alice, h, "not interested".into(), 1000);
         let c = CounterPropose::sign(&alice, h, vec![9, 8, 7], 11);

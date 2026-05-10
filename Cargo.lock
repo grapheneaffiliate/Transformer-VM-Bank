@@ -1217,6 +1217,8 @@ dependencies = [
  "hex",
  "psl-ternary-vm",
  "rand 0.8.6",
+ "serde",
+ "serde-big-array",
  "thiserror",
 ]
 

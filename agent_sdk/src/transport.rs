@@ -86,7 +86,7 @@ mod tests {
 
         let mut rng = rand::rngs::StdRng::seed_from_u64(1);
         let bob_signing = SigningKey::generate(&mut rng);
-        let h: ProposalHash = [0x55u8; 32];
+        let h: ProposalHash = ProposalHash([0x55u8; 32]);
         let accept = Accept::sign(&bob_signing, h, 100);
         bus.send(&alice_pk, ProtocolMessage::Accept(accept.clone()))
             .unwrap();

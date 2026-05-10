@@ -80,7 +80,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // output. Alice (the original proposer) sees the discrepancy and
     // submits a Dispute to the judge.
     let propose = alice.propose(
-        contract.program_hash(),
+        contract.program_hash_v2(),
         witness.clone(),
         bob.identity.pubkey(),
         0,

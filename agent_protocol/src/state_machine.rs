@@ -262,7 +262,15 @@ mod tests {
     }
 
     fn fresh_propose(alice: &SigningKey, bob_pk: [u8; 32], nonce: u64) -> Propose {
-        Propose::sign(alice, [0xa1u8; 32], vec![1, 2], bob_pk, 0, 1_000_000, nonce)
+        Propose::sign(
+            alice,
+            psl_agent_contracts::ProgramHash([0xa1u8; 64]),
+            vec![1, 2],
+            bob_pk,
+            0,
+            1_000_000,
+            nonce,
+        )
     }
 
     #[test]
@@ -343,7 +351,7 @@ mod tests {
         // valid_until = 100
         let p = Propose::sign(
             &alice,
-            [0xa1u8; 32],
+            psl_agent_contracts::ProgramHash([0xa1u8; 64]),
             vec![],
             bob.verifying_key().to_bytes(),
             0,

@@ -70,7 +70,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     witness.extend_from_slice(&7u64.to_le_bytes());
 
     let propose = alice.propose(
-        contract.program_hash(),
+        contract.program_hash_v2(),
         witness.clone(),
         bob.identity.pubkey(),
         0,

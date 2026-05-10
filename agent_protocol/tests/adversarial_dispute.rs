@@ -41,7 +41,7 @@ fn replay_dispute_is_idempotent() {
 
     let propose = Propose::sign(
         &alice,
-        contract.program_hash,
+        contract.program_hash_v2,
         witness.clone(),
         bob.verifying_key().to_bytes(),
         0,
@@ -85,7 +85,7 @@ fn malformed_witness_dispute_errors_out() {
 
     let propose = Propose::sign(
         &alice,
-        contract.program_hash,
+        contract.program_hash_v2,
         witness.clone(),
         bob.verifying_key().to_bytes(),
         0,
@@ -134,7 +134,7 @@ fn stale_dispute_resolves_deterministically_so_sequencer_can_decide() {
 
     let propose = Propose::sign(
         &alice,
-        contract.program_hash,
+        contract.program_hash_v2,
         witness.clone(),
         bob.verifying_key().to_bytes(),
         0,
@@ -175,7 +175,7 @@ fn sybil_dispute_keys_each_resolve_independently() {
 
     let propose = Propose::sign(
         &alice,
-        contract.program_hash,
+        contract.program_hash_v2,
         witness.clone(),
         bob.verifying_key().to_bytes(),
         0,
@@ -225,7 +225,7 @@ fn griefing_dispute_volume_does_not_blow_up_resolver() {
 
     let propose = Propose::sign(
         &alice,
-        contract.program_hash,
+        contract.program_hash_v2,
         witness.clone(),
         bob.verifying_key().to_bytes(),
         0,
@@ -265,7 +265,7 @@ fn cross_proposal_dispute_refused_by_resolver() {
     let actual = contract.run(&witness).unwrap();
     let propose = Propose::sign(
         &alice,
-        contract.program_hash,
+        contract.program_hash_v2,
         witness.clone(),
         bob.verifying_key().to_bytes(),
         0,
@@ -284,7 +284,13 @@ fn cross_proposal_dispute_refused_by_resolver() {
     );
 
     // Dispute referencing some other proposal hash entirely.
-    let dispute = Dispute::sign(&charlie, [0xffu8; 32], witness, actual, 200);
+    let dispute = Dispute::sign(
+        &charlie,
+        psl_agent_protocol::message::ProposalHash([0xffu8; 32]),
+        witness,
+        actual,
+        200,
+    );
     let r = resolve_dispute(&contract, &propose, &execute, &dispute);
     assert!(matches!(r, Err(ProtocolError::ProposalHashMismatch { .. })));
 }
@@ -300,7 +306,7 @@ fn illegal_execute_preserves_accepted_state() {
     let mut log = ProposalLog::new();
     let propose = Propose::sign(
         &alice,
-        [0xa1u8; 32],
+        psl_agent_contracts::ProgramHash([0xa1u8; 64]),
         vec![1, 2, 3],
         bob.verifying_key().to_bytes(),
         0,
