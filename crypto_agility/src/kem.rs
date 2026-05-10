@@ -403,9 +403,9 @@ impl Kem for HybridX25519MlKem768Kem {
     }
 
     /// Encapsulate to `recipient_pk`. Returns the hybrid ciphertext
-    /// + the raw concatenated shared secret `x25519_ss || ml_kem_ss`
-    /// (64 bytes). The witness_enc layer feeds this + the
-    /// ciphertext components into HKDF with the appropriate
+    /// alongside the raw concatenated shared secret `x25519_ss ||
+    /// ml_kem_ss` (64 bytes). The witness_enc layer feeds this and
+    /// the ciphertext components into HKDF with the appropriate
     /// `ContextString` to derive the AEAD key per ADR-0011 § "KDF
     /// combiner specification".
     fn encapsulate(&self, recipient_pk: &HybridPublicKey) -> (HybridCiphertext, SharedSecret) {
