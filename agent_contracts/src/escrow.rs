@@ -23,8 +23,8 @@ fn build_subnets() -> (TernaryNetwork, TernaryNetwork) {
 fn hash_program(name: &str, byte_add: &TernaryNetwork, byte_sub: &TernaryNetwork) -> ProgramHash {
     let mut h = blake3::Hasher::new();
     h.update(name.as_bytes());
-    h.update(&byte_add.header.weights_hash);
-    h.update(&byte_sub.header.weights_hash);
+    h.update(byte_add.header.weights_hash());
+    h.update(byte_sub.header.weights_hash());
     let mut out = [0u8; 32];
     out.copy_from_slice(h.finalize().as_bytes());
     out

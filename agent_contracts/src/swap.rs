@@ -48,8 +48,8 @@ impl SwapContract {
         let byte_sub = byte_sub_with_borrow::build();
         let mut h = blake3::Hasher::new();
         h.update(b"swap");
-        h.update(&byte_add.header.weights_hash);
-        h.update(&byte_sub.header.weights_hash);
+        h.update(byte_add.header.weights_hash());
+        h.update(byte_sub.header.weights_hash());
         let mut program_hash = [0u8; 32];
         program_hash.copy_from_slice(h.finalize().as_bytes());
         Self {

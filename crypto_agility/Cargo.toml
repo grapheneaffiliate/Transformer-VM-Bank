@@ -11,6 +11,11 @@ blake3 = { workspace = true }
 ed25519-dalek = { workspace = true }
 rand = { workspace = true }
 thiserror = { workspace = true }
+# Trace-level diagnostics for hybrid-signature component failures.
+# Per the hardening pass: outer error stays opaque
+# (`VerifierError::HybridSignatureInvalid`); component-failure detail
+# logs to `tracing::trace` only, never serialized.
+tracing = { workspace = true }
 zeroize = { version = "1.8", features = ["derive"] }
 
 # Post-quantum: ML-DSA-65 (FIPS 204). pqcrypto-mldsa wraps the NIST

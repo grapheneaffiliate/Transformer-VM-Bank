@@ -1,5 +1,11 @@
 # cargo-deny configuration for the PSL workspace.
 # Run: cargo deny check licenses bans advisories sources
+#
+# This file is the source of truth for the closure-brief-required
+# blocking gate. CI enforces it on every PR that touches Cargo.lock
+# (.github/workflows/security.yml). Companion docs:
+#   - docs/LICENSE_REVIEW.md (license posture)
+#   - docs/SAFETY.md (memory-safety + transitive-dep posture)
 
 [graph]
 all-features = false
@@ -7,8 +13,42 @@ all-features = false
 [advisories]
 db-path = "~/.cargo/advisory-db"
 db-urls = ["https://github.com/rustsec/advisory-db"]
-ignore = []
 yanked = "deny"
+# Ignored advisories. Each ignore needs a written rationale here AND a
+# cross-reference in docs/LICENSE_REVIEW.md so an auditor can see why
+# we're accepting the warning. If the underlying crate becomes
+# vulnerable (not just unmaintained), the advisory class changes from
+# `unmaintained` to `vulnerability` and the ignore here would need to
+# be re-justified.
+ignore = [
+    # RUSTSEC-2025-0057: fxhash unmaintained.
+    # Path: sled 0.34.7 -> fxhash 0.2.1.
+    # Rationale: fxhash is a hash-function crate (FxHash, the same
+    # algorithm rustc uses internally). It's "unmaintained" because
+    # the algorithm is stable and there's nothing to maintain. No
+    # known security implication. Comes in via sled, which itself is
+    # tracked for a v0.2 backing-store migration (see SAFETY.md
+    # § "Tracked: sled migration"). When sled is replaced this
+    # ignore can be removed.
+    "RUSTSEC-2025-0057",
+
+    # RUSTSEC-2024-0384: instant unmaintained.
+    # Path: sled 0.34.7 -> parking_lot 0.11.2 -> parking_lot_core 0.8.6 -> instant 0.1.13.
+    # Rationale: same root cause as fxhash -- the dependency chain
+    # comes through sled's older parking_lot. The `instant` crate is
+    # being replaced by `web-time` upstream; not a vulnerability,
+    # just deprecation. Resolves when sled is replaced.
+    "RUSTSEC-2024-0384",
+
+    # RUSTSEC-2024-0436: paste unmaintained.
+    # Path: pqcrypto-mldsa 0.1.2 -> paste 1.0.15.
+    # Rationale: paste is a proc-macro crate for token pasting. The
+    # author declared it stable-and-feature-complete and stopped
+    # accepting PRs. The crate has no I/O surface, no unsafe
+    # exposures from PSL's use of it, and is only invoked at compile
+    # time. No security implication.
+    "RUSTSEC-2024-0436",
+]
 
 [licenses]
 allow = [
@@ -26,8 +66,20 @@ allow = [
 confidence-threshold = 0.93
 
 [bans]
+# `multiple-versions = "warn"` (not "deny") because some duplication
+# is structural in any non-trivial Rust workspace. Documented
+# duplicates we accept are skipped below; cargo-deny still surfaces
+# new ones for review.
 multiple-versions = "warn"
 deny = []
+skip = [
+    # bitflags 1.x and 2.x coexist in the dep tree because some old
+    # transitives (notably via sled) haven't migrated to bitflags 2.x
+    # yet. Both major versions are functionally identical at the
+    # bit-twiddling level; no security implication. Resolves when
+    # sled is replaced.
+    { name = "bitflags", version = "=1.3.2" },
+]
 skip-tree = []
 
 [sources]

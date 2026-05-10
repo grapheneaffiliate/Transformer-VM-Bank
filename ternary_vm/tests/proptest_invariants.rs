@@ -148,15 +148,11 @@ proptest! {
             bias: vec![0; 8],
             relu: false,
         };
+        // External integration test: must use the public constructor
+        // (digest fields are pub(crate) per the dual-digest invariant
+        // hardening; struct-literal access is in-crate only).
         let net = TernaryNetwork::new(
-            WeightsHeader {
-                version: 1,
-                primitive: "tiny".into(),
-                input_dim: 8,
-                output_dim: 8,
-                weights_hash: [0; 32],
-                weights_hash_v2: [0; 64],
-            },
+            WeightsHeader::new(1, "tiny", 8, 8, [0; 32], [0; 64]),
             vec![layer],
         );
         let r = net.forward(&input);

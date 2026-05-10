@@ -55,7 +55,7 @@
 //! round-trip, and one-byte-short hard reject.
 
 use crate::codec::{decode_varint, encode_varint};
-use crate::errors::{SignerError, VerifierError};
+use crate::errors::{HybridFailure, SignerError, VerifierError};
 use crate::scheme::SignatureScheme;
 use crate::signer::{Signer, Verifier};
 use ed25519_dalek::{Signer as _, SigningKey, Verifier as _, VerifyingKey};
@@ -156,9 +156,13 @@ impl Signer for HybridSigner {
 
 /// Hybrid ed25519 + ML-DSA-65 verifier.
 ///
-/// Verifies iff **both** components pass. Reports
-/// [`VerifierError::HybridComponentFailed`] for diagnostics when
-/// only one side fails.
+/// Verifies iff **both** components pass. On failure, returns the
+/// opaque [`VerifierError::HybridSignatureInvalid`] regardless of
+/// which component(s) failed — disclosing which component failed
+/// would be a side-channel oracle for an adversary probing
+/// independent component compromise. Inner detail logs at
+/// `tracing::trace` level for local diagnostics; never serialized,
+/// never returned across an error boundary.
 pub struct HybridVerifier;
 
 impl HybridVerifier {
@@ -230,11 +234,17 @@ impl Verifier for HybridVerifier {
                     detail: "ed25519 sig slice length mismatch (internal bug)",
                 })?;
         let ed_sig = ed25519_dalek::Signature::from_bytes(&ed_sig_arr);
-        ed_vk
-            .verify(message, &ed_sig)
-            .map_err(|_| VerifierError::HybridComponentFailed {
-                component: "classical",
-            })?;
+        if ed_vk.verify(message, &ed_sig).is_err() {
+            // Trace-only diagnostic; never returned across an error
+            // boundary. Outer error stays opaque so an adversary
+            // probing for selective-component failures gets no signal.
+            tracing::trace!(
+                target: "psl_crypto_agility::hybrid",
+                component = HybridFailure::ClassicalComponent.as_str(),
+                "hybrid signature: classical (ed25519) component failed verification"
+            );
+            return Err(VerifierError::HybridSignatureInvalid);
+        }
 
         // ML-DSA-65 component.
         let mldsa_pk = mldsa65::PublicKey::from_bytes(mldsa_pk_bytes).map_err(|_| {
@@ -249,8 +259,14 @@ impl Verifier for HybridVerifier {
                 detail: "ML-DSA-65 component sig rejected by primitive",
             }
         })?;
-        mldsa65::verify_detached_signature(&mldsa_sig, message, &mldsa_pk)
-            .map_err(|_| VerifierError::HybridComponentFailed { component: "pq" })?;
+        if mldsa65::verify_detached_signature(&mldsa_sig, message, &mldsa_pk).is_err() {
+            tracing::trace!(
+                target: "psl_crypto_agility::hybrid",
+                component = HybridFailure::PqComponent.as_str(),
+                "hybrid signature: PQ (ML-DSA-65) component failed verification"
+            );
+            return Err(VerifierError::HybridSignatureInvalid);
+        }
 
         Ok(())
     }
@@ -312,14 +328,16 @@ mod tests {
             .expect("freshly signed hybrid signature must verify");
     }
 
-    /// Base case 2: ed25519 valid, ML-DSA forged → reject (HybridComponentFailed: pq).
+    /// Base case 2: ed25519 valid, ML-DSA forged -> reject opaquely.
+    /// Outer error is `HybridSignatureInvalid` and does NOT disclose
+    /// which component failed (per the side-channel hardening; inner
+    /// detail logs at trace level only).
     #[test]
     fn hybrid_rejects_forged_pq_component() {
         let signer = HybridSigner::generate();
         let verifier = HybridVerifier::new();
         let msg = b"x";
         let mut sig = signer.sign(msg).unwrap();
-        // Corrupt the ML-DSA component (positions [64..3373]).
         sig[ED25519_SIG_BYTES + 100] ^= 0xff;
         let err = verifier
             .verify(
@@ -329,20 +347,16 @@ mod tests {
                 &signer.public_key(),
             )
             .unwrap_err();
-        assert_eq!(
-            err,
-            VerifierError::HybridComponentFailed { component: "pq" }
-        );
+        assert_eq!(err, VerifierError::HybridSignatureInvalid);
     }
 
-    /// Base case 3: ML-DSA valid, ed25519 forged → reject (HybridComponentFailed: classical).
+    /// Base case 3: ML-DSA valid, ed25519 forged -> reject opaquely.
     #[test]
     fn hybrid_rejects_forged_classical_component() {
         let signer = HybridSigner::generate();
         let verifier = HybridVerifier::new();
         let msg = b"x";
         let mut sig = signer.sign(msg).unwrap();
-        // Corrupt the ed25519 component (positions [0..64]).
         sig[10] ^= 0xff;
         let err = verifier
             .verify(
@@ -352,17 +366,10 @@ mod tests {
                 &signer.public_key(),
             )
             .unwrap_err();
-        assert_eq!(
-            err,
-            VerifierError::HybridComponentFailed {
-                component: "classical"
-            }
-        );
+        assert_eq!(err, VerifierError::HybridSignatureInvalid);
     }
 
-    /// Base case 4: both components forged → reject (one of them
-    /// surfaces; we don't promise which fires first since order is
-    /// implementation detail, but classical comes first per code).
+    /// Base case 4: both components forged -> reject opaquely.
     #[test]
     fn hybrid_rejects_both_forged() {
         let signer = HybridSigner::generate();
@@ -379,7 +386,49 @@ mod tests {
                 &signer.public_key(),
             )
             .unwrap_err();
-        assert!(matches!(err, VerifierError::HybridComponentFailed { .. }));
+        assert_eq!(err, VerifierError::HybridSignatureInvalid);
+    }
+
+    /// Side-channel hardening: the outer error variant is
+    /// indistinguishable for "only classical failed" vs "only PQ
+    /// failed" vs "both failed". An adversary observing only the
+    /// returned error gets no signal about which component is the
+    /// live attack surface. Inner detail is available via
+    /// `tracing::trace` for local diagnostics only.
+    #[test]
+    fn hybrid_failure_outer_error_is_indistinguishable_across_modes() {
+        let signer = HybridSigner::generate();
+        let verifier = HybridVerifier::new();
+        let msg = b"side-channel-test";
+        let good_sig = signer.sign(msg).unwrap();
+        let pk = signer.public_key();
+
+        let mut classical_only = good_sig.clone();
+        classical_only[10] ^= 0xff;
+        let mut pq_only = good_sig.clone();
+        pq_only[ED25519_SIG_BYTES + 100] ^= 0xff;
+        let mut both = good_sig.clone();
+        both[10] ^= 0xff;
+        both[ED25519_SIG_BYTES + 100] ^= 0xff;
+
+        let e1 = verifier
+            .verify(
+                SignatureScheme::HybridEd25519MlDsa65,
+                msg,
+                &classical_only,
+                &pk,
+            )
+            .unwrap_err();
+        let e2 = verifier
+            .verify(SignatureScheme::HybridEd25519MlDsa65, msg, &pq_only, &pk)
+            .unwrap_err();
+        let e3 = verifier
+            .verify(SignatureScheme::HybridEd25519MlDsa65, msg, &both, &pk)
+            .unwrap_err();
+
+        assert_eq!(e1, e2);
+        assert_eq!(e2, e3);
+        assert_eq!(e1, VerifierError::HybridSignatureInvalid);
     }
 
     /// Length-extension #1: junk appended to ed25519 component (i.e.,
@@ -449,10 +498,10 @@ mod tests {
             .unwrap_err();
         // Swap puts the ed25519 sig in the ML-DSA slot — first 64 bytes
         // are now interpreted as ed25519 sig, which won't match. The
-        // classical component fails first.
+        // classical component fails first; outer error is opaque.
         assert!(matches!(
             err,
-            VerifierError::HybridComponentFailed { .. } | VerifierError::MalformedSignature { .. }
+            VerifierError::HybridSignatureInvalid | VerifierError::MalformedSignature { .. }
         ));
     }
 
@@ -472,6 +521,7 @@ mod tests {
         frank.extend_from_slice(&sig_a[..ED25519_SIG_BYTES]);
         frank.extend_from_slice(&sig_b[ED25519_SIG_BYTES..]);
         // Verify against A: ed25519 of A passes, ML-DSA of B fails.
+        // Outer error is opaque (HybridSignatureInvalid).
         let err_against_a = verifier
             .verify(
                 SignatureScheme::HybridEd25519MlDsa65,
@@ -480,11 +530,9 @@ mod tests {
                 &signer.public_key(),
             )
             .unwrap_err();
-        assert_eq!(
-            err_against_a,
-            VerifierError::HybridComponentFailed { component: "pq" }
-        );
+        assert_eq!(err_against_a, VerifierError::HybridSignatureInvalid);
         // Verify against B: ed25519 of A fails (it signed A, not B).
+        // Same opaque outer error.
         let err_against_b = verifier
             .verify(
                 SignatureScheme::HybridEd25519MlDsa65,
@@ -493,12 +541,11 @@ mod tests {
                 &signer.public_key(),
             )
             .unwrap_err();
-        assert_eq!(
-            err_against_b,
-            VerifierError::HybridComponentFailed {
-                component: "classical"
-            }
-        );
+        assert_eq!(err_against_b, VerifierError::HybridSignatureInvalid);
+        // Both errors are equal, demonstrating the side-channel
+        // hardening: an adversary observing only the error gets no
+        // signal about which component verified.
+        assert_eq!(err_against_a, err_against_b);
     }
 
     /// Wire-format byte-exact round-trip: encode then decode produces

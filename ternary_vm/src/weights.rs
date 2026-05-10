@@ -38,28 +38,95 @@ use crate::network::SparseTernaryLayer;
 ///
 /// Carries **both** the v1 and v2 weights_hash per ADR-0008 dual-version
 /// trace-hash contract (`docs/decisions/0008-blake3-512-for-long-lived-commitments.md`).
-/// `pack_weights` populates both from the same canonical packed payload
-/// (one BLAKE3 finalize at 32 bytes, one at 64 bytes). Verifiers pick
-/// the field matching the trace-hash contract version they are
-/// verifying.
+/// `pack_weights_dual` and `unpack_weights` populate both from the same
+/// canonical packed payload (one BLAKE3 finalize at 32 bytes, one at
+/// 64 bytes). Verifiers pick the field matching the trace-hash contract
+/// version they are verifying.
+///
+/// ## Construction
+///
+/// **External code must not construct `WeightsHeader` via struct
+/// literal.** The digest fields are `pub(crate)` so the dual-digest
+/// invariant (both v1 and v2 are present and derived from the same
+/// payload) cannot be violated by accident. Use one of:
+///
+/// - [`unpack_weights`] for loading from a packed byte stream — both
+///   digests are computed from the payload.
+/// - [`pack_weights_dual`] + [`WeightsHeader::new`] for constructing
+///   a fresh network in code (per-primitive `build()` functions in
+///   `ternary_vm::primitives::*` use this path).
+///
+/// In-crate code can still use the struct literal directly because
+/// `pub(crate)` is visible inside the crate; that's appropriate for
+/// the test-fixture and primitive-build paths and keeps the type-
+/// system enforcement structural rather than convention-based.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct WeightsHeader {
+    /// Schema version. Currently 1.
     pub version: u32,
+    /// Primitive name (descriptive; not a security-critical field).
     pub primitive: String,
+    /// Input dimension of the first layer.
     pub input_dim: u32,
+    /// Output dimension of the last layer.
     pub output_dim: u32,
     /// **v1 weights_hash.** BLAKE3-256 digest of the canonical packed-
     /// weights byte stream (see module docstring). Filled in by
-    /// `pack_weights` / `unpack_weights`; defaulted to zero before the
-    /// first hash. **Frozen** per ADR-0008 — `trace_hash_v1` reads
-    /// this field. New networks should be authenticated via v2.
-    pub weights_hash: [u8; 32],
+    /// `pack_weights` / `unpack_weights` / [`WeightsHeader::new`].
+    /// **Frozen** per ADR-0008 — `trace_hash_v1` reads this field.
+    /// `pub(crate)` to enforce the dual-digest invariant: the only
+    /// way for external code to obtain a populated field is through
+    /// the constructor or `unpack_weights`.
+    pub(crate) weights_hash: [u8; 32],
     /// **v2 weights_hash.** BLAKE3-512 digest of the canonical packed-
     /// weights byte stream — same input as `weights_hash`, just a
     /// 64-byte XOF read instead of 32. Per ADR-0008 this is the
     /// load-bearing commitment for new traces (256-bit Grover-halved
     /// quantum margin). `trace_hash_v2` reads this field.
-    pub weights_hash_v2: [u8; 64],
+    /// `pub(crate)` for the same dual-digest-invariant reason.
+    pub(crate) weights_hash_v2: [u8; 64],
+}
+
+impl WeightsHeader {
+    /// Construct a `WeightsHeader` with both digests supplied. The
+    /// canonical path for external code; the constructor signature
+    /// makes it impossible to forget either digest.
+    ///
+    /// In-crate callers (per-primitive `build()` functions) typically
+    /// use the struct-literal form because both digests are computed
+    /// in the immediately-preceding `pack_weights_dual()` call;
+    /// either form preserves the invariant equivalently.
+    pub fn new(
+        version: u32,
+        primitive: impl Into<String>,
+        input_dim: u32,
+        output_dim: u32,
+        weights_hash: [u8; 32],
+        weights_hash_v2: [u8; 64],
+    ) -> Self {
+        Self {
+            version,
+            primitive: primitive.into(),
+            input_dim,
+            output_dim,
+            weights_hash,
+            weights_hash_v2,
+        }
+    }
+
+    /// Read access to the v1 (BLAKE3-256) weights_hash. Used by
+    /// `trace_hash_v1` and by callers (e.g., `agent_contracts`) that
+    /// commit to `program_hash` over the v1 weights_hash.
+    pub fn weights_hash(&self) -> &[u8; 32] {
+        &self.weights_hash
+    }
+
+    /// Read access to the v2 (BLAKE3-512) weights_hash. Used by
+    /// `trace_hash_v2` and by callers committing to `program_hash`
+    /// under the v2 contract.
+    pub fn weights_hash_v2(&self) -> &[u8; 64] {
+        &self.weights_hash_v2
+    }
 }
 
 const MAGIC: &[u8; 8] = b"TVMW0001";

@@ -57,8 +57,8 @@ impl TransferContract {
 fn compute_program_hash(byte_add: &TernaryNetwork, byte_sub: &TernaryNetwork) -> ProgramHash {
     let mut h = blake3::Hasher::new();
     h.update(b"transfer");
-    h.update(&byte_add.header.weights_hash);
-    h.update(&byte_sub.header.weights_hash);
+    h.update(byte_add.header.weights_hash());
+    h.update(byte_sub.header.weights_hash());
     let mut out = [0u8; 32];
     out.copy_from_slice(h.finalize().as_bytes());
     out

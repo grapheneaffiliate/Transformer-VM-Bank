@@ -31,7 +31,7 @@ pub mod kem;
 pub mod scheme;
 pub mod signer;
 
-pub use errors::{HashError, KemError, SignerError, VerifierError};
+pub use errors::{HashError, HybridFailure, KemError, SignerError, VerifierError};
 pub use hash::{Blake3_256, Blake3_512, HashScheme, HashScheme_};
 pub use hybrid::{
     decode_hybrid_blob, encode_hybrid_pubkey_blob, encode_hybrid_sig_blob, HybridSigner,
