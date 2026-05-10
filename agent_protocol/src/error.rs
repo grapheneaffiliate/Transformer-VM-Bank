@@ -1,3 +1,4 @@
+use crate::message::ProposalHash;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -6,7 +7,10 @@ pub enum ProtocolError {
     SignatureInvalid,
 
     #[error("proposal hash mismatch — message carries {got:?}, expected {expected:?}")]
-    ProposalHashMismatch { expected: [u8; 32], got: [u8; 32] },
+    ProposalHashMismatch {
+        expected: ProposalHash,
+        got: ProposalHash,
+    },
 
     #[error("illegal state transition from {from:?} via {event}")]
     IllegalTransition {
@@ -15,7 +19,7 @@ pub enum ProtocolError {
     },
 
     #[error("unknown proposal {hash:?}")]
-    UnknownProposal { hash: [u8; 32] },
+    UnknownProposal { hash: ProposalHash },
 
     #[error("expired at {expiry}; now is {now}")]
     Expired { expiry: u64, now: u64 },

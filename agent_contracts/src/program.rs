@@ -32,10 +32,10 @@ use psl_ternary_vm::network::TernaryNetwork;
 
 /// 64-byte BLAKE3-512 commitment to a contract's identity. Per
 /// ADR-0008, the long-lived irrevocable form. **Newtype** to prevent
-/// accidental mixing with [`crate::ProposalHash`] (32B ephemeral) or
-/// other byte-width-equivalent hashes.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct ProgramHash(pub [u8; 64]);
+/// accidental mixing with `agent_protocol::ProposalHash` (32B
+/// ephemeral) or other byte-width-equivalent hashes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct ProgramHash(#[serde(with = "serde_big_array::BigArray")] pub [u8; 64]);
 
 impl ProgramHash {
     /// Read access to the underlying bytes (e.g., for hashing into
@@ -55,7 +55,7 @@ impl From<[u8; 64]> for ProgramHash {
 /// [`ProgramHash`] on per-contract data structures so historical
 /// (v1) verifiers can re-derive the legacy identifier without
 /// re-running the v2 → v1 migration. **Frozen** per ADR-0008.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct ProgramHashV1(pub [u8; 32]);
 
 impl ProgramHashV1 {

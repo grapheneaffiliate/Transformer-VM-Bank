@@ -13,6 +13,11 @@ path = "src/lib.rs"
 psl-ternary-vm = { path = "../ternary_vm" }
 blake3.workspace = true
 thiserror.workspace = true
+# ProgramHash newtype derives Serialize/Deserialize so it can be a
+# field in agent_protocol's wire-format structs (Propose etc.).
+# serde_big_array supports the 64-byte array inside the newtype.
+serde = { workspace = true, features = ["derive"] }
+serde-big-array.workspace = true
 
 [dev-dependencies]
 rand.workspace = true

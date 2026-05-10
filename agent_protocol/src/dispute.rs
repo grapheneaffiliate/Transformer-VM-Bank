@@ -42,7 +42,7 @@ impl Dispute {
     pub fn canonical_bytes(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(256);
         out.extend_from_slice(b"PSL-DISPUTE-V1");
-        out.extend_from_slice(&self.proposal_hash);
+        out.extend_from_slice(self.proposal_hash.as_bytes());
         push_bytes(&mut out, &self.witness);
         push_bytes(&mut out, &self.claimed_output);
         out.extend_from_slice(&self.disputer);
@@ -179,7 +179,7 @@ mod tests {
 
         let propose = Propose::sign(
             &alice,
-            contract.program_hash,
+            contract.program_hash_v2,
             witness.clone(),
             bob.verifying_key().to_bytes(),
             0,
@@ -221,7 +221,7 @@ mod tests {
 
         let propose = Propose::sign(
             &alice,
-            contract.program_hash,
+            contract.program_hash_v2,
             witness.clone(),
             bob.verifying_key().to_bytes(),
             0,
@@ -263,7 +263,7 @@ mod tests {
         let actual = contract.run(&witness).unwrap();
         let propose = Propose::sign(
             &alice,
-            contract.program_hash,
+            contract.program_hash_v2,
             witness.clone(),
             bob.verifying_key().to_bytes(),
             0,
@@ -281,7 +281,13 @@ mod tests {
             100,
         );
         // dispute references a DIFFERENT proposal hash
-        let dispute = Dispute::sign(&charlie, [0xffu8; 32], witness, actual, 200);
+        let dispute = Dispute::sign(
+            &charlie,
+            crate::message::ProposalHash([0xffu8; 32]),
+            witness,
+            actual,
+            200,
+        );
         let r = resolve_dispute(&contract, &propose, &execute, &dispute);
         assert!(matches!(r, Err(ProtocolError::ProposalHashMismatch { .. })));
     }
