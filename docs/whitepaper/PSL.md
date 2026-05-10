@@ -520,20 +520,24 @@ Throughput: the sequencer regression bench
 (`bench_sequencer_tps_10k_blocks` in `sequencer/tests/integration.rs`)
 processes 15,106 mixed signed transactions across 10,000 blocks with
 real ed25519 signatures, real MPT writes, and real state-root
-computation. On a WSL2 Ubuntu host with release build, the measured
-sustained throughput is **~925 tx/s with sequencer + 3 followers
-verifying state-root agreement on every block**, and **~3,990 tx/s
-single-replica**. Composing in real ternary trace_hash
+computation. On the pinned reference hardware (**Intel Core i7-7700
+@ 3.60 GHz, 4 cores / 8 threads, x86_64, WSL2 Ubuntu, release
+build**), the measured sustained throughput is **~925 tx/s with
+sequencer + 3 followers verifying state-root agreement on every
+block** (mean 1.08 ms/tx; p50 950 µs, p95 1.95 ms, p99 2.72 ms,
+p99.9 4.20 ms), and **~3,990 tx/s single-replica** (mean 251 µs;
+p50 201 µs, p95 464 µs, p99 737 µs, p99.9 1.42 ms). The bench
+captures `uname -a` + `lscpu` at run time so re-runs on different
+hardware self-document. Composing in real ternary trace_hash
 (~34 trace-hashes per transfer × ~9.5 µs each from gate-10's
 measured `byte_add` throughput) yields a back-of-envelope estimate of
 **~1,750 tx/s single-replica end-to-end with real trace_hash**. All
 numbers comfortably exceed the gate-9 sovereign-pilot trigger
 threshold of 100 TPS. Bench excludes `sled` durable commit (in-
 memory `State`; sled migration deferred per ADR-0012) and network
-transport (in-process; production = mutual-TLS HTTPS). Tail latency
-(p99 / p99.9), hardware-pinned regression gating, and direct
-measurement with the real ternary VM (replacing
-`NativeTraceExecutor`) are queued as v0.2 maturation work.
+transport (in-process; production = mutual-TLS HTTPS). Direct
+measurement of the real ternary VM in the sequencer trace path and a
+perf-CI auto-regression gate are queued as v0.2 maturation work.
 
 ## 10. Open questions and future work
 

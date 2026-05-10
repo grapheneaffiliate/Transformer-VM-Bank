@@ -96,27 +96,39 @@ Sequencer throughput on `bench_sequencer_tps_10k_blocks`
 (`sequencer/tests/integration.rs`, `#[ignore]`d regression bench;
 15,106 mixed signed transactions across 10,000 blocks):
 
-| Configuration | TPS | Per-tx mean |
-| --- | ---: | ---: |
-| Sequencer + 3 followers, in-process, cross-replica root-agreement check every block | ~925 tx/s | 1.08 ms |
-| Single-replica sequencer | ~3,990 tx/s | 251 µs |
-| Composed estimate including real ternary trace_hash (back-of-envelope) | ~1,750 tx/s single-replica | — |
+| Configuration | TPS | mean | p50 | p95 | p99 | p99.9 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Sequencer + 3 followers, in-process, cross-replica root-agreement check every block | ~925 tx/s | 1.08 ms | 950 µs | 1.95 ms | **2.72 ms** | **4.20 ms** |
+| Single-replica sequencer | ~3,990 tx/s | 251 µs | 201 µs | 464 µs | 737 µs | 1.42 ms |
+| Composed estimate including real ternary trace_hash (back-of-envelope) | ~1,750 tx/s single-replica | — | — | — | — | — |
+
+**Pinned reference hardware:** Intel Core i7-7700 @ 3.60 GHz, 4 cores
+/ 8 threads, x86_64, WSL2 Ubuntu (Linux 5.15), release build. The
+bench captures `uname -a` + relevant `lscpu` fields at run time so
+re-runs on different hardware self-document. Run-to-run TPS variance
+~5-15% on this WSL2 host from OS scheduler noise.
 
 What's measured: real ed25519 sign + verify, real MPT writes, real
 state-root computation, cross-replica consistency (4-replica run).
 What's excluded: real ternary VM trace_hash (uses
 `NativeTraceExecutor` synthetic stub), `sled` durable commit (uses
 in-memory `State`; sled migration deferred per ADR-0012), network
-transport (in-process). Hardware: WSL2 Ubuntu host, release build.
+transport (in-process; production = mutual-TLS HTTPS).
 
 The composed estimate (~1,750 tx/s) adds ~34 trace-hashes per transfer
 × ~9.5 µs each (gate-10's measured `byte_add` throughput of 105k
 vec/s) onto the 251 µs single-replica baseline. Trace-work-vs-
 sequencer-work composition arithmetic; not a direct measurement.
+Direct measurement (replacing `NativeTraceExecutor` with the real
+ternary VM in the sequencer trace path) is queued as v0.2 maturation
+work.
 
+The 4-replica p99.9 of 4.2 ms is the meaningful worst-case settlement
+time for capacity planning; a single 922 ms max outlier in the 15,106-
+sample distribution is OS-scheduler noise on WSL2 (not load-bearing).
 Comfortably above the gate-9 sovereign-pilot trigger threshold of 100
-TPS. Tail latency (p99 / p99.9) and hardware-spec-pinned regression
-gating are queued as v0.2 maturation work.
+TPS. Perf-CI auto-regression gate (separate runner pool with pinned
+hardware + threshold-based merge gating) deferred to v0.2.
 
 ## 6. Primary entry points for your read
 

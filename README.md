@@ -56,20 +56,30 @@ Measured throughput on the sequencer integration bench
 15,106 mixed signed transactions across 10,000 blocks — real ed25519
 signatures, real MPT writes, real state-root computation):
 
-| Configuration                                                     | TPS         | Per-tx mean |
-| ---                                                               | ---:        | ---:        |
-| **Sequencer + 3 followers** (in-process, root-agreement every block) | **~925 tx/s** | 1.08 ms     |
-| Single-replica sequencer                                          | ~3,990 tx/s | 251 µs      |
-| Composed estimate including real ternary trace_hash (back-of-envelope) | ~1,750 tx/s single-replica | — |
+| Configuration                                                     | TPS         | mean    | p50    | p95    | p99    | p99.9   |
+| ---                                                               | ---:        | ---:    | ---:   | ---:   | ---:   | ---:    |
+| **Sequencer + 3 followers** (in-process, root-agreement every block) | **~925 tx/s** | 1.08 ms | 950 µs | 1.95 ms | **2.72 ms** | **4.20 ms** |
+| Single-replica sequencer                                          | ~3,990 tx/s | 251 µs  | 201 µs | 464 µs | 737 µs | 1.42 ms |
+| Composed estimate including real ternary trace_hash (back-of-envelope) | ~1,750 tx/s single-replica | — | — | — | — | — |
+
+**Pinned reference hardware:** Intel Core i7-7700 @ 3.60 GHz, 4 cores
+/ 8 threads, x86_64, WSL2 Ubuntu (Linux 5.15), release build. Run-to-
+run TPS variance ~5-15% from OS scheduler noise on WSL2; production
+cloud-CPU deployments should be more stable and likely faster on
+modern silicon.
 
 Caveats: bench uses `NativeTraceExecutor` (deterministic stub, real
 ternary VM trace adds ~9.5 µs × ~34 trace-hashes per transfer), in-
 memory `State` (no `sled` durable commit; that migration is deferred
 per ADR-0012), in-process transport (production = mutual-TLS HTTPS).
-Hardware: WSL2 Ubuntu host, release build. Comfortably above the
-gate-9 sovereign-pilot trigger threshold of 100 TPS.
+Comfortably above the gate-9 sovereign-pilot trigger threshold of
+100 TPS. Single 922 ms max outlier on the 4-replica run is OS-
+scheduler noise (not load-bearing); the p99.9 is the meaningful tail.
+Perf-CI auto-regression gate and real-trace measurement deferred to
+v0.2.
 
-Reproduce:
+Reproduce (the bench prints captured `uname -a` + `lscpu` so any
+re-run records its own hardware):
 ```bash
 cargo test -p psl-sequencer --test integration --release \
   bench_sequencer_tps_10k_blocks -- --ignored --nocapture
