@@ -56,6 +56,12 @@ updates in the same commit (per `GOVERNANCE.md`).
 - [UNWRAP_AUDIT.md](UNWRAP_AUDIT.md) — Audit of every `unwrap()` /
   `expect()` in production paths (40 hits, 0 bugs, 35 lock-poison + 3
   documented checked-add + 2 covered by other audits).
+- [SAFETY.md](SAFETY.md) — Memory-safety posture. **Zero `unsafe`
+  blocks on PSL production paths.** Per-crate inventory + transitive-
+  dep `unsafe` posture + lint-hardening roadmap.
+- [LICENSE_REVIEW.md](LICENSE_REVIEW.md) — Dependency license audit
+  (217 transitive deps, all permissive, zero unknowns, zero GPL/AGPL).
+  Companion to `cargo-deny check licenses`.
 - [COMPLIANCE.md](COMPLIANCE.md) — Compliance / regulatory posture
   (travel rule, freeze authority, view keys).
 - [FUZZING.md](FUZZING.md) — Five fuzz harness inventory + how to run
@@ -77,6 +83,14 @@ updates in the same commit (per `GOVERNANCE.md`).
   - [follower-lag.md](runbooks/follower-lag.md)
   - [light-client-divergence.md](runbooks/light-client-divergence.md)
   - [dr-restore.md](runbooks/dr-restore.md)
+
+## Migration & integration
+
+- [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) — Cross-version migration
+  path for SDK consumers and chain operators. Covers v0.1.0 → v0.1.x
+  (trace_hash v1 → v2, ed25519 → hybrid signatures) and the planned
+  v0.1.x → v0.2 migrations (program_hash bump, state-tree
+  hash-of-pubkey, hybrid required).
 
 ## Architectural decisions (ADRs)
 
