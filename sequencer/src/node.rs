@@ -30,23 +30,22 @@ impl SequencerNode {
         let mempool = Arc::new(RwLock::new(Mempool::new(10_000)));
         // Choose trace executor based on availability of weights.
         let weights = std::path::PathBuf::from(&cfg.weights_dir);
-        let trace: Arc<dyn TraceExecutor> = if weights.exists()
-            && weights.join("ledger_transfer.bin").exists()
-        {
-            info!(
-                "using SubprocessTraceExecutor with weights at {}",
-                cfg.weights_dir
-            );
-            Arc::new(SubprocessTraceExecutor {
-                transformer_vm_path: cfg.transformer_vm_path.clone().into(),
-                weights_dir: weights,
-            })
-        } else {
-            warn!(
+        let trace: Arc<dyn TraceExecutor> =
+            if weights.exists() && weights.join("ledger_transfer.bin").exists() {
+                info!(
+                    "using SubprocessTraceExecutor with weights at {}",
+                    cfg.weights_dir
+                );
+                Arc::new(SubprocessTraceExecutor {
+                    transformer_vm_path: cfg.transformer_vm_path.clone().into(),
+                    weights_dir: weights,
+                })
+            } else {
+                warn!(
                 "weights/ missing → using NativeTraceExecutor (DEV ONLY, trace_hash is a marker)"
             );
-            Arc::new(NativeTraceExecutor)
-        };
+                Arc::new(NativeTraceExecutor)
+            };
         Ok(Self {
             cfg,
             keypair: kp,
