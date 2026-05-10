@@ -447,9 +447,13 @@ inputs to AEAD-key derivation).
 The cryptographic pieces use audited reference implementations:
 - ed25519 + X25519 via `ed25519-dalek` + `x25519-dalek` (Trail of
   Bits + NCC Group audits).
-- ML-DSA-65 + ML-KEM-768 via `pqcrypto-mldsa` + `pqcrypto-mlkem`
-  (NIST PQClean reference C, audited as part of NIST's
-  standardization).
+- ML-DSA-65 + ML-KEM-768 via `pqcrypto-mldsa` + `pqcrypto-mlkem`,
+  which wrap NIST PQClean reference C implementations (audited
+  during NIST's standardization). The Rust binding crates have not
+  been independently audited as Rust crates; their constant-time
+  invariants are inherited from PQClean and the binding layer is
+  community-maintained — flagged here as honest disclosure for
+  reviewer scope.
 - BLAKE3 via the `blake3` crate (reference implementation,
   widely deployed).
 - HKDF + AES-256-GCM via RustCrypto's `hkdf` + `aes-gcm`
@@ -462,8 +466,11 @@ acceptance criteria is **external cryptographer review** of the
 hybrid combiner, transcript construction, and ephemeral-key
 lifecycle. This is a focused 1-2 week scoped engagement (smaller
 than the full audit per gate 17), yielding a signed cryptographer
-review of the hybrid combiner. Outreach is planned per ADR-0003
-publication strategy.
+review of the hybrid combiner. The review scope (combiner,
+transcript construction, ephemeral-key lifecycle) is defined in
+ADR-0006 (acceptance criteria) and ADR-0011 (combiner specifics);
+outreach itself is a separate operational track — not covered by
+ADR-0003, which scopes only public-artifact publication.
 
 The agility layer enables future scheme migrations without hard
 fork: when ML-DSA-65 needs to migrate (e.g., to ML-DSA-87 if
