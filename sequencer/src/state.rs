@@ -3,7 +3,7 @@
 //! Persistence is via the sled blockstore (block → state-snapshot pairs);
 //! the live state is held in memory for fast trace assembly.
 
-use psl_crypto::{Account, Hash, SparseMerkleTree, MerkleProof};
+use psl_crypto::{Account, Hash, MerkleProof, SparseMerkleTree};
 
 pub struct State {
     pub accounts: SparseMerkleTree,

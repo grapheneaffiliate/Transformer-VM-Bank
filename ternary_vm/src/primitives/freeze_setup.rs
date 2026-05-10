@@ -90,10 +90,14 @@ pub fn decode_output(out: &[i64]) -> Result<(u8, u8), TernaryError> {
     let flag = out[0];
     let byte47 = out[1];
     if !(0..=1).contains(&flag) {
-        return Err(TernaryError::OutputDecode(format!("flag out of range: {flag}")));
+        return Err(TernaryError::OutputDecode(format!(
+            "flag out of range: {flag}"
+        )));
     }
     if !(0..=255).contains(&byte47) {
-        return Err(TernaryError::OutputDecode(format!("byte47 out of range: {byte47}")));
+        return Err(TernaryError::OutputDecode(format!(
+            "byte47 out of range: {byte47}"
+        )));
     }
     Ok((flag as u8, byte47 as u8))
 }

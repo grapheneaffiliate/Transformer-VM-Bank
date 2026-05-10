@@ -52,6 +52,7 @@ const BYTE_MAX: i64 = 255;
 
 const FLAG_THERMO_LEN: usize = (FLAG_MAX + 1) as usize; // 2
 const BYTE_THERMO_LEN: usize = (BYTE_MAX + 1) as usize; // 256
+#[allow(dead_code)]
 const LOW7_LEN: usize = 128;
 
 pub const INPUT_DIM: usize = FLAG_THERMO_LEN + BYTE_THERMO_LEN; // 258
@@ -61,12 +62,7 @@ pub fn build() -> TernaryNetwork {
     let layer1 = build_layer1();
     let layer2 = build_layer2();
     let layers = vec![layer1, layer2];
-    let (_, digest) = pack_weights(
-        "freeze_apply",
-        INPUT_DIM as u32,
-        OUTPUT_DIM as u32,
-        &layers,
-    );
+    let (_, digest) = pack_weights("freeze_apply", INPUT_DIM as u32, OUTPUT_DIM as u32, &layers);
     let header = WeightsHeader {
         version: 1,
         primitive: "freeze_apply".into(),
@@ -159,10 +155,14 @@ pub fn decode_output(out: &[i64]) -> Result<u8, TernaryError> {
     let low7 = out[0];
     let flag = out[1];
     if !(0..=127).contains(&low7) {
-        return Err(TernaryError::OutputDecode(format!("LOW7 out of range: {low7}")));
+        return Err(TernaryError::OutputDecode(format!(
+            "LOW7 out of range: {low7}"
+        )));
     }
     if !(0..=1).contains(&flag) {
-        return Err(TernaryError::OutputDecode(format!("flag out of range: {flag}")));
+        return Err(TernaryError::OutputDecode(format!(
+            "flag out of range: {flag}"
+        )));
     }
     Ok((low7 + 128 * flag) as u8)
 }

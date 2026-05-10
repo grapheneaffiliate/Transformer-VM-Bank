@@ -162,10 +162,12 @@ mod tests {
     fn blob_rejects_wrong_length() {
         let mut blob = Vec::new();
         encode_varint(HashScheme::Blake3_512.as_u32(), &mut blob);
-        blob.extend_from_slice(&[0u8; 32]);  // wrong: 512 expects 64
+        blob.extend_from_slice(&[0u8; 32]); // wrong: 512 expects 64
         let err = decode_hash_blob(&blob).unwrap_err();
         match err {
-            HashError::WrongLength { expected, actual, .. } => {
+            HashError::WrongLength {
+                expected, actual, ..
+            } => {
                 assert_eq!(expected, 64);
                 assert_eq!(actual, 32);
             }
@@ -178,6 +180,9 @@ mod tests {
         let mut blob = Vec::new();
         encode_varint(0xfeed_beef, &mut blob);
         blob.extend_from_slice(&[0u8; 32]);
-        assert!(matches!(decode_hash_blob(&blob), Err(HashError::UnknownScheme(_))));
+        assert!(matches!(
+            decode_hash_blob(&blob),
+            Err(HashError::UnknownScheme(_))
+        ));
     }
 }

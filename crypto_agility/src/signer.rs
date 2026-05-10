@@ -60,13 +60,13 @@ pub fn verify_prefixed<V: Verifier>(
     prefixed_sig: &[u8],
     prefixed_pubkey: &[u8],
 ) -> Result<(), VerifierError> {
-    let (sig_scheme_u32, sig_off) = decode_varint(prefixed_sig)
-        .map_err(|_| VerifierError::MalformedSignature {
+    let (sig_scheme_u32, sig_off) =
+        decode_varint(prefixed_sig).map_err(|_| VerifierError::MalformedSignature {
             scheme: 0,
             detail: "varint scheme prefix on signature is malformed",
         })?;
-    let (pk_scheme_u32, pk_off) = decode_varint(prefixed_pubkey)
-        .map_err(|_| VerifierError::MalformedPublicKey {
+    let (pk_scheme_u32, pk_off) =
+        decode_varint(prefixed_pubkey).map_err(|_| VerifierError::MalformedPublicKey {
             scheme: 0,
             detail: "varint scheme prefix on public key is malformed",
         })?;
@@ -92,7 +92,9 @@ impl VerifierPolicy {
     /// Empty policy — accepts no scheme. Use the builder methods to
     /// add accepted schemes explicitly.
     pub fn empty() -> Self {
-        Self { accepted: HashSet::new() }
+        Self {
+            accepted: HashSet::new(),
+        }
     }
 
     /// Pre-PQ policy: accept only ed25519.
@@ -160,7 +162,9 @@ impl Ed25519Signer {
 
     /// Construct from a 32-byte secret key.
     pub fn from_secret(secret: &[u8; 32]) -> Self {
-        Self { sk: SigningKey::from_bytes(secret) }
+        Self {
+            sk: SigningKey::from_bytes(secret),
+        }
     }
 }
 
@@ -186,7 +190,9 @@ pub struct Ed25519Verifier {
 impl Ed25519Verifier {
     /// Construct a verifier accepting only ed25519.
     pub fn new() -> Self {
-        Self { policy: VerifierPolicy::ed25519_only() }
+        Self {
+            policy: VerifierPolicy::ed25519_only(),
+        }
     }
 
     /// Construct with an explicit policy.
@@ -214,24 +220,26 @@ impl Verifier for Ed25519Verifier {
         }
         match scheme {
             SignatureScheme::Ed25519 => {
-                let pk_bytes: [u8; 32] = public_key.try_into().map_err(|_| {
-                    VerifierError::MalformedPublicKey {
-                        scheme: scheme.as_u32(),
-                        detail: "ed25519 pubkey must be 32 bytes",
-                    }
-                })?;
+                let pk_bytes: [u8; 32] =
+                    public_key
+                        .try_into()
+                        .map_err(|_| VerifierError::MalformedPublicKey {
+                            scheme: scheme.as_u32(),
+                            detail: "ed25519 pubkey must be 32 bytes",
+                        })?;
                 let vk = VerifyingKey::from_bytes(&pk_bytes).map_err(|_| {
                     VerifierError::MalformedPublicKey {
                         scheme: scheme.as_u32(),
                         detail: "ed25519 pubkey is not a valid point",
                     }
                 })?;
-                let sig_bytes: [u8; 64] = signature.try_into().map_err(|_| {
-                    VerifierError::MalformedSignature {
-                        scheme: scheme.as_u32(),
-                        detail: "ed25519 signature must be 64 bytes",
-                    }
-                })?;
+                let sig_bytes: [u8; 64] =
+                    signature
+                        .try_into()
+                        .map_err(|_| VerifierError::MalformedSignature {
+                            scheme: scheme.as_u32(),
+                            detail: "ed25519 signature must be 64 bytes",
+                        })?;
                 let sig = ed25519_dalek::Signature::from_bytes(&sig_bytes);
                 vk.verify(message, &sig)
                     .map_err(|_| VerifierError::BadSignature(scheme.as_u32()))
@@ -264,7 +272,12 @@ mod tests {
         let verifier = Ed25519Verifier::new();
         let sig = signer.sign(b"original").unwrap();
         let err = verifier
-            .verify(SignatureScheme::Ed25519, b"modified", &sig, &signer.public_key())
+            .verify(
+                SignatureScheme::Ed25519,
+                b"modified",
+                &sig,
+                &signer.public_key(),
+            )
             .unwrap_err();
         assert!(matches!(err, VerifierError::BadSignature(_)));
     }
@@ -341,7 +354,10 @@ mod tests {
         let verifier = Ed25519Verifier::new();
         let prefixed_sig = sign_with_prefix(&signer, b"x").unwrap();
         let mut prefixed_pk = Vec::new();
-        encode_varint(SignatureScheme::HybridEd25519MlDsa65.as_u32(), &mut prefixed_pk);
+        encode_varint(
+            SignatureScheme::HybridEd25519MlDsa65.as_u32(),
+            &mut prefixed_pk,
+        );
         prefixed_pk.extend_from_slice(&signer.public_key());
         let err = verify_prefixed(&verifier, b"x", &prefixed_sig, &prefixed_pk).unwrap_err();
         assert!(matches!(err, VerifierError::SchemeNotAccepted(_)));

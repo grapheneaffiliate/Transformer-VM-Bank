@@ -12,8 +12,8 @@
 //!   tendermint-rs ABCI talking to a CometBFT binary. PSL implements the
 //!   ABCI app; CometBFT runs the consensus.
 
-pub mod sovereign;
 pub mod abci;
+pub mod sovereign;
 
 use anyhow::Result;
 use async_trait::async_trait;

@@ -17,7 +17,7 @@
 //! resolution is finite and mechanical. No human arbiter, no oracle.
 
 use crate::error::ProtocolError;
-use crate::message::{Execute, Propose, ProposalHash};
+use crate::message::{Execute, ProposalHash, Propose};
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use psl_agent_contracts::TernaryProgram;
 use serde::{Deserialize, Serialize};
@@ -192,7 +192,9 @@ mod tests {
             &bob,
             h,
             witness.clone(),
-            ExpectedOutput { bytes: actual.clone() },
+            ExpectedOutput {
+                bytes: actual.clone(),
+            },
             100,
         );
         // Charlie disputes, claims a different output
@@ -233,7 +235,9 @@ mod tests {
             &bob,
             h,
             witness.clone(),
-            ExpectedOutput { bytes: lied.clone() },
+            ExpectedOutput {
+                bytes: lied.clone(),
+            },
             100,
         );
         // Charlie disputes
@@ -271,7 +275,9 @@ mod tests {
             &bob,
             h,
             witness.clone(),
-            ExpectedOutput { bytes: actual.clone() },
+            ExpectedOutput {
+                bytes: actual.clone(),
+            },
             100,
         );
         // dispute references a DIFFERENT proposal hash

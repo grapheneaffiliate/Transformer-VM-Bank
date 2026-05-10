@@ -60,14 +60,21 @@ pub struct SignedHeader {
 impl SignedHeader {
     pub fn sign(header: Header, kp: &KeyPair) -> Self {
         let sig = sign(kp, &header.signing_bytes());
-        Self { header, signature: sig }
+        Self {
+            header,
+            signature: sig,
+        }
     }
 
     pub fn verify(&self, expected: &PublicKey) -> Result<(), SigError> {
         if &self.header.sequencer_pubkey != expected {
             return Err(SigError::VerificationFailed);
         }
-        verify(&self.header.sequencer_pubkey, &self.header.signing_bytes(), &self.signature)
+        verify(
+            &self.header.sequencer_pubkey,
+            &self.header.signing_bytes(),
+            &self.signature,
+        )
     }
 
     /// Full hash of the signed header (signing_bytes || signature). Matches

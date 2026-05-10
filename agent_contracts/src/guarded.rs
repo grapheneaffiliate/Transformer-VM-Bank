@@ -44,7 +44,11 @@ pub(crate) fn u128_add_chain(
 
 /// 8-byte u64 ≥ compare via the same byte_sub borrow chain trick used
 /// by `transfer_check` (zero-padded to a 16-byte u128 compare).
-pub(crate) fn u64_ge(byte_sub: &TernaryNetwork, a: [u8; 8], b: [u8; 8]) -> Result<u8, ContractError> {
+pub(crate) fn u64_ge(
+    byte_sub: &TernaryNetwork,
+    a: [u8; 8],
+    b: [u8; 8],
+) -> Result<u8, ContractError> {
     let mut a16 = [0u8; 16];
     let mut b16 = [0u8; 16];
     a16[..8].copy_from_slice(&a);

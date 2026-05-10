@@ -21,12 +21,11 @@ use rand::SeedableRng;
 const HARDENED_OFFSET: u32 = 0x80000000;
 
 fn arb_seed_32() -> impl Strategy<Value = [u8; 32]> {
-    proptest::collection::vec(any::<u8>(), 32..=32)
-        .prop_map(|v| {
-            let mut a = [0u8; 32];
-            a.copy_from_slice(&v);
-            a
-        })
+    proptest::collection::vec(any::<u8>(), 32..=32).prop_map(|v| {
+        let mut a = [0u8; 32];
+        a.copy_from_slice(&v);
+        a
+    })
 }
 
 fn arb_hardened_index() -> impl Strategy<Value = u32> {

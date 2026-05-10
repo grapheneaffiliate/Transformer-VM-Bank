@@ -33,13 +33,18 @@ impl SequencerNode {
         let trace: Arc<dyn TraceExecutor> = if weights.exists()
             && weights.join("ledger_transfer.bin").exists()
         {
-            info!("using SubprocessTraceExecutor with weights at {}", cfg.weights_dir);
+            info!(
+                "using SubprocessTraceExecutor with weights at {}",
+                cfg.weights_dir
+            );
             Arc::new(SubprocessTraceExecutor {
                 transformer_vm_path: cfg.transformer_vm_path.clone().into(),
                 weights_dir: weights,
             })
         } else {
-            warn!("weights/ missing → using NativeTraceExecutor (DEV ONLY, trace_hash is a marker)");
+            warn!(
+                "weights/ missing → using NativeTraceExecutor (DEV ONLY, trace_hash is a marker)"
+            );
             Arc::new(NativeTraceExecutor)
         };
         Ok(Self {
@@ -84,13 +89,11 @@ impl SequencerNode {
         }
 
         let prev_state_root;
-        let prev_registry_root;
         let parent_hash;
         let block_n;
         {
             let s = self.state.read().unwrap();
             prev_state_root = s.accounts_root();
-            prev_registry_root = s.registry_root();
             let lh = self.last_header.read().unwrap();
             (parent_hash, block_n) = match &*lh {
                 Some(h) => (h.header_hash(), h.block_n + 1),
@@ -134,7 +137,10 @@ impl SequencerNode {
         };
 
         let signed = self.sign_header(header);
-        let _block = Block { header: signed.clone(), txs };
+        let _block = Block {
+            header: signed.clone(),
+            txs,
+        };
         info!(
             "produced block {} with {} txs, root={}",
             signed.block_n,
@@ -167,7 +173,12 @@ impl SequencerNode {
                 anyhow::bail!("multi-asset witness assembly TODO")
             }
         };
-        Ok(Witness { epoch, accounts, amount, flag })
+        Ok(Witness {
+            epoch,
+            accounts,
+            amount,
+            flag,
+        })
     }
 
     fn sign_header(&self, mut h: BlockHeader) -> BlockHeader {

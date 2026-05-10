@@ -8,7 +8,7 @@ use ed25519_dalek::SigningKey;
 use psl_agent_contracts::{TernaryProgram, TransferContract};
 use psl_agent_protocol::{
     dispute::{resolve_dispute, Dispute, DisputeOutcome},
-    message::{Accept, ExpectedOutput, Execute, Propose, ProposalHash},
+    message::{Accept, Execute, ExpectedOutput, ProposalHash, Propose},
     state_machine::ProposalLog,
     ProtocolError,
 };
@@ -54,7 +54,9 @@ fn replay_dispute_is_idempotent() {
         &bob,
         h,
         witness.clone(),
-        ExpectedOutput { bytes: lied.clone() },
+        ExpectedOutput {
+            bytes: lied.clone(),
+        },
         100,
     );
     let dispute = Dispute::sign(&charlie, h, witness, actual.clone(), 200);
@@ -91,7 +93,15 @@ fn malformed_witness_dispute_errors_out() {
         1,
     );
     let h = propose.proposal_hash();
-    let execute = Execute::sign(&bob, h, witness, ExpectedOutput { bytes: actual.clone() }, 100);
+    let execute = Execute::sign(
+        &bob,
+        h,
+        witness,
+        ExpectedOutput {
+            bytes: actual.clone(),
+        },
+        100,
+    );
 
     // Disputer submits a witness that is the WRONG length (TransferContract
     // expects 56 bytes; we give it 12).
@@ -101,7 +111,9 @@ fn malformed_witness_dispute_errors_out() {
     // Surface the contract error. Don't silently slash either party.
     assert!(matches!(
         r,
-        Err(ProtocolError::Contract(psl_agent_contracts::ContractError::InputShape { .. }))
+        Err(ProtocolError::Contract(
+            psl_agent_contracts::ContractError::InputShape { .. }
+        ))
     ));
 }
 
@@ -130,7 +142,15 @@ fn stale_dispute_resolves_deterministically_so_sequencer_can_decide() {
         1,
     );
     let h = propose.proposal_hash();
-    let execute = Execute::sign(&bob, h, witness.clone(), ExpectedOutput { bytes: actual.clone() }, 50);
+    let execute = Execute::sign(
+        &bob,
+        h,
+        witness.clone(),
+        ExpectedOutput {
+            bytes: actual.clone(),
+        },
+        50,
+    );
     // Dispute opened well after the proposal's valid_until — sequencer's
     // job to refuse this; resolution path remains deterministic.
     let dispute = Dispute::sign(&charlie, h, witness, actual.clone(), 999_999_999);
@@ -163,14 +183,25 @@ fn sybil_dispute_keys_each_resolve_independently() {
         1,
     );
     let h = propose.proposal_hash();
-    let execute = Execute::sign(&bob, h, witness.clone(), ExpectedOutput { bytes: actual.clone() }, 100);
+    let execute = Execute::sign(
+        &bob,
+        h,
+        witness.clone(),
+        ExpectedOutput {
+            bytes: actual.clone(),
+        },
+        100,
+    );
 
     for sybil_seed in 100..=104 {
         let sybil = sk(sybil_seed);
         let dispute = Dispute::sign(&sybil, h, witness.clone(), actual.clone(), 200);
         let r = resolve_dispute(&contract, &propose, &execute, &dispute).unwrap();
         // Honest executor; every sybil dispute is dismissed.
-        if let DisputeOutcome::DismissDispute { disputer_pubkey, .. } = r {
+        if let DisputeOutcome::DismissDispute {
+            disputer_pubkey, ..
+        } = r
+        {
             assert_eq!(disputer_pubkey, sybil.verifying_key().to_bytes());
         } else {
             panic!("expected DismissDispute for sybil seed {sybil_seed}");
@@ -202,7 +233,15 @@ fn griefing_dispute_volume_does_not_blow_up_resolver() {
         1,
     );
     let h = propose.proposal_hash();
-    let execute = Execute::sign(&bob, h, witness.clone(), ExpectedOutput { bytes: actual.clone() }, 100);
+    let execute = Execute::sign(
+        &bob,
+        h,
+        witness.clone(),
+        ExpectedOutput {
+            bytes: actual.clone(),
+        },
+        100,
+    );
 
     // 200 disputes in a tight loop. Resolver must remain bounded.
     for _ in 0..200 {
@@ -234,7 +273,15 @@ fn cross_proposal_dispute_refused_by_resolver() {
         1,
     );
     let h = propose.proposal_hash();
-    let execute = Execute::sign(&bob, h, witness.clone(), ExpectedOutput { bytes: actual.clone() }, 100);
+    let execute = Execute::sign(
+        &bob,
+        h,
+        witness.clone(),
+        ExpectedOutput {
+            bytes: actual.clone(),
+        },
+        100,
+    );
 
     // Dispute referencing some other proposal hash entirely.
     let dispute = Dispute::sign(&charlie, [0xffu8; 32], witness, actual, 200);
@@ -264,7 +311,13 @@ fn illegal_execute_preserves_accepted_state() {
     log.record_propose(propose.clone()).unwrap();
     log.apply_accept(Accept::sign(&bob, h, 100)).unwrap();
     // Mallory tries to send Execute even though she's not the proposer.
-    let bad = Execute::sign(&mallory, h, vec![1, 2, 3], ExpectedOutput { bytes: vec![] }, 200);
+    let bad = Execute::sign(
+        &mallory,
+        h,
+        vec![1, 2, 3],
+        ExpectedOutput { bytes: vec![] },
+        200,
+    );
     let r = log.apply_execute(bad);
     assert!(matches!(r, Err(ProtocolError::SignatureInvalid)));
     // State should still be Accepted (not corrupted to Executed by mallory).
@@ -273,7 +326,13 @@ fn illegal_execute_preserves_accepted_state() {
         psl_agent_protocol::state_machine::ProposalState::Accepted { .. }
     ));
     // Genuine Execute from Alice now succeeds.
-    let good = Execute::sign(&alice, h, vec![1, 2, 3], ExpectedOutput { bytes: vec![] }, 300);
+    let good = Execute::sign(
+        &alice,
+        h,
+        vec![1, 2, 3],
+        ExpectedOutput { bytes: vec![] },
+        300,
+    );
     log.apply_execute(good).unwrap();
     assert!(matches!(
         log.get(&h).unwrap(),

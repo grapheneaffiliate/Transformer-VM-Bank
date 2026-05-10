@@ -46,15 +46,27 @@ impl EscrowCreate {
     pub fn build() -> Self {
         let (byte_add, byte_sub) = build_subnets();
         let program_hash = hash_program("escrow_create", &byte_add, &byte_sub);
-        Self { byte_add, byte_sub, program_hash }
+        Self {
+            byte_add,
+            byte_sub,
+            program_hash,
+        }
     }
 }
 impl TernaryProgram for EscrowCreate {
-    fn name(&self) -> &'static str { "escrow_create" }
-    fn program_hash(&self) -> ProgramHash { self.program_hash }
+    fn name(&self) -> &'static str {
+        "escrow_create"
+    }
+    fn program_hash(&self) -> ProgramHash {
+        self.program_hash
+    }
     fn run(&self, input: &[u8]) -> Result<Vec<u8>, ContractError> {
         if input.len() != 56 {
-            return Err(ContractError::InputShape { contract: "escrow_create", got: input.len(), expected: 56 });
+            return Err(ContractError::InputShape {
+                contract: "escrow_create",
+                got: input.len(),
+                expected: 56,
+            });
         }
         let mut from_balance = [0u8; 16];
         let mut escrow_balance = [0u8; 16];
@@ -64,7 +76,14 @@ impl TernaryProgram for EscrowCreate {
         escrow_balance.copy_from_slice(&input[16..32]);
         amount.copy_from_slice(&input[32..48]);
         nonce.copy_from_slice(&input[48..56]);
-        wrapped_transfer(&self.byte_add, &self.byte_sub, from_balance, escrow_balance, amount, nonce)
+        wrapped_transfer(
+            &self.byte_add,
+            &self.byte_sub,
+            from_balance,
+            escrow_balance,
+            amount,
+            nonce,
+        )
     }
 }
 
@@ -83,15 +102,27 @@ impl EscrowRelease {
     pub fn build() -> Self {
         let (byte_add, byte_sub) = build_subnets();
         let program_hash = hash_program("escrow_release", &byte_add, &byte_sub);
-        Self { byte_add, byte_sub, program_hash }
+        Self {
+            byte_add,
+            byte_sub,
+            program_hash,
+        }
     }
 }
 impl TernaryProgram for EscrowRelease {
-    fn name(&self) -> &'static str { "escrow_release" }
-    fn program_hash(&self) -> ProgramHash { self.program_hash }
+    fn name(&self) -> &'static str {
+        "escrow_release"
+    }
+    fn program_hash(&self) -> ProgramHash {
+        self.program_hash
+    }
     fn run(&self, input: &[u8]) -> Result<Vec<u8>, ContractError> {
         if input.len() != 57 {
-            return Err(ContractError::InputShape { contract: "escrow_release", got: input.len(), expected: 57 });
+            return Err(ContractError::InputShape {
+                contract: "escrow_release",
+                got: input.len(),
+                expected: 57,
+            });
         }
         let release_flag = input[48];
         if release_flag != 1 {
@@ -105,7 +136,14 @@ impl TernaryProgram for EscrowRelease {
         recipient.copy_from_slice(&input[16..32]);
         amount.copy_from_slice(&input[32..48]);
         nonce.copy_from_slice(&input[49..57]);
-        wrapped_transfer(&self.byte_add, &self.byte_sub, escrow, recipient, amount, nonce)
+        wrapped_transfer(
+            &self.byte_add,
+            &self.byte_sub,
+            escrow,
+            recipient,
+            amount,
+            nonce,
+        )
     }
 }
 
@@ -121,15 +159,27 @@ impl EscrowRefund {
     pub fn build() -> Self {
         let (byte_add, byte_sub) = build_subnets();
         let program_hash = hash_program("escrow_refund", &byte_add, &byte_sub);
-        Self { byte_add, byte_sub, program_hash }
+        Self {
+            byte_add,
+            byte_sub,
+            program_hash,
+        }
     }
 }
 impl TernaryProgram for EscrowRefund {
-    fn name(&self) -> &'static str { "escrow_refund" }
-    fn program_hash(&self) -> ProgramHash { self.program_hash }
+    fn name(&self) -> &'static str {
+        "escrow_refund"
+    }
+    fn program_hash(&self) -> ProgramHash {
+        self.program_hash
+    }
     fn run(&self, input: &[u8]) -> Result<Vec<u8>, ContractError> {
         if input.len() != 57 {
-            return Err(ContractError::InputShape { contract: "escrow_refund", got: input.len(), expected: 57 });
+            return Err(ContractError::InputShape {
+                contract: "escrow_refund",
+                got: input.len(),
+                expected: 57,
+            });
         }
         let refund_flag = input[48];
         if refund_flag != 1 {
@@ -143,7 +193,14 @@ impl TernaryProgram for EscrowRefund {
         sender.copy_from_slice(&input[16..32]);
         amount.copy_from_slice(&input[32..48]);
         nonce.copy_from_slice(&input[49..57]);
-        wrapped_transfer(&self.byte_add, &self.byte_sub, escrow, sender, amount, nonce)
+        wrapped_transfer(
+            &self.byte_add,
+            &self.byte_sub,
+            escrow,
+            sender,
+            amount,
+            nonce,
+        )
     }
 }
 
@@ -175,7 +232,11 @@ mod tests {
         a.copy_from_slice(&out[0..16]);
         b.copy_from_slice(&out[16..32]);
         n.copy_from_slice(&out[32..40]);
-        (u128::from_le_bytes(a), u128::from_le_bytes(b), u64::from_le_bytes(n))
+        (
+            u128::from_le_bytes(a),
+            u128::from_le_bytes(b),
+            u64::from_le_bytes(n),
+        )
     }
 
     #[test]

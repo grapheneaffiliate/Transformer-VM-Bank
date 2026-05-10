@@ -4,7 +4,7 @@
 //! commitment). Adding/updating an issuer requires authority signature
 //! (system-root in sovereign mode, 2/3 supermajority in BFT mode).
 
-use psl_crypto::{Hash, PublicKey, hash_bytes};
+use psl_crypto::{hash_bytes, Hash, PublicKey};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

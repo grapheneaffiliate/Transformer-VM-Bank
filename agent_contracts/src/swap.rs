@@ -189,15 +189,32 @@ mod tests {
     }
 
     fn ground_truth(
-        sin: u128, sout: u128, rin: u128, rout: u128,
-        ain: u128, aout: u128, nonce: u64,
+        sin: u128,
+        sout: u128,
+        rin: u128,
+        rout: u128,
+        ain: u128,
+        aout: u128,
+        nonce: u64,
     ) -> (u128, u128, u128, u128, u64) {
         if sin < ain || rout < aout {
             return (0, 0, 0, 0, 0);
         }
-        let new_sout = match sout.checked_add(aout) { Some(v) => v, None => return (0,0,0,0,0) };
-        let new_rin = match rin.checked_add(ain) { Some(v) => v, None => return (0,0,0,0,0) };
-        (sin - ain, new_sout, new_rin, rout - aout, nonce.wrapping_add(1))
+        let new_sout = match sout.checked_add(aout) {
+            Some(v) => v,
+            None => return (0, 0, 0, 0, 0),
+        };
+        let new_rin = match rin.checked_add(ain) {
+            Some(v) => v,
+            None => return (0, 0, 0, 0, 0),
+        };
+        (
+            sin - ain,
+            new_sout,
+            new_rin,
+            rout - aout,
+            nonce.wrapping_add(1),
+        )
     }
 
     #[test]

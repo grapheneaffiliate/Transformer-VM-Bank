@@ -13,8 +13,8 @@
 //! inference, ~3590 ternary slots, no autoregressive loop).
 
 use psl_ternary_vm::primitives::byte_add_with_carry::{build, run};
-use psl_ternary_vm::trace_hash_ternary;
 use psl_ternary_vm::primitives::byte_add_with_carry::{decode_output, encode_input};
+use psl_ternary_vm::trace_hash_ternary;
 
 fn ground_truth(a: u8, b: u8, c: u8) -> (u8, u8) {
     let s = a as u16 + b as u16 + c as u16;
@@ -44,7 +44,10 @@ fn byte_add_exhaustive_131072() {
             }
         }
     }
-    assert_eq!(pass, 131_072, "expected exhaustive pass; first fail: {first_fail:?}");
+    assert_eq!(
+        pass, 131_072,
+        "expected exhaustive pass; first fail: {first_fail:?}"
+    );
     assert_eq!(fail, 0);
 }
 
@@ -57,7 +60,10 @@ fn trace_hash_is_deterministic_across_runs() {
         let in_vec = encode_input(a, b, c).unwrap();
         let out1 = net1.forward(&in_vec).unwrap();
         let out2 = net2.forward(&in_vec).unwrap();
-        assert_eq!(out1, out2, "forward differs across builds for ({a},{b},{c})");
+        assert_eq!(
+            out1, out2,
+            "forward differs across builds for ({a},{b},{c})"
+        );
 
         let h1 = trace_hash_ternary(&net1, &in_vec, &out1);
         let h2 = trace_hash_ternary(&net2, &in_vec, &out2);

@@ -22,8 +22,7 @@ struct Cli {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-    let w = psl_rust_runner::weights::load_weights(&cli.weights)
-        .context("loading weights")?;
+    let w = psl_rust_runner::weights::load_weights(&cli.weights).context("loading weights")?;
     if cli.inspect {
         let h = &w.header;
         println!(
@@ -40,7 +39,10 @@ fn main() -> Result<()> {
     }
     let input = cli.input.context("--input required unless --inspect")?;
     let input_str = std::fs::read_to_string(&input)?;
-    let input_owned: Vec<String> = input_str.split_whitespace().map(|s| s.to_string()).collect();
+    let input_owned: Vec<String> = input_str
+        .split_whitespace()
+        .map(|s| s.to_string())
+        .collect();
     let input: Vec<&str> = input_owned.iter().map(|s| s.as_str()).collect();
     let cfg = psl_rust_runner::GenerateConfig {
         max_new_tokens: cli.max_new_tokens,

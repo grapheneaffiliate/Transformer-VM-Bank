@@ -69,7 +69,17 @@ mod tests {
 
     #[test]
     fn round_trip_small() {
-        for v in [0u32, 1, 0x7f, 0x80, 0x3fff, 0x4000, 0xffff, 0x10000, 0xffff_ffff] {
+        for v in [
+            0u32,
+            1,
+            0x7f,
+            0x80,
+            0x3fff,
+            0x4000,
+            0xffff,
+            0x10000,
+            0xffff_ffff,
+        ] {
             let mut buf = Vec::new();
             let n = encode_varint(v, &mut buf);
             assert_eq!(buf.len(), n);

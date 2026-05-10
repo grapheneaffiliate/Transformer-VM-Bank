@@ -85,7 +85,9 @@ impl KeyRotation {
             self.rotated_at_unix,
             self.policy_version,
         );
-        parent_pk.verify(&body, &sig).map_err(|_| WalletError::SignatureInvalid)
+        parent_pk
+            .verify(&body, &sig)
+            .map_err(|_| WalletError::SignatureInvalid)
     }
 }
 

@@ -41,7 +41,7 @@ pub mod state_machine;
 pub use dispute::{Dispute, DisputeOutcome};
 pub use error::ProtocolError;
 pub use message::{
-    Accept, CounterPropose, Execute, ExpectedOutput, Propose, ProposalHash, ProtocolMessage, Reject,
+    Accept, CounterPropose, Execute, ExpectedOutput, ProposalHash, Propose, ProtocolMessage, Reject,
 };
 pub use registry::AgentRegistration;
 pub use reputation::ReputationCounters;

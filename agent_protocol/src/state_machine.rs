@@ -16,17 +16,35 @@
 //! delivery and replays are absorbed naturally.
 
 use crate::error::ProtocolError;
-use crate::message::{Accept, CounterPropose, Execute, Propose, ProposalHash, Reject};
+use crate::message::{Accept, CounterPropose, Execute, ProposalHash, Propose, Reject};
 use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub enum ProposalState {
-    Proposed { propose: Propose },
-    Accepted { propose: Propose, accept: Accept },
-    Rejected { propose: Propose, reject: Reject },
-    CounterProposed { propose: Propose, counter: CounterPropose },
-    Executed { propose: Propose, accept: Accept, execute: Execute },
-    Expired { propose: Propose, expired_at_unix: u64 },
+    Proposed {
+        propose: Propose,
+    },
+    Accepted {
+        propose: Propose,
+        accept: Accept,
+    },
+    Rejected {
+        propose: Propose,
+        reject: Reject,
+    },
+    CounterProposed {
+        propose: Propose,
+        counter: CounterPropose,
+    },
+    Executed {
+        propose: Propose,
+        accept: Accept,
+        execute: Execute,
+    },
+    Expired {
+        propose: Propose,
+        expired_at_unix: u64,
+    },
 }
 
 impl ProposalState {
@@ -41,7 +59,12 @@ impl ProposalState {
         }
     }
     pub fn is_terminal(&self) -> bool {
-        matches!(self, ProposalState::Rejected { .. } | ProposalState::Executed { .. } | ProposalState::Expired { .. })
+        matches!(
+            self,
+            ProposalState::Rejected { .. }
+                | ProposalState::Executed { .. }
+                | ProposalState::Expired { .. }
+        )
     }
 }
 
@@ -62,7 +85,8 @@ impl ProposalLog {
         let h = p.proposal_hash();
         // Idempotent re-insert
         if !self.by_hash.contains_key(&h) {
-            self.by_hash.insert(h, ProposalState::Proposed { propose: p });
+            self.by_hash
+                .insert(h, ProposalState::Proposed { propose: p });
         }
         Ok(h)
     }
@@ -145,7 +169,10 @@ impl ProposalLog {
                     self.by_hash.insert(h, ProposalState::Proposed { propose });
                     return Err(ProtocolError::SignatureInvalid);
                 }
-                ProposalState::CounterProposed { propose, counter: c }
+                ProposalState::CounterProposed {
+                    propose,
+                    counter: c,
+                }
             }
             other => {
                 let event = "counter";
@@ -173,7 +200,11 @@ impl ProposalLog {
                         .insert(h, ProposalState::Accepted { propose, accept });
                     return Err(ProtocolError::SignatureInvalid);
                 }
-                ProposalState::Executed { propose, accept, execute: e }
+                ProposalState::Executed {
+                    propose,
+                    accept,
+                    execute: e,
+                }
             }
             other => {
                 let event = "execute";
@@ -195,7 +226,10 @@ impl ProposalLog {
             if let ProposalState::Proposed { propose } = st {
                 if now > propose.valid_until_unix {
                     let propose = propose.clone();
-                    *st = ProposalState::Expired { propose, expired_at_unix: now };
+                    *st = ProposalState::Expired {
+                        propose,
+                        expired_at_unix: now,
+                    };
                     expired.push(*h);
                 }
             }
@@ -219,8 +253,8 @@ impl ProposalLog {
 mod tests {
     use super::*;
     use crate::message::ExpectedOutput;
-    use rand::SeedableRng;
     use ed25519_dalek::SigningKey;
+    use rand::SeedableRng;
 
     fn sk(seed: u64) -> SigningKey {
         let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
@@ -240,7 +274,13 @@ mod tests {
         let p = fresh_propose(&alice, bob_pk, 1);
         let h = log.record_propose(p.clone()).unwrap();
         log.apply_accept(Accept::sign(&bob, h, 100)).unwrap();
-        let exec = Execute::sign(&alice, h, vec![1, 2, 3], ExpectedOutput { bytes: vec![4] }, 200);
+        let exec = Execute::sign(
+            &alice,
+            h,
+            vec![1, 2, 3],
+            ExpectedOutput { bytes: vec![4] },
+            200,
+        );
         log.apply_execute(exec).unwrap();
         match log.get(&h).unwrap() {
             ProposalState::Executed { .. } => (),
@@ -267,10 +307,17 @@ mod tests {
         let mut log = ProposalLog::new();
         let p = fresh_propose(&alice, bob.verifying_key().to_bytes(), 1);
         let h = log.record_propose(p).unwrap();
-        log.apply_reject(Reject::sign(&bob, h, "no thanks".into(), 50)).unwrap();
+        log.apply_reject(Reject::sign(&bob, h, "no thanks".into(), 50))
+            .unwrap();
         // can't accept after reject
         let r = log.apply_accept(Accept::sign(&bob, h, 60));
-        assert!(matches!(r, Err(ProtocolError::IllegalTransition { event: "accept", .. })));
+        assert!(matches!(
+            r,
+            Err(ProtocolError::IllegalTransition {
+                event: "accept",
+                ..
+            })
+        ));
     }
 
     #[test]
@@ -280,7 +327,8 @@ mod tests {
         let mut log = ProposalLog::new();
         let p = fresh_propose(&alice, bob.verifying_key().to_bytes(), 1);
         let h = log.record_propose(p).unwrap();
-        log.apply_counter(CounterPropose::sign(&bob, h, vec![9, 8], 2)).unwrap();
+        log.apply_counter(CounterPropose::sign(&bob, h, vec![9, 8], 2))
+            .unwrap();
         match log.get(&h).unwrap() {
             ProposalState::CounterProposed { .. } => (),
             other => panic!("expected CounterProposed, got {other:?}"),

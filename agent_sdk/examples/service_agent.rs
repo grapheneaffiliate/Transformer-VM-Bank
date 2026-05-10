@@ -11,9 +11,9 @@ use ed25519_dalek::SigningKey;
 use psl_agent_contracts::{TernaryProgram, TransferContract};
 use psl_agent_protocol::{
     dispute::{Dispute, DisputeOutcome},
-    message::{ExpectedOutput, Execute},
+    message::{Execute, ExpectedOutput},
 };
-use psl_agent_sdk::{AgentIdentity, AgentSdk, InMemoryOnChain, InProcessBus, Transport};
+use psl_agent_sdk::{AgentIdentity, AgentSdk, InMemoryOnChain, InProcessBus};
 use psl_agent_wallet::{KeyPolicy, PolicyEnvelope};
 use rand::SeedableRng;
 use std::sync::Arc;
@@ -33,7 +33,11 @@ fn make_identity(seed: u64, contract_name: &str) -> AgentIdentity {
         version: 1,
     };
     let policy_envelope = PolicyEnvelope::sign(&parent, policy).unwrap();
-    AgentIdentity { parent, child, policy_envelope }
+    AgentIdentity {
+        parent,
+        child,
+        policy_envelope,
+    }
 }
 
 fn pack_transfer(from: u128, to: u128, amount: u128, nonce: u64) -> Vec<u8> {
@@ -67,7 +71,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let witness = pack_transfer(1000, 500, 250, 7);
     let actual = contract.run(&witness)?;
-    println!("[service_agent] true contract output: {} bytes", actual.len());
+    println!(
+        "[service_agent] true contract output: {} bytes",
+        actual.len()
+    );
 
     // Bob (the malicious "executor") signs an Execute claiming all-zero
     // output. Alice (the original proposer) sees the discrepancy and
@@ -87,12 +94,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &bob.identity.child,
         proposal_hash,
         witness.clone(),
-        ExpectedOutput { bytes: lied_output.clone() },
+        ExpectedOutput {
+            bytes: lied_output.clone(),
+        },
         100,
     );
 
-    println!("[service_agent] Bob signed an Execute claiming {} all-zero output bytes (LIE).",
-        lied_output.len());
+    println!(
+        "[service_agent] Bob signed an Execute claiming {} all-zero output bytes (LIE).",
+        lied_output.len()
+    );
 
     let dispute = Dispute::sign(
         &alice.identity.child,
@@ -105,9 +116,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Judge re-executes deterministically.
     let outcome = judge.resolve_dispute_for(&propose, &lied_execute, &dispute)?;
     match outcome {
-        DisputeOutcome::SlashExecutor { executor_pubkey, .. } => {
-            println!("[service_agent] judge: SLASH executor {} (re-executed output ≠ executor's claim).",
-                hex::encode(executor_pubkey));
+        DisputeOutcome::SlashExecutor {
+            executor_pubkey, ..
+        } => {
+            println!(
+                "[service_agent] judge: SLASH executor {} (re-executed output ≠ executor's claim).",
+                hex::encode(executor_pubkey)
+            );
             assert_eq!(executor_pubkey, bob.identity.pubkey());
         }
         DisputeOutcome::DismissDispute { .. } => {
@@ -115,6 +130,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    println!("[service_agent] flow complete: dispute resolved deterministically, no human arbiter.");
+    println!(
+        "[service_agent] flow complete: dispute resolved deterministically, no human arbiter."
+    );
     Ok(())
 }

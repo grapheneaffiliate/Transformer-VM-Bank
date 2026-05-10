@@ -169,7 +169,12 @@ impl Accept {
     }
     pub fn sign(signer: &SigningKey, proposal_hash: ProposalHash, accepted_at_unix: u64) -> Self {
         let by = signer.verifying_key().to_bytes();
-        let mut m = Accept { proposal_hash, by, accepted_at_unix, sig: [0u8; 64] };
+        let mut m = Accept {
+            proposal_hash,
+            by,
+            accepted_at_unix,
+            sig: [0u8; 64],
+        };
         m.sig = signer.sign(&m.canonical_bytes()).to_bytes();
         m
     }
@@ -195,7 +200,13 @@ impl Reject {
         rejected_at_unix: u64,
     ) -> Self {
         let by = signer.verifying_key().to_bytes();
-        let mut m = Reject { proposal_hash, by, reason, rejected_at_unix, sig: [0u8; 64] };
+        let mut m = Reject {
+            proposal_hash,
+            by,
+            reason,
+            rejected_at_unix,
+            sig: [0u8; 64],
+        };
         m.sig = signer.sign(&m.canonical_bytes()).to_bytes();
         m
     }
@@ -274,9 +285,11 @@ impl Execute {
 // ── helpers ──────────────────────────────────────────────────────────
 
 fn verify_sig(pk: &[u8; 32], body: &[u8], sig: &[u8; 64]) -> Result<(), ProtocolError> {
-    let pk = VerifyingKey::from_bytes(pk).map_err(|e| ProtocolError::Ed25519(format!("pk: {e}")))?;
+    let pk =
+        VerifyingKey::from_bytes(pk).map_err(|e| ProtocolError::Ed25519(format!("pk: {e}")))?;
     let s = Signature::from_bytes(sig);
-    pk.verify(body, &s).map_err(|_| ProtocolError::SignatureInvalid)
+    pk.verify(body, &s)
+        .map_err(|_| ProtocolError::SignatureInvalid)
 }
 
 fn push_str(buf: &mut Vec<u8>, s: &str) {
@@ -343,7 +356,13 @@ mod tests {
         let a = Accept::sign(&alice, h, 1000);
         let r = Reject::sign(&alice, h, "not interested".into(), 1000);
         let c = CounterPropose::sign(&alice, h, vec![9, 8, 7], 11);
-        let e = Execute::sign(&alice, h, vec![1, 2], ExpectedOutput { bytes: vec![3, 4] }, 1100);
+        let e = Execute::sign(
+            &alice,
+            h,
+            vec![1, 2],
+            ExpectedOutput { bytes: vec![3, 4] },
+            1100,
+        );
         a.verify().unwrap();
         r.verify().unwrap();
         c.verify().unwrap();

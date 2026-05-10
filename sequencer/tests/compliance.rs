@@ -74,7 +74,10 @@ fn lookup<'a>(state: &'a State) -> impl Fn(u32) -> Option<IssuerRecord> + 'a {
             regulator_view_keys: vec![],
             name: String::new(),
         };
-        state.registry.get(&rec.key()).and_then(IssuerRecord::deserialize)
+        state
+            .registry
+            .get(&rec.key())
+            .and_then(IssuerRecord::deserialize)
     }
 }
 
@@ -96,11 +99,27 @@ fn travel_rule_high_value_without_metadata_rejected() {
     state.put_account(acc);
 
     // High-value transfer (5000 > threshold 1000) without metadata → reject
-    let tx = build_tx(TxKind::Transfer, 1, 1, &alice, Some(bob_pk), 5_000, 0, None, None);
+    let tx = build_tx(
+        TxKind::Transfer,
+        1,
+        1,
+        &alice,
+        Some(bob_pk),
+        5_000,
+        0,
+        None,
+        None,
+    );
     let res = validate(&tx, &state, &lookup(&state));
-    assert!(res.is_err(), "high-value tx without metadata must be rejected");
+    assert!(
+        res.is_err(),
+        "high-value tx without metadata must be rejected"
+    );
     let err = format!("{:?}", res.unwrap_err());
-    assert!(err.contains("travel-rule"), "error should mention travel-rule, got: {err}");
+    assert!(
+        err.contains("travel-rule"),
+        "error should mention travel-rule, got: {err}"
+    );
 }
 
 #[test]
@@ -118,9 +137,22 @@ fn travel_rule_high_value_with_metadata_accepted() {
     state.put_account(acc);
 
     let metadata = b"encrypted_originator_blob_v1".to_vec();
-    let tx = build_tx(TxKind::Transfer, 1, 1, &alice, Some(bob_pk), 5_000, 0, None, Some(metadata));
+    let tx = build_tx(
+        TxKind::Transfer,
+        1,
+        1,
+        &alice,
+        Some(bob_pk),
+        5_000,
+        0,
+        None,
+        Some(metadata),
+    );
     let res = validate(&tx, &state, &lookup(&state));
-    assert!(res.is_ok(), "high-value tx WITH metadata must pass: {res:?}");
+    assert!(
+        res.is_ok(),
+        "high-value tx WITH metadata must pass: {res:?}"
+    );
 }
 
 #[test]
@@ -138,9 +170,22 @@ fn travel_rule_low_value_without_metadata_accepted() {
     state.put_account(acc);
 
     // 500 < threshold 1000 → no metadata required
-    let tx = build_tx(TxKind::Transfer, 1, 1, &alice, Some(bob_pk), 500, 0, None, None);
+    let tx = build_tx(
+        TxKind::Transfer,
+        1,
+        1,
+        &alice,
+        Some(bob_pk),
+        500,
+        0,
+        None,
+        None,
+    );
     let res = validate(&tx, &state, &lookup(&state));
-    assert!(res.is_ok(), "low-value tx without metadata must pass: {res:?}");
+    assert!(
+        res.is_ok(),
+        "low-value tx without metadata must pass: {res:?}"
+    );
 }
 
 // ---------- 2. Freeze authority ----------
@@ -189,7 +234,10 @@ fn freeze_without_court_order_rejected() {
         None,
     );
     let res = validate(&tx, &state, &lookup(&state));
-    assert!(res.is_err(), "freeze without court_order_hash must be rejected");
+    assert!(
+        res.is_err(),
+        "freeze without court_order_hash must be rejected"
+    );
     let err = format!("{:?}", res.unwrap_err());
     assert!(err.contains("court_order_hash"), "got: {err}");
 }
@@ -213,7 +261,10 @@ fn freeze_by_issuer_with_court_order_accepted() {
         None,
     );
     let res = validate(&tx, &state, &lookup(&state));
-    assert!(res.is_ok(), "issuer freeze with court_order must pass: {res:?}");
+    assert!(
+        res.is_ok(),
+        "issuer freeze with court_order must pass: {res:?}"
+    );
 }
 
 #[test]
@@ -232,7 +283,17 @@ fn frozen_account_cannot_transfer() {
     acc.set_frozen(true);
     state.put_account(acc);
 
-    let tx = build_tx(TxKind::Transfer, 1, 1, &alice, Some(bob_pk), 100, 0, None, None);
+    let tx = build_tx(
+        TxKind::Transfer,
+        1,
+        1,
+        &alice,
+        Some(bob_pk),
+        100,
+        0,
+        None,
+        None,
+    );
     let res = validate(&tx, &state, &lookup(&state));
     assert!(res.is_err(), "frozen account's transfer must be rejected");
     let err = format!("{:?}", res.unwrap_err());
@@ -264,8 +325,10 @@ fn regulator_can_verify_balance_via_inclusion_proof() {
     // Regulator's verification: proof verifies against the published root.
     // The proof embeds the leaf value, so verification is parameter-free
     // beyond root + key + proof.
-    assert!(SparseMerkleTree::verify_proof(&root, &pk, &proof),
-        "valid inclusion proof must verify");
+    assert!(
+        SparseMerkleTree::verify_proof(&root, &pk, &proof),
+        "valid inclusion proof must verify"
+    );
 
     // The regulator reads the balance from proof.value (bytes 32..48).
     let balance = u128::from_le_bytes(proof.value[32..48].try_into().unwrap());
@@ -290,6 +353,8 @@ fn tampered_proof_rejected() {
     // Forge the balance bytes inside the proof's leaf value.
     proof.value[32..48].copy_from_slice(&999_999_999u128.to_le_bytes());
 
-    assert!(!SparseMerkleTree::verify_proof(&root, &pk, &proof),
-        "forged-balance leaf must be rejected by inclusion-proof verifier");
+    assert!(
+        !SparseMerkleTree::verify_proof(&root, &pk, &proof),
+        "forged-balance leaf must be rejected by inclusion-proof verifier"
+    );
 }

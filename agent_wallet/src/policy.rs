@@ -21,7 +21,7 @@
 //! window cap on the next attempted spend.
 
 use crate::error::WalletError;
-use ed25519_dalek::{Signature, Signer, Verifier, VerifyingKey, SigningKey};
+use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
 use std::collections::VecDeque;
@@ -78,8 +78,7 @@ impl KeyPolicy {
     }
 
     pub fn allows_contract(&self, contract: &str) -> bool {
-        self.allowed_contracts.is_empty()
-            || self.allowed_contracts.iter().any(|c| c == contract)
+        self.allowed_contracts.is_empty() || self.allowed_contracts.iter().any(|c| c == contract)
     }
 
     pub fn allows_counterparty(&self, cp: &[u8; 32]) -> bool {
@@ -105,7 +104,10 @@ impl PolicyEnvelope {
             return Err(WalletError::PolicySignatureInvalid);
         }
         let sig = parent.sign(&policy.canonical_bytes());
-        Ok(Self { policy, sig: sig.to_bytes() })
+        Ok(Self {
+            policy,
+            sig: sig.to_bytes(),
+        })
     }
 
     pub fn verify(&self) -> Result<(), WalletError> {
@@ -128,7 +130,10 @@ pub struct SpendingTracker {
 
 impl SpendingTracker {
     pub fn new(policy: KeyPolicy) -> Self {
-        Self { policy, spends: VecDeque::new() }
+        Self {
+            policy,
+            spends: VecDeque::new(),
+        }
     }
 
     /// Drop entries older than the window relative to `now`.
@@ -163,10 +168,12 @@ impl SpendingTracker {
             });
         }
         let current = self.current_window_total(now);
-        let would_spend = current.checked_add(amount).ok_or(WalletError::PolicyOverspend {
-            would_spend: u128::MAX,
-            cap: self.policy.cap_per_window,
-        })?;
+        let would_spend = current
+            .checked_add(amount)
+            .ok_or(WalletError::PolicyOverspend {
+                would_spend: u128::MAX,
+                cap: self.policy.cap_per_window,
+            })?;
         if would_spend > self.policy.cap_per_window {
             return Err(WalletError::PolicyOverspend {
                 would_spend,
@@ -191,7 +198,9 @@ impl SpendingTracker {
             return Err(WalletError::PolicyContractDisallowed(contract.into()));
         }
         if !self.policy.allows_counterparty(counterparty) {
-            return Err(WalletError::PolicyCounterpartyDisallowed { pubkey: *counterparty });
+            return Err(WalletError::PolicyCounterpartyDisallowed {
+                pubkey: *counterparty,
+            });
         }
         self.try_spend(now, amount)
     }

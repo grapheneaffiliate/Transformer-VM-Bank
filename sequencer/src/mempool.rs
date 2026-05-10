@@ -13,7 +13,7 @@
 //! v1 we accept up to one in-flight tx per (signer, nonce) pair.
 
 use anyhow::{anyhow, Result};
-use psl_crypto::{Account, verify};
+use psl_crypto::{verify, Account};
 use std::collections::VecDeque;
 
 use crate::issuer_registry::IssuerRecord;
@@ -27,7 +27,10 @@ pub struct Mempool {
 
 impl Mempool {
     pub fn new(capacity: usize) -> Self {
-        Self { queue: VecDeque::with_capacity(capacity), capacity }
+        Self {
+            queue: VecDeque::with_capacity(capacity),
+            capacity,
+        }
     }
 
     pub fn ingress(
@@ -65,8 +68,7 @@ pub fn validate(
 ) -> Result<()> {
     // 1. Signature
     let canonical = tx.canonical();
-    verify(&tx.signer, &canonical, &tx.signature)
-        .map_err(|e| anyhow!("invalid signature: {e}"))?;
+    verify(&tx.signer, &canonical, &tx.signature).map_err(|e| anyhow!("invalid signature: {e}"))?;
 
     // 2. Nonce + sender state
     let signer_account: Account = state.account(&tx.signer);

@@ -90,9 +90,19 @@ async fn main() -> Result<()> {
         0,
         None,
     );
-    let h = finalize_block(&exec, &state, &sequencer_kp, &mint_tx, &mut block_n, chain.last())?;
+    let h = finalize_block(
+        &exec,
+        &state,
+        &sequencer_kp,
+        &mint_tx,
+        &mut block_n,
+        chain.last(),
+    )?;
     chain.push(h);
-    info!("after mint: treasury balance = {}", balance_of(&state, &treasury.public()));
+    info!(
+        "after mint: treasury balance = {}",
+        balance_of(&state, &treasury.public())
+    );
 
     // Step 2: treasury transfers 100 to customer
     let xfer1 = build_tx(
@@ -105,7 +115,14 @@ async fn main() -> Result<()> {
         0,
         None,
     );
-    let h = finalize_block(&exec, &state, &sequencer_kp, &xfer1, &mut block_n, chain.last())?;
+    let h = finalize_block(
+        &exec,
+        &state,
+        &sequencer_kp,
+        &xfer1,
+        &mut block_n,
+        chain.last(),
+    )?;
     chain.push(h);
     info!(
         "after xfer 100 to customer: treasury={} customer={}",
@@ -124,7 +141,14 @@ async fn main() -> Result<()> {
         0,
         None,
     );
-    let h = finalize_block(&exec, &state, &sequencer_kp, &xfer2, &mut block_n, chain.last())?;
+    let h = finalize_block(
+        &exec,
+        &state,
+        &sequencer_kp,
+        &xfer2,
+        &mut block_n,
+        chain.last(),
+    )?;
     chain.push(h);
     info!(
         "after xfer 50 to merchant: customer={} merchant={}",
@@ -143,9 +167,19 @@ async fn main() -> Result<()> {
         0,
         None,
     );
-    let h = finalize_block(&exec, &state, &sequencer_kp, &burn_tx, &mut block_n, chain.last())?;
+    let h = finalize_block(
+        &exec,
+        &state,
+        &sequencer_kp,
+        &burn_tx,
+        &mut block_n,
+        chain.last(),
+    )?;
     chain.push(h);
-    info!("after burn: treasury balance = {}", balance_of(&state, &treasury.public()));
+    info!(
+        "after burn: treasury balance = {}",
+        balance_of(&state, &treasury.public())
+    );
 
     // Step 5: light-client verifies merchant's balance against the published
     // chain of block headers (genesis through head).
@@ -225,10 +259,7 @@ fn finalize_block(
     let accounts = {
         let s = state.read().unwrap();
         match tx.kind {
-            TxKind::Transfer => vec![
-                s.account(&tx.signer),
-                s.account(&tx.recipient.unwrap()),
-            ],
+            TxKind::Transfer => vec![s.account(&tx.signer), s.account(&tx.recipient.unwrap())],
             _ => vec![s.account(&target)],
         }
     };

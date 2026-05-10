@@ -12,8 +12,7 @@ use ed25519_dalek::SigningKey;
 use psl_agent_contracts::{TernaryProgram, TransferContract};
 use psl_agent_protocol::message::ProtocolMessage;
 use psl_agent_sdk::{
-    AgentIdentity, AgentSdk, InMemoryOnChain, InProcessBus, OnChainView, ProposeDecision,
-    Transport,
+    AgentIdentity, AgentSdk, InMemoryOnChain, InProcessBus, OnChainView, ProposeDecision, Transport,
 };
 use psl_agent_wallet::{KeyPolicy, PolicyEnvelope};
 use rand::SeedableRng;
@@ -34,7 +33,11 @@ fn make_identity(seed: u64, contract_name: &str) -> AgentIdentity {
         version: 1,
     };
     let policy_envelope = PolicyEnvelope::sign(&parent, policy).unwrap();
-    AgentIdentity { parent, child, policy_envelope }
+    AgentIdentity {
+        parent,
+        child,
+        policy_envelope,
+    }
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -50,7 +53,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     bus.register(alice.identity.pubkey());
     bus.register(bob.identity.pubkey());
     let mut onchain = InMemoryOnChain::new();
-    onchain.register(alice.registration("https://alice.example/v1", "Alice", "0.1% swap fee", 1_000, 1));
+    onchain.register(alice.registration(
+        "https://alice.example/v1",
+        "Alice",
+        "0.1% swap fee",
+        1_000,
+        1,
+    ));
     onchain.register(bob.registration("https://bob.example/v1", "Bob", "0.1% swap fee", 1_000, 1));
 
     // Alice proposes a transfer of 250 to Bob.
@@ -78,10 +87,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 p,
                 100,
                 |incoming| {
-                    if onchain
-                        .lookup_registration(&incoming.from)
-                        .is_some()
-                    {
+                    if onchain.lookup_registration(&incoming.from).is_some() {
                         ProposeDecision::Accept
                     } else {
                         ProposeDecision::Reject("counterparty unknown".into())
@@ -105,8 +111,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for msg in bus.poll(&bob.identity.pubkey()) {
         if let ProtocolMessage::Execute(e) = msg {
             let agreed = bob.handle_execute(e, &onchain)?;
-            println!("[trader_agent] Bob: verified Execute, output {}",
-                if agreed { "agrees" } else { "DISAGREES" });
+            println!(
+                "[trader_agent] Bob: verified Execute, output {}",
+                if agreed { "agrees" } else { "DISAGREES" }
+            );
             assert!(agreed);
         }
     }

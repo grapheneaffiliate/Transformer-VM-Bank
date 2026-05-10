@@ -1,3 +1,9 @@
+// The whole crate is `#[deprecated]` per ADR-0001; its own internals
+// reference each other and would otherwise emit deprecation warnings
+// from inside the crate itself. Suppress at crate root so the legacy
+// build remains warning-free without needing per-callsite #[allow].
+#![allow(deprecated)]
+
 //! **LEGACY — frozen per ADR-0001 (`docs/decisions/0001-retire-legacy-fp64-runner.md`).**
 //!
 //! Pure-Rust port of Transformer-VM's specialized-model runner. This

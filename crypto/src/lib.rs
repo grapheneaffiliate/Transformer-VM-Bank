@@ -7,14 +7,14 @@
 //! - [`account`]: 64-byte fixed account record + serialization to/from the
 //!   wire bytes consumed by the transformer-trace primitives.
 
+pub mod account;
 pub mod hash;
 pub mod signature;
 pub mod smt;
-pub mod account;
 pub mod trace_hash;
 
-pub use hash::{Hash, hash_bytes, hash_concat};
-pub use signature::{KeyPair, PublicKey, SigError, Signature, sign, verify};
-pub use smt::{SparseMerkleTree, MerkleProof, SmtError};
 pub use account::{Account, FROZEN_FLAG};
+pub use hash::{hash_bytes, hash_concat, Hash};
+pub use signature::{sign, verify, KeyPair, PublicKey, SigError, Signature};
+pub use smt::{MerkleProof, SmtError, SparseMerkleTree};
 pub use trace_hash::{hash_trace, hash_trace_owned};

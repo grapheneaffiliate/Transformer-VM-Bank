@@ -50,7 +50,10 @@ impl Ed25519MasterKey {
         private.copy_from_slice(&i[..32]);
         let mut chain_code = Zeroizing::new([0u8; 32]);
         chain_code.copy_from_slice(&i[32..]);
-        Ok(Self { private, chain_code })
+        Ok(Self {
+            private,
+            chain_code,
+        })
     }
 
     /// Derive a hardened child key. `index` must be ≥ 0x80000000.
@@ -93,7 +96,9 @@ impl Ed25519ChildKey {
     }
 
     pub fn verify(pubkey: &VerifyingKey, msg: &[u8], sig: &Signature) -> Result<(), WalletError> {
-        pubkey.verify(msg, sig).map_err(|_| WalletError::SignatureInvalid)
+        pubkey
+            .verify(msg, sig)
+            .map_err(|_| WalletError::SignatureInvalid)
     }
 }
 
@@ -115,7 +120,11 @@ fn derive_hardened(
     private.copy_from_slice(&i[..32]);
     let mut chain_code = Zeroizing::new([0u8; 32]);
     chain_code.copy_from_slice(&i[32..]);
-    Ok(Ed25519ChildKey { private, chain_code, index })
+    Ok(Ed25519ChildKey {
+        private,
+        chain_code,
+        index,
+    })
 }
 
 #[cfg(test)]
@@ -129,9 +138,11 @@ mod tests {
         let seed = hex::decode("000102030405060708090a0b0c0d0e0f").unwrap();
         let master = Ed25519MasterKey::from_seed(&seed).unwrap();
         let expected_priv =
-            hex::decode("2b4be7f19ee27bbf30c667b642d5f4aa69fd169872f8fc3059c08ebae2eb19e7").unwrap();
+            hex::decode("2b4be7f19ee27bbf30c667b642d5f4aa69fd169872f8fc3059c08ebae2eb19e7")
+                .unwrap();
         let expected_chain =
-            hex::decode("90046a93de5380a72b5e45010748567d5ea02bbf6522f979e05c0d8d8ca9fffb").unwrap();
+            hex::decode("90046a93de5380a72b5e45010748567d5ea02bbf6522f979e05c0d8d8ca9fffb")
+                .unwrap();
         assert_eq!(&master.private[..], &expected_priv[..]);
         assert_eq!(&master.chain_code[..], &expected_chain[..]);
     }
@@ -142,9 +153,11 @@ mod tests {
         let master = Ed25519MasterKey::from_seed(&seed).unwrap();
         let child = master.derive_child(HARDENED_OFFSET).unwrap();
         let expected_priv =
-            hex::decode("68e0fe46dfb67e368c75379acec591dad19df3cde26e63b93a8e704f1dade7a3").unwrap();
+            hex::decode("68e0fe46dfb67e368c75379acec591dad19df3cde26e63b93a8e704f1dade7a3")
+                .unwrap();
         let expected_chain =
-            hex::decode("8b59aa11380b624e81507a27fedda59fea6d0b779a778918a2fd3590e16e9c69").unwrap();
+            hex::decode("8b59aa11380b624e81507a27fedda59fea6d0b779a778918a2fd3590e16e9c69")
+                .unwrap();
         assert_eq!(&child.private[..], &expected_priv[..]);
         assert_eq!(&child.chain_code[..], &expected_chain[..]);
     }

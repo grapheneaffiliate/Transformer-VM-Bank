@@ -2,9 +2,9 @@
 //!
 //! Mirrors `Transformer-VM/transformer_vm/runner.py:run_model_program`.
 
-use anyhow::{anyhow, Result};
 use crate::transformer::Transformer;
 use crate::weights::Weights;
+use anyhow::{anyhow, Result};
 
 pub struct GenerateConfig {
     pub max_new_tokens: usize,
@@ -12,7 +12,9 @@ pub struct GenerateConfig {
 
 impl Default for GenerateConfig {
     fn default() -> Self {
-        Self { max_new_tokens: 50_000 }
+        Self {
+            max_new_tokens: 50_000,
+        }
     }
 }
 

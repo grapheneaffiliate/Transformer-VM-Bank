@@ -119,6 +119,9 @@ fn main() -> Result<()> {
             }
         }
     }
-    eprintln!("dumped {steps_written} steps to {}.{{logits.bin,argmax.txt}}", cli.out_prefix);
+    eprintln!(
+        "dumped {steps_written} steps to {}.{{logits.bin,argmax.txt}}",
+        cli.out_prefix
+    );
     Ok(())
 }

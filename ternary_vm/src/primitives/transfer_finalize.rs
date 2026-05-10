@@ -81,7 +81,9 @@ mod tests {
         let n = build();
         for _ in 0..1000 {
             let mut nonce = [0u8; 8];
-            for s in nonce.iter_mut() { *s = rng.gen(); }
+            for s in nonce.iter_mut() {
+                *s = rng.gen();
+            }
             let got = run(&n, nonce).unwrap();
             assert_eq!(got, ground_truth(nonce), "nonce={nonce:?}");
         }

@@ -11,8 +11,8 @@
 use proptest::prelude::*;
 use psl_crypto_agility::codec::{decode_varint, encode_varint};
 use psl_crypto_agility::{
-    Blake3_256, Blake3_512, Ed25519Signer, Ed25519Verifier, HashScheme_, SignatureScheme,
-    Signer, Verifier, VerifierError,
+    Blake3_256, Blake3_512, Ed25519Signer, Ed25519Verifier, HashScheme_, SignatureScheme, Signer,
+    Verifier, VerifierError,
 };
 
 proptest! {

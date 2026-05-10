@@ -38,15 +38,27 @@ impl TimeLockedRelease {
     pub fn build() -> Self {
         let (byte_add, byte_sub) = build_subnets();
         let program_hash = hash_program("time_locked_release", &byte_add, &byte_sub);
-        Self { byte_add, byte_sub, program_hash }
+        Self {
+            byte_add,
+            byte_sub,
+            program_hash,
+        }
     }
 }
 impl TernaryProgram for TimeLockedRelease {
-    fn name(&self) -> &'static str { "time_locked_release" }
-    fn program_hash(&self) -> ProgramHash { self.program_hash }
+    fn name(&self) -> &'static str {
+        "time_locked_release"
+    }
+    fn program_hash(&self) -> ProgramHash {
+        self.program_hash
+    }
     fn run(&self, input: &[u8]) -> Result<Vec<u8>, ContractError> {
         if input.len() != 72 {
-            return Err(ContractError::InputShape { contract: "time_locked_release", got: input.len(), expected: 72 });
+            return Err(ContractError::InputShape {
+                contract: "time_locked_release",
+                got: input.len(),
+                expected: 72,
+            });
         }
         let mut current_time = [0u8; 8];
         let mut unlock_time = [0u8; 8];
@@ -85,15 +97,27 @@ impl Multisig2of3 {
     pub fn build() -> Self {
         let (byte_add, byte_sub) = build_subnets();
         let program_hash = hash_program("multisig_2of3", &byte_add, &byte_sub);
-        Self { byte_add, byte_sub, program_hash }
+        Self {
+            byte_add,
+            byte_sub,
+            program_hash,
+        }
     }
 }
 impl TernaryProgram for Multisig2of3 {
-    fn name(&self) -> &'static str { "multisig_2of3" }
-    fn program_hash(&self) -> ProgramHash { self.program_hash }
+    fn name(&self) -> &'static str {
+        "multisig_2of3"
+    }
+    fn program_hash(&self) -> ProgramHash {
+        self.program_hash
+    }
     fn run(&self, input: &[u8]) -> Result<Vec<u8>, ContractError> {
         if input.len() != 59 {
-            return Err(ContractError::InputShape { contract: "multisig_2of3", got: input.len(), expected: 59 });
+            return Err(ContractError::InputShape {
+                contract: "multisig_2of3",
+                got: input.len(),
+                expected: 59,
+            });
         }
         let s0 = input[56];
         let s1 = input[57];
@@ -132,15 +156,27 @@ impl ConditionalPayment {
     pub fn build() -> Self {
         let (byte_add, byte_sub) = build_subnets();
         let program_hash = hash_program("conditional_payment", &byte_add, &byte_sub);
-        Self { byte_add, byte_sub, program_hash }
+        Self {
+            byte_add,
+            byte_sub,
+            program_hash,
+        }
     }
 }
 impl TernaryProgram for ConditionalPayment {
-    fn name(&self) -> &'static str { "conditional_payment" }
-    fn program_hash(&self) -> ProgramHash { self.program_hash }
+    fn name(&self) -> &'static str {
+        "conditional_payment"
+    }
+    fn program_hash(&self) -> ProgramHash {
+        self.program_hash
+    }
     fn run(&self, input: &[u8]) -> Result<Vec<u8>, ContractError> {
         if input.len() != 57 {
-            return Err(ContractError::InputShape { contract: "conditional_payment", got: input.len(), expected: 57 });
+            return Err(ContractError::InputShape {
+                contract: "conditional_payment",
+                got: input.len(),
+                expected: 57,
+            });
         }
         let cond = input[56];
         if cond != 1 {
@@ -169,7 +205,11 @@ mod tests {
         a.copy_from_slice(&out[0..16]);
         b.copy_from_slice(&out[16..32]);
         n.copy_from_slice(&out[32..40]);
-        (u128::from_le_bytes(a), u128::from_le_bytes(b), u64::from_le_bytes(n))
+        (
+            u128::from_le_bytes(a),
+            u128::from_le_bytes(b),
+            u64::from_le_bytes(n),
+        )
     }
 
     #[test]

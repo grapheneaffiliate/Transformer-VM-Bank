@@ -45,19 +45,12 @@ pub trait Kem {
     /// Encapsulate to `recipient_pk`, returning `(ciphertext_bytes,
     /// shared_secret)`. Wire encoding of the ciphertext is
     /// scheme-prefix + scheme-specific bytes.
-    fn encapsulate(
-        &self,
-        recipient_pk: &[u8],
-    ) -> Result<(Vec<u8>, SharedSecret), KemError>;
+    fn encapsulate(&self, recipient_pk: &[u8]) -> Result<(Vec<u8>, SharedSecret), KemError>;
 
     /// Decapsulate `ciphertext` with `my_sk`, returning the shared
     /// secret. Returns [`KemError::DecapFailed`] if the ciphertext
     /// does not correspond to a valid encapsulation under our key.
-    fn decapsulate(
-        &self,
-        ciphertext: &[u8],
-        my_sk: &[u8],
-    ) -> Result<SharedSecret, KemError>;
+    fn decapsulate(&self, ciphertext: &[u8], my_sk: &[u8]) -> Result<SharedSecret, KemError>;
 }
 
 #[cfg(test)]

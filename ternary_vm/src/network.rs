@@ -57,12 +57,18 @@ impl SparseTernaryLayer {
             for &j in &self.pos_indices[i] {
                 acc = acc
                     .checked_add(x[j as usize])
-                    .ok_or(TernaryError::Overflow { layer: layer_idx, row: i })?;
+                    .ok_or(TernaryError::Overflow {
+                        layer: layer_idx,
+                        row: i,
+                    })?;
             }
             for &j in &self.neg_indices[i] {
                 acc = acc
                     .checked_sub(x[j as usize])
-                    .ok_or(TernaryError::Overflow { layer: layer_idx, row: i })?;
+                    .ok_or(TernaryError::Overflow {
+                        layer: layer_idx,
+                        row: i,
+                    })?;
             }
             y[i] = if self.relu && acc < 0 { 0 } else { acc };
         }
@@ -234,6 +240,9 @@ mod tests {
             vec![layer],
         );
         let got = net.forward(&[1]);
-        assert!(matches!(got, Err(TernaryError::Overflow { layer: 0, row: 0 })));
+        assert!(matches!(
+            got,
+            Err(TernaryError::Overflow { layer: 0, row: 0 })
+        ));
     }
 }

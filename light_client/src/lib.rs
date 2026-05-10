@@ -9,8 +9,8 @@
 //! - `verify_balance(genesis_root, headers, account_pubkey, account_bytes, proof)`
 //! - `verify_block_header(parent_hash, header)`
 
-pub mod proof;
 pub mod header;
+pub mod proof;
 
 use psl_crypto::{Account, Hash, MerkleProof, SparseMerkleTree};
 use thiserror::Error;
@@ -92,14 +92,7 @@ mod tests {
             sequencer_pubkey: kp.public(),
         };
         let signed = header::SignedHeader::sign(header, &kp);
-        let bal = verify_balance(
-            [0u8; 32],
-            &[signed],
-            &kp.public(),
-            &key,
-            &proof,
-        )
-        .unwrap();
+        let bal = verify_balance([0u8; 32], &[signed], &kp.public(), &key, &proof).unwrap();
         assert_eq!(bal, 1_000_000);
     }
 }

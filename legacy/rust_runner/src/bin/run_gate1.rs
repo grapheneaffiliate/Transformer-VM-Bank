@@ -24,8 +24,8 @@ use clap::Parser;
 use psl_rust_runner::weights::{load_weights, Weights};
 use psl_rust_runner::{generate, GenerateConfig};
 use rayon::prelude::*;
-use std::path::PathBuf;
 use std::io::Write;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 use std::time::Instant;
@@ -49,9 +49,15 @@ struct Cli {
 }
 
 /// Splitmix64 — small, fast, deterministic per-witness RNG.
-struct Splitmix64 { state: u64 }
+struct Splitmix64 {
+    state: u64,
+}
 impl Splitmix64 {
-    fn new(seed: u64) -> Self { Self { state: seed.wrapping_add(0x9E3779B97F4A7C15) } }
+    fn new(seed: u64) -> Self {
+        Self {
+            state: seed.wrapping_add(0x9E3779B97F4A7C15),
+        }
+    }
     fn next_u64(&mut self) -> u64 {
         self.state = self.state.wrapping_add(0x9E3779B97F4A7C15);
         let mut z = self.state;
@@ -59,8 +65,12 @@ impl Splitmix64 {
         z = (z ^ (z >> 27)).wrapping_mul(0x94D049BB133111EB);
         z ^ (z >> 31)
     }
-    fn byte(&mut self) -> u8 { (self.next_u64() & 0xFF) as u8 }
-    fn bit(&mut self) -> u8 { (self.next_u64() & 1) as u8 }
+    fn byte(&mut self) -> u8 {
+        (self.next_u64() & 0xFF) as u8
+    }
+    fn bit(&mut self) -> u8 {
+        (self.next_u64() & 1) as u8
+    }
 }
 
 /// Per-byte spec encoding — matches `render_binary_spec` in
@@ -126,7 +136,9 @@ fn parse_out_bytes(tokens: &[String]) -> Vec<u8> {
 fn run_one_pass(w: &Weights, witness: &[u8], max_new: usize) -> Result<Vec<u8>> {
     let toks = render_spec(witness);
     let toks_ref: Vec<&str> = toks.iter().map(|s| s.as_str()).collect();
-    let cfg = GenerateConfig { max_new_tokens: max_new };
+    let cfg = GenerateConfig {
+        max_new_tokens: max_new,
+    };
     let predicted = generate(w, &toks_ref, &cfg)?;
     Ok(parse_out_bytes(&predicted))
 }
@@ -137,13 +149,16 @@ fn run_one_pass(w: &Weights, witness: &[u8], max_new: usize) -> Result<Vec<u8>> 
 fn run_freeze_pass(w: &Weights, witness: &[u8], max_new: usize) -> Result<Vec<u8>> {
     let toks = render_decimal_spec(witness);
     let toks_ref: Vec<&str> = toks.iter().map(|s| s.as_str()).collect();
-    let cfg = GenerateConfig { max_new_tokens: max_new };
+    let cfg = GenerateConfig {
+        max_new_tokens: max_new,
+    };
     let predicted = generate(w, &toks_ref, &cfg)?;
     let out_bytes = parse_out_bytes(&predicted);
     let text = String::from_utf8_lossy(&out_bytes);
     let mut out_ints = Vec::new();
     for chunk in text.split_whitespace() {
-        let v: i64 = chunk.parse()
+        let v: i64 = chunk
+            .parse()
             .map_err(|e| anyhow::anyhow!("parse freeze output {chunk:?}: {e}"))?;
         if !(0..=255).contains(&v) {
             anyhow::bail!("freeze output int {v} out of u8 range");
@@ -155,10 +170,12 @@ fn run_freeze_pass(w: &Weights, witness: &[u8], max_new: usize) -> Result<Vec<u8
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-    let repo_root = cli
-        .repo_root
-        .clone()
-        .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent().unwrap().to_path_buf());
+    let repo_root = cli.repo_root.clone().unwrap_or_else(|| {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .to_path_buf()
+    });
 
     if cli.threads > 0 {
         rayon::ThreadPoolBuilder::new()
@@ -175,7 +192,10 @@ fn main() -> Result<()> {
     };
 
     // Load weights once (per primitive, or per pair for freeze_chain).
-    eprintln!("[gate-1-rust] primitive={prim} count={} threads={}", cli.count, cli.threads);
+    eprintln!(
+        "[gate-1-rust] primitive={prim} count={} threads={}",
+        cli.count, cli.threads
+    );
     let setup_w_arc;
     let apply_w_arc;
     let single_w_arc;
@@ -214,8 +234,12 @@ fn main() -> Result<()> {
                 "freeze_apply" => "freeze_apply",
                 other => anyhow::bail!("unknown primitive: {other}"),
             };
-            let w = load_weights(&repo_root.join("weights").join(format!("{weights_name}.bin")))
-                .context("loading weights")?;
+            let w = load_weights(
+                &repo_root
+                    .join("weights")
+                    .join(format!("{weights_name}.bin")),
+            )
+            .context("loading weights")?;
             eprintln!(
                 "[gate-1-rust] vocab={} d_model={} n_layers={} ffn={:?}",
                 w.header.vocab, w.header.d_model, w.header.n_layers, w.header.d_ffn_per_layer
@@ -235,7 +259,11 @@ fn main() -> Result<()> {
     let t0 = Instant::now();
 
     (0..cli.count).into_par_iter().for_each(|i| {
-        let mut rng = Splitmix64::new(cli.seed.wrapping_add(seed_for(&prim)).wrapping_add(i as u64));
+        let mut rng = Splitmix64::new(
+            cli.seed
+                .wrapping_add(seed_for(&prim))
+                .wrapping_add(i as u64),
+        );
         let (witness, expected) = gen_vector(&prim, &mut rng);
 
         let got_result: Result<Vec<u8>> = match kind {
@@ -289,7 +317,12 @@ fn main() -> Result<()> {
         if done >= np {
             // best-effort progress (race-tolerant)
             if next_progress
-                .compare_exchange(np, np + progress_every, Ordering::Relaxed, Ordering::Relaxed)
+                .compare_exchange(
+                    np,
+                    np + progress_every,
+                    Ordering::Relaxed,
+                    Ordering::Relaxed,
+                )
                 .is_ok()
             {
                 let dt = t0.elapsed().as_secs_f64();
@@ -317,8 +350,12 @@ fn main() -> Result<()> {
     println!("  time: {dt:.1}s    rate: {:.2}/s", cli.count as f64 / dt);
     let exs = fail_examples.lock().unwrap();
     for (i, w_, exp, got) in exs.iter() {
-        println!("  FAIL #{i}: witness[..8]={:?}  expected={:?}  got={:?}",
-            &w_[..w_.len().min(8)], exp, got);
+        println!(
+            "  FAIL #{i}: witness[..8]={:?}  expected={:?}  got={:?}",
+            &w_[..w_.len().min(8)],
+            exp,
+            got
+        );
     }
     if f > 0 {
         std::process::exit(1);
@@ -327,7 +364,10 @@ fn main() -> Result<()> {
 }
 
 #[derive(Copy, Clone)]
-enum Kind { Single, FreezeChain }
+enum Kind {
+    Single,
+    FreezeChain,
+}
 
 fn seed_for(p: &str) -> u64 {
     let mut h = 1469598103934665603u64;
@@ -345,7 +385,11 @@ fn gen_vector(prim: &str, rng: &mut Splitmix64) -> (Vec<u8>, Vec<u8>) {
             let b = rng.byte();
             let c = rng.bit();
             let s = a as u32 + b as u32 + c as u32;
-            let (res, co) = if s >= 256 { ((s - 256) as u8, 1u8) } else { (s as u8, 0u8) };
+            let (res, co) = if s >= 256 {
+                ((s - 256) as u8, 1u8)
+            } else {
+                (s as u8, 0u8)
+            };
             (vec![a, b, c], vec![res, co])
         }
         "byte_sub" => {
@@ -353,7 +397,11 @@ fn gen_vector(prim: &str, rng: &mut Splitmix64) -> (Vec<u8>, Vec<u8>) {
             let s = rng.byte();
             let b = rng.bit();
             let diff = m as i32 - s as i32 - b as i32;
-            let (res, bo) = if diff < 0 { ((diff + 256) as u8, 1u8) } else { (diff as u8, 0u8) };
+            let (res, bo) = if diff < 0 {
+                ((diff + 256) as u8, 1u8)
+            } else {
+                (diff as u8, 0u8)
+            };
             (vec![m, s, b], vec![res, bo])
         }
         "transfer_check" => {
@@ -381,7 +429,11 @@ fn gen_vector(prim: &str, rng: &mut Splitmix64) -> (Vec<u8>, Vec<u8>) {
             let flag = rng.bit();
             let acc: Vec<u8> = (0..64).map(|_| rng.byte()).collect();
             let b47 = acc[47];
-            let expected = if flag == 1 { (b47 & 0x7F) | 0x80 } else { b47 & 0x7F };
+            let expected = if flag == 1 {
+                (b47 & 0x7F) | 0x80
+            } else {
+                b47 & 0x7F
+            };
             let mut witness = vec![flag];
             witness.extend_from_slice(&acc);
             (witness, vec![expected])

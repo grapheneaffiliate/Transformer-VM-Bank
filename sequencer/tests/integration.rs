@@ -147,9 +147,25 @@ fn sequencer_and_3_followers_agree_on_100_mixed_blocks() {
     let alice = KeyPair::from_seed([42u8; 32]);
     let bob = KeyPair::from_seed([43u8; 32]);
 
-    let mint_alice = build_signed_tx(TxKind::Mint, 1, 0, &issuer, Some(alice.public()), 1_000_000_000, 0);
+    let mint_alice = build_signed_tx(
+        TxKind::Mint,
+        1,
+        0,
+        &issuer,
+        Some(alice.public()),
+        1_000_000_000,
+        0,
+    );
     apply_to_all(&exec, &states, &mint_alice, &[], 0).unwrap();
-    let mint_bob = build_signed_tx(TxKind::Mint, 1, 0, &issuer, Some(bob.public()), 1_000_000_000, 0);
+    let mint_bob = build_signed_tx(
+        TxKind::Mint,
+        1,
+        0,
+        &issuer,
+        Some(bob.public()),
+        1_000_000_000,
+        0,
+    );
     apply_to_all(&exec, &states, &mint_bob, &[], 0).unwrap();
     assert_roots_agree(&states);
 
@@ -163,7 +179,15 @@ fn sequencer_and_3_followers_agree_on_100_mixed_blocks() {
         // Always a transfer
         let amount = rng.gen_range(1..1_000);
         let recipient = [rng.gen::<u8>(); 32];
-        let tx = build_signed_tx(TxKind::Transfer, 1, alice_nonce + 1, &alice, Some(recipient), amount, 0);
+        let tx = build_signed_tx(
+            TxKind::Transfer,
+            1,
+            alice_nonce + 1,
+            &alice,
+            Some(recipient),
+            amount,
+            0,
+        );
         alice_nonce += 1;
         total_traces += apply_to_all(&exec, &states, &tx, &[], block as u32).unwrap();
 
@@ -224,7 +248,7 @@ fn published_root_mutation_detected() {
         parent_hash: [0u8; 32],
         prev_state_root: [0u8; 32],
         tx_list_hash: tx_list_hash(&[mint.clone()]),
-        trace_hash: combined_trace_hash(&[[0u8; 32]; 16]),  // 16-trace mint
+        trace_hash: combined_trace_hash(&[[0u8; 32]; 16]), // 16-trace mint
         new_state_root: mutated,
         issuer_registry_root: states[0].read().unwrap().registry_root(),
         timestamp_ms: 0,

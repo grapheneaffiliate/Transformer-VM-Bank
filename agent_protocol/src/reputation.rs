@@ -84,13 +84,23 @@ mod tests {
 
     #[test]
     fn perfect_record_is_1000() {
-        let r = ReputationCounters { initiated: 100, completed: 100, disputed: 0, disputes_lost: 0 };
+        let r = ReputationCounters {
+            initiated: 100,
+            completed: 100,
+            disputed: 0,
+            disputes_lost: 0,
+        };
         assert_eq!(r.score(), 1000);
     }
 
     #[test]
     fn lost_disputes_drag_score_down() {
-        let r = ReputationCounters { initiated: 100, completed: 100, disputed: 10, disputes_lost: 5 };
+        let r = ReputationCounters {
+            initiated: 100,
+            completed: 100,
+            disputed: 10,
+            disputes_lost: 5,
+        };
         // completion = 1000, dispute_penalty = 500 → score = 500
         assert_eq!(r.score(), 500);
     }

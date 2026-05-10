@@ -53,7 +53,12 @@ impl Revocation {
         revoked_at_unix: u64,
     ) -> Self {
         let parent_pubkey = parent.verifying_key().to_bytes();
-        let body = Self::canonical_bytes(&revoked_pubkey, &parent_pubkey, &reason_hash, revoked_at_unix);
+        let body = Self::canonical_bytes(
+            &revoked_pubkey,
+            &parent_pubkey,
+            &reason_hash,
+            revoked_at_unix,
+        );
         let sig = parent.sign(&body);
         Self {
             revoked_pubkey,
@@ -176,7 +181,7 @@ mod tests {
         let mut set = RevocationSet::new();
         let rev1 = Revocation::sign(&parent, child.verifying_key().to_bytes(), [1u8; 32], 100);
         assert!(set.insert(rev1).unwrap()); // newly added
-        // Even with a "newer" reason, monotonicity says: still revoked, no-op insert
+                                            // Even with a "newer" reason, monotonicity says: still revoked, no-op insert
         let rev2 = Revocation::sign(&parent, child.verifying_key().to_bytes(), [2u8; 32], 200);
         assert!(!set.insert(rev2).unwrap()); // not added (already present)
         assert!(set.is_revoked(&child.verifying_key().to_bytes()));

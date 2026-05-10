@@ -22,14 +22,18 @@ pub struct Sovereign {
 
 impl Sovereign {
     pub fn new(node: Arc<SequencerNode>) -> Self {
-        Self { node, finalized: Mutex::new(Vec::new()) }
+        Self {
+            node,
+            finalized: Mutex::new(Vec::new()),
+        }
     }
 }
 
 #[async_trait]
 impl Consensus for Sovereign {
     async fn submit_tx(&self, tx: SignedTx) -> Result<()> {
-        let registry: &dyn Fn(u32) -> Option<_> = &|asset_id: u32| self.node.lookup_issuer(asset_id);
+        let registry: &dyn Fn(u32) -> Option<_> =
+            &|asset_id: u32| self.node.lookup_issuer(asset_id);
         let state = self.node.state.read().unwrap();
         let mut mp = self.node.mempool.write().unwrap();
         mp.ingress(tx, &state, registry)

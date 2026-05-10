@@ -9,7 +9,10 @@ use psl_light_client::{
 };
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
-fn build_state_with_n_accounts(n: usize, rng: &mut StdRng) -> (SparseMerkleTree, Vec<([u8; 32], u128)>) {
+fn build_state_with_n_accounts(
+    n: usize,
+    rng: &mut StdRng,
+) -> (SparseMerkleTree, Vec<([u8; 32], u128)>) {
     let mut smt = SparseMerkleTree::new();
     let mut accounts = Vec::with_capacity(n);
     for _ in 0..n {
@@ -80,8 +83,10 @@ fn tampered_proof_value_rejected() {
             pk,
             &proof,
         );
-        assert!(matches!(res, Err(VerifyError::ProofFailed)),
-            "tampered proof must be rejected, got {res:?}");
+        assert!(
+            matches!(res, Err(VerifyError::ProofFailed)),
+            "tampered proof must be rejected, got {res:?}"
+        );
     }
 }
 
@@ -104,8 +109,10 @@ fn tampered_proof_siblings_rejected() {
             pk,
             &proof,
         );
-        assert!(matches!(res, Err(VerifyError::ProofFailed)),
-            "tampered sibling must be rejected, got {res:?}");
+        assert!(
+            matches!(res, Err(VerifyError::ProofFailed)),
+            "tampered sibling must be rejected, got {res:?}"
+        );
     }
 }
 
@@ -128,8 +135,10 @@ fn tampered_header_signature_rejected() {
         &pk,
         &proof,
     );
-    assert!(matches!(res, Err(VerifyError::InvalidSignature(_))),
-        "bad sig must be rejected, got {res:?}");
+    assert!(
+        matches!(res, Err(VerifyError::InvalidSignature(_))),
+        "bad sig must be rejected, got {res:?}"
+    );
 }
 
 #[test]
@@ -154,8 +163,10 @@ fn tampered_header_root_rejected() {
         &pk,
         &proof,
     );
-    assert!(res.is_err(),
-        "header tampering must be rejected (sig mismatch or proof failure), got {res:?}");
+    assert!(
+        res.is_err(),
+        "header tampering must be rejected (sig mismatch or proof failure), got {res:?}"
+    );
 }
 
 #[test]
@@ -176,8 +187,10 @@ fn wrong_signer_rejected() {
         &pk,
         &proof,
     );
-    assert!(matches!(res, Err(VerifyError::InvalidSignature(_))),
-        "wrong-signer expectation must be rejected, got {res:?}");
+    assert!(
+        matches!(res, Err(VerifyError::InvalidSignature(_))),
+        "wrong-signer expectation must be rejected, got {res:?}"
+    );
 }
 
 #[test]
@@ -218,13 +231,9 @@ fn out_of_order_header_chain_rejected() {
 
     let (pk, _) = accounts[0];
     let proof = smt.proof(&pk);
-    let res = verify_balance(
-        [0u8; 32],
-        &[signed1, signed2],
-        &seq.public(),
-        &pk,
-        &proof,
+    let res = verify_balance([0u8; 32], &[signed1, signed2], &seq.public(), &pk, &proof);
+    assert!(
+        matches!(res, Err(VerifyError::HeaderChainBroken(_))),
+        "broken chain must be rejected, got {res:?}"
     );
-    assert!(matches!(res, Err(VerifyError::HeaderChainBroken(_))),
-        "broken chain must be rejected, got {res:?}");
 }

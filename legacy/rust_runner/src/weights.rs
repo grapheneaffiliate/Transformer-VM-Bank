@@ -44,10 +44,10 @@ pub struct Header {
 
 #[derive(Clone, Debug)]
 pub struct LayerWeights {
-    pub in_proj: Linear,             // [3*d_model, d_model]
-    pub out_proj: Linear,            // [d_model, d_model]
-    pub ff_in: Linear,               // [2*d_ffn, d_model]
-    pub ff_out: Linear,              // [d_model, d_ffn]
+    pub in_proj: Linear,  // [3*d_model, d_model]
+    pub out_proj: Linear, // [d_model, d_model]
+    pub ff_in: Linear,    // [2*d_ffn, d_model]
+    pub ff_out: Linear,   // [d_model, d_ffn]
 }
 
 #[derive(Clone, Debug)]
@@ -55,9 +55,9 @@ pub struct Weights {
     pub header: Header,
     pub tokens: Vec<String>,
     pub tok_to_idx: HashMap<String, usize>,
-    pub tok_embed: Array2<f64>,      // [vocab, d_model] — kept dense, used as embedding row-lookup not matmul
+    pub tok_embed: Array2<f64>, // [vocab, d_model] — kept dense, used as embedding row-lookup not matmul
     pub layers: Vec<LayerWeights>,
-    pub head: Linear,                // [vocab, d_model]
+    pub head: Linear, // [vocab, d_model]
 }
 
 fn read_f64_array<R: Read>(r: &mut R, rows: usize, cols: usize) -> Result<Array2<f64>> {
@@ -69,8 +69,7 @@ fn read_f64_array<R: Read>(r: &mut R, rows: usize, cols: usize) -> Result<Array2
         let bytes: [u8; 8] = chunk.try_into().unwrap();
         data.push(f64::from_le_bytes(bytes));
     }
-    Array2::from_shape_vec((rows, cols), data)
-        .map_err(|e| anyhow!("ndarray shape: {e}"))
+    Array2::from_shape_vec((rows, cols), data).map_err(|e| anyhow!("ndarray shape: {e}"))
 }
 
 pub fn load_weights(path: &Path) -> Result<Weights> {
@@ -131,7 +130,12 @@ pub fn load_weights(path: &Path) -> Result<Weights> {
         let width = d_ffn_per_layer[li];
         let ff_in = Linear::from_dense(read_f64_array(&mut r, 2 * width, d_model)?);
         let ff_out = Linear::from_dense(read_f64_array(&mut r, d_model, width)?);
-        layers.push(LayerWeights { in_proj, out_proj, ff_in, ff_out });
+        layers.push(LayerWeights {
+            in_proj,
+            out_proj,
+            ff_in,
+            ff_out,
+        });
     }
 
     // Head

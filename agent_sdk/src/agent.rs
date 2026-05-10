@@ -19,15 +19,15 @@
 use crate::error::SdkError;
 use crate::onchain::OnChainView;
 use crate::transport::Transport;
-use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
+use ed25519_dalek::{SigningKey, VerifyingKey};
 use psl_agent_contracts::TernaryProgram;
 use psl_agent_protocol::{
     dispute::{resolve_dispute, DisputeOutcome},
-    message::{Accept, Execute, ExpectedOutput, Propose, ProposalHash, ProtocolMessage, Reject},
+    message::{Accept, Execute, ExpectedOutput, Propose, ProtocolMessage, Reject},
     state_machine::{ProposalLog, ProposalState},
     AgentRegistration, ReputationCounters,
 };
-use psl_agent_wallet::{KeyPolicy, PolicyEnvelope, RevocationSet, SpendingTracker};
+use psl_agent_wallet::{PolicyEnvelope, RevocationSet, SpendingTracker};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -221,12 +221,11 @@ impl AgentSdk {
         accept.verify().map_err(SdkError::Protocol)?;
         let mut log = self.proposals.lock().unwrap();
         log.apply_accept(accept.clone())?;
-        let st = log
-            .get(&accept.proposal_hash)
-            .cloned()
-            .ok_or_else(|| SdkError::Protocol(psl_agent_protocol::ProtocolError::UnknownProposal {
+        let st = log.get(&accept.proposal_hash).cloned().ok_or_else(|| {
+            SdkError::Protocol(psl_agent_protocol::ProtocolError::UnknownProposal {
                 hash: accept.proposal_hash,
-            }))?;
+            })
+        })?;
         drop(log);
         let propose = match &st {
             ProposalState::Accepted { propose, .. } => propose.clone(),
@@ -360,7 +359,11 @@ mod tests {
             version: 1,
         };
         let policy_envelope = PolicyEnvelope::sign(&parent, policy).unwrap();
-        AgentIdentity { parent, child, policy_envelope }
+        AgentIdentity {
+            parent,
+            child,
+            policy_envelope,
+        }
     }
 
     fn pack_transfer(from: u128, to: u128, amount: u128, nonce: u64) -> Vec<u8> {
@@ -399,15 +402,19 @@ mod tests {
             1_000_000,
             1,
         );
-        bus.send(&bob.identity.pubkey(), ProtocolMessage::Propose(propose.clone()))
-            .unwrap();
+        bus.send(
+            &bob.identity.pubkey(),
+            ProtocolMessage::Propose(propose.clone()),
+        )
+        .unwrap();
 
         // Bob's loop: poll, accept.
         let bob_inbox = bus.poll(&bob.identity.pubkey());
         assert_eq!(bob_inbox.len(), 1);
         for msg in bob_inbox {
             if let ProtocolMessage::Propose(p) = msg {
-                bob.handle_propose(p, 100, |_| ProposeDecision::Accept, &bus).unwrap();
+                bob.handle_propose(p, 100, |_| ProposeDecision::Accept, &bus)
+                    .unwrap();
             }
         }
 

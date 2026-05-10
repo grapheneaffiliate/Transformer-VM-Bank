@@ -23,31 +23,47 @@
 use std::path::PathBuf;
 
 fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent().unwrap().to_path_buf()
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .to_path_buf()
 }
 
 fn run_primitive(name: &str) {
     let root = repo_root();
     let weights_path = root.join("weights").join(format!("{name}.bin"));
     let input_path = root.join("data").join(format!("{name}_spec.txt"));
-    let expected_path = root.join("rust_runner/tests/golden").join(format!("{name}.expected"));
+    let expected_path = root
+        .join("rust_runner/tests/golden")
+        .join(format!("{name}.expected"));
 
     if !weights_path.exists() {
-        panic!("missing weights for {name}: {} — see REPRODUCE.md Tier 2", weights_path.display());
+        panic!(
+            "missing weights for {name}: {} — see REPRODUCE.md Tier 2",
+            weights_path.display()
+        );
     }
     if !input_path.exists() {
         panic!("missing input spec for {name}: {}", input_path.display());
     }
     if !expected_path.exists() {
-        panic!("missing golden file for {name}: {}", expected_path.display());
+        panic!(
+            "missing golden file for {name}: {}",
+            expected_path.display()
+        );
     }
 
     let weights = psl_rust_runner::weights::load_weights(&weights_path)
         .unwrap_or_else(|e| panic!("loading weights {}: {e}", weights_path.display()));
     let input_str = std::fs::read_to_string(&input_path).expect("reading input spec");
-    let input_owned: Vec<String> = input_str.split_whitespace().map(|s| s.to_string()).collect();
+    let input_owned: Vec<String> = input_str
+        .split_whitespace()
+        .map(|s| s.to_string())
+        .collect();
     let input: Vec<&str> = input_owned.iter().map(|s| s.as_str()).collect();
-    let cfg = psl_rust_runner::GenerateConfig { max_new_tokens: 50_000 };
+    let cfg = psl_rust_runner::GenerateConfig {
+        max_new_tokens: 50_000,
+    };
     let predicted = psl_rust_runner::generate(&weights, &input, &cfg)
         .unwrap_or_else(|e| panic!("generating for {name}: {e}"));
     let actual = predicted.join(" ");

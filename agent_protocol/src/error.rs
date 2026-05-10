@@ -9,7 +9,10 @@ pub enum ProtocolError {
     ProposalHashMismatch { expected: [u8; 32], got: [u8; 32] },
 
     #[error("illegal state transition from {from:?} via {event}")]
-    IllegalTransition { from: &'static str, event: &'static str },
+    IllegalTransition {
+        from: &'static str,
+        event: &'static str,
+    },
 
     #[error("unknown proposal {hash:?}")]
     UnknownProposal { hash: [u8; 32] },

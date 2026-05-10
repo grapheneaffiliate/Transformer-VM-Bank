@@ -32,7 +32,9 @@ pub struct Account {
 
 impl Default for Account {
     fn default() -> Self {
-        Self { bytes: [0u8; ACCOUNT_BYTES] }
+        Self {
+            bytes: [0u8; ACCOUNT_BYTES],
+        }
     }
 }
 
@@ -73,15 +75,13 @@ impl Account {
     }
 
     pub fn set_nonce(&mut self, nonce: u64) {
-        self.bytes[NONCE_OFFSET..NONCE_OFFSET + NONCE_LEN]
-            .copy_from_slice(&nonce.to_le_bytes());
+        self.bytes[NONCE_OFFSET..NONCE_OFFSET + NONCE_LEN].copy_from_slice(&nonce.to_le_bytes());
     }
 
     pub fn last_active(&self) -> u64 {
         let mut bytes = [0u8; 8];
-        bytes.copy_from_slice(
-            &self.bytes[LAST_ACTIVE_OFFSET..LAST_ACTIVE_OFFSET + LAST_ACTIVE_LEN],
-        );
+        bytes
+            .copy_from_slice(&self.bytes[LAST_ACTIVE_OFFSET..LAST_ACTIVE_OFFSET + LAST_ACTIVE_LEN]);
         u64::from_le_bytes(bytes)
     }
 

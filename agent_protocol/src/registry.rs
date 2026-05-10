@@ -107,7 +107,8 @@ impl AgentRegistration {
             self.bond_amount,
             self.version,
         );
-        pk.verify(&body, &sig).map_err(|_| ProtocolError::SignatureInvalid)
+        pk.verify(&body, &sig)
+            .map_err(|_| ProtocolError::SignatureInvalid)
     }
 
     pub fn supports(&self, contract: &str) -> bool {

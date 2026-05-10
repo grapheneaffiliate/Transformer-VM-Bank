@@ -115,7 +115,11 @@ impl SparseMerkleTree {
         for i in (0..KEY_BITS).rev() {
             let bit = Self::bit(&key, i);
             let sibling = path[i];
-            let (left, right) = if bit { (sibling, current) } else { (current, sibling) };
+            let (left, right) = if bit {
+                (sibling, current)
+            } else {
+                (current, sibling)
+            };
             let parent = hash_concat(&left, &right);
             self.nodes.insert(parent, InternalNode { left, right });
             current = parent;
@@ -179,7 +183,11 @@ impl SparseMerkleTree {
         for d in (0..KEY_BITS).rev() {
             let sibling = proof.siblings[d];
             let bit = Self::bit(key, d);
-            let (left, right) = if bit { (sibling, current) } else { (current, sibling) };
+            let (left, right) = if bit {
+                (sibling, current)
+            } else {
+                (current, sibling)
+            };
             current = hash_concat(&left, &right);
         }
         current == *root

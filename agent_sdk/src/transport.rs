@@ -72,8 +72,8 @@ impl Transport for InProcessBus {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use psl_agent_protocol::{Accept, ProposalHash};
     use ed25519_dalek::SigningKey;
+    use psl_agent_protocol::{Accept, ProposalHash};
     use rand::SeedableRng;
 
     #[test]
@@ -88,7 +88,8 @@ mod tests {
         let bob_signing = SigningKey::generate(&mut rng);
         let h: ProposalHash = [0x55u8; 32];
         let accept = Accept::sign(&bob_signing, h, 100);
-        bus.send(&alice_pk, ProtocolMessage::Accept(accept.clone())).unwrap();
+        bus.send(&alice_pk, ProtocolMessage::Accept(accept.clone()))
+            .unwrap();
 
         let inbox = bus.poll(&alice_pk);
         assert_eq!(inbox.len(), 1);

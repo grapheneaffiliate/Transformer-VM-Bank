@@ -96,7 +96,10 @@ pub fn decode_output(out: &[i64]) -> Result<[u8; RECORD_LEN], TernaryError> {
     Ok(record)
 }
 
-pub fn run(net: &TernaryNetwork, record: &[u8; RECORD_LEN]) -> Result<[u8; RECORD_LEN], TernaryError> {
+pub fn run(
+    net: &TernaryNetwork,
+    record: &[u8; RECORD_LEN],
+) -> Result<[u8; RECORD_LEN], TernaryError> {
     let input = encode_input(record);
     let output = net.forward(&input)?;
     decode_output(&output)

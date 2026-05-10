@@ -27,10 +27,15 @@ pub fn build() -> TernaryNetwork {
     byte_sub_with_borrow::build()
 }
 
-pub fn run(byte_sub_net: &TernaryNetwork, from: [u8; 16], amount: [u8; 16]) -> Result<u8, TernaryError> {
+pub fn run(
+    byte_sub_net: &TernaryNetwork,
+    from: [u8; 16],
+    amount: [u8; 16],
+) -> Result<u8, TernaryError> {
     let mut borrow: u8 = 0;
     for i in 0..16 {
-        let (_diff, new_borrow) = byte_sub_with_borrow::run(byte_sub_net, from[i], amount[i], borrow)?;
+        let (_diff, new_borrow) =
+            byte_sub_with_borrow::run(byte_sub_net, from[i], amount[i], borrow)?;
         borrow = new_borrow;
     }
     Ok(1 - borrow)
@@ -79,14 +84,26 @@ mod tests {
         assert_eq!(run(&n, [0xffu8; 16], [0xffu8; 16]).unwrap(), 1);
 
         // from = MAX, amount = 1
-        assert_eq!(run(&n, [0xffu8; 16], {
-            let mut a = [0u8; 16]; a[0] = 1; a
-        }).unwrap(), 1);
+        assert_eq!(
+            run(&n, [0xffu8; 16], {
+                let mut a = [0u8; 16];
+                a[0] = 1;
+                a
+            })
+            .unwrap(),
+            1
+        );
 
         // from = 0, amount = 1 (16-byte borrow chain)
-        assert_eq!(run(&n, [0u8; 16], {
-            let mut a = [0u8; 16]; a[0] = 1; a
-        }).unwrap(), 0);
+        assert_eq!(
+            run(&n, [0u8; 16], {
+                let mut a = [0u8; 16];
+                a[0] = 1;
+                a
+            })
+            .unwrap(),
+            0
+        );
     }
 
     #[test]
@@ -97,10 +114,18 @@ mod tests {
         for _ in 0..500 {
             let mut from = [0u8; 16];
             let mut amount = [0u8; 16];
-            for s in from.iter_mut() { *s = rng.gen(); }
-            for s in amount.iter_mut() { *s = rng.gen(); }
+            for s in from.iter_mut() {
+                *s = rng.gen();
+            }
+            for s in amount.iter_mut() {
+                *s = rng.gen();
+            }
             let got = run(&n, from, amount).unwrap();
-            assert_eq!(got, ground_truth(from, amount), "from={from:?} amount={amount:?}");
+            assert_eq!(
+                got,
+                ground_truth(from, amount),
+                "from={from:?} amount={amount:?}"
+            );
         }
     }
 }

@@ -33,7 +33,9 @@ pub struct KeyPair {
 impl KeyPair {
     pub fn generate() -> Self {
         let signing = SigningKey::generate(&mut OsRng);
-        Self { secret: signing.to_bytes() }
+        Self {
+            secret: signing.to_bytes(),
+        }
     }
 
     pub fn from_seed(seed: [u8; 32]) -> Self {

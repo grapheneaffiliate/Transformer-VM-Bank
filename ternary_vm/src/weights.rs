@@ -113,7 +113,9 @@ pub fn pack_weights(
 
 /// Inverse of `pack_weights`. Verifies the BLAKE3 digest before
 /// returning. Errors on integrity mismatch or shape mismatch.
-pub fn unpack_weights(bytes: &[u8]) -> Result<(WeightsHeader, Vec<SparseTernaryLayer>), TernaryError> {
+pub fn unpack_weights(
+    bytes: &[u8],
+) -> Result<(WeightsHeader, Vec<SparseTernaryLayer>), TernaryError> {
     if bytes.len() < 32 + MAGIC.len() {
         return Err(TernaryError::OutputDecode("weights file too short".into()));
     }
@@ -129,7 +131,10 @@ pub fn unpack_weights(bytes: &[u8]) -> Result<(WeightsHeader, Vec<SparseTernaryL
     let mut digest = [0u8; 32];
     digest.copy_from_slice(stored_digest);
 
-    let mut cur = Cursor { buf: &bytes[..payload_len], off: 0 };
+    let mut cur = Cursor {
+        buf: &bytes[..payload_len],
+        off: 0,
+    };
     let magic = cur.take(8)?;
     if magic != MAGIC {
         return Err(TernaryError::OutputDecode(format!(
@@ -154,11 +159,21 @@ pub fn unpack_weights(bytes: &[u8]) -> Result<(WeightsHeader, Vec<SparseTernaryL
         let nnz_pos = cur.read_u64()? as usize;
         let nnz_neg = cur.read_u64()? as usize;
 
-        let pos_ptrs = (0..=l_out).map(|_| cur.read_u32()).collect::<Result<Vec<_>, _>>()?;
-        let pos_cols = (0..nnz_pos).map(|_| cur.read_u32()).collect::<Result<Vec<_>, _>>()?;
-        let neg_ptrs = (0..=l_out).map(|_| cur.read_u32()).collect::<Result<Vec<_>, _>>()?;
-        let neg_cols = (0..nnz_neg).map(|_| cur.read_u32()).collect::<Result<Vec<_>, _>>()?;
-        let bias = (0..l_out).map(|_| cur.read_i64()).collect::<Result<Vec<_>, _>>()?;
+        let pos_ptrs = (0..=l_out)
+            .map(|_| cur.read_u32())
+            .collect::<Result<Vec<_>, _>>()?;
+        let pos_cols = (0..nnz_pos)
+            .map(|_| cur.read_u32())
+            .collect::<Result<Vec<_>, _>>()?;
+        let neg_ptrs = (0..=l_out)
+            .map(|_| cur.read_u32())
+            .collect::<Result<Vec<_>, _>>()?;
+        let neg_cols = (0..nnz_neg)
+            .map(|_| cur.read_u32())
+            .collect::<Result<Vec<_>, _>>()?;
+        let bias = (0..l_out)
+            .map(|_| cur.read_i64())
+            .collect::<Result<Vec<_>, _>>()?;
 
         let mut pos_indices = Vec::with_capacity(l_out);
         for i in 0..l_out {

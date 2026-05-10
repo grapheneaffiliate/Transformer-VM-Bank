@@ -68,11 +68,11 @@ impl TraceExecutor for NativeTraceExecutor {
 /// (Used by sequencer + followers to verify block format consistency.)
 pub fn expected_trace_hash_count(kind: TxKind, multi_n: usize) -> usize {
     match kind {
-        TxKind::Freeze => 2,                 // freeze_setup + freeze_apply
-        TxKind::Transfer => 34,              // 1 check + 16 sub + 16 add + 1 finalize
-        TxKind::Mint => 16,                  // 16 byte_add
-        TxKind::Burn => 17,                  // 1 check + 16 byte_sub
-        TxKind::MultiAsset => multi_n * 34,  // N inner transfers
+        TxKind::Freeze => 2,                // freeze_setup + freeze_apply
+        TxKind::Transfer => 34,             // 1 check + 16 sub + 16 add + 1 finalize
+        TxKind::Mint => 16,                 // 16 byte_add
+        TxKind::Burn => 17,                 // 1 check + 16 byte_sub
+        TxKind::MultiAsset => multi_n * 34, // N inner transfers
     }
 }
 
@@ -147,7 +147,9 @@ impl NativeTraceExecutor {
         // For NativeTraceExecutor we apply each transfer in turn with the same
         // amount/epoch, accumulating updates.
         if w.accounts.len() % 2 != 0 || w.accounts.is_empty() {
-            return Err(anyhow!("multi_asset needs an even, nonzero number of accounts"));
+            return Err(anyhow!(
+                "multi_asset needs an even, nonzero number of accounts"
+            ));
         }
         let amount = u128::from_le_bytes(w.amount);
         let mut updated = Vec::with_capacity(w.accounts.len());
@@ -170,7 +172,11 @@ impl NativeTraceExecutor {
             updated.push(from);
             updated.push(to);
         }
-        Ok(TraceResult { updated_accounts: updated, trace_hash: NATIVE_TRACE_MARKER, success: all_success })
+        Ok(TraceResult {
+            updated_accounts: updated,
+            trace_hash: NATIVE_TRACE_MARKER,
+            success: all_success,
+        })
     }
 
     fn burn(&self, w: &Witness) -> Result<TraceResult> {
@@ -251,7 +257,11 @@ impl TraceExecutor for SubprocessTraceExecutor {
         let trace_hash = hash_trace_owned(&predicted_tokens);
         let updated_accounts = decode_output_accounts(&predicted_tokens, &tx.kind)?;
         let success = !updated_accounts.is_empty();
-        Ok(TraceResult { updated_accounts, trace_hash, success })
+        Ok(TraceResult {
+            updated_accounts,
+            trace_hash,
+            success,
+        })
     }
 }
 
@@ -281,7 +291,9 @@ fn extract_tokens_from_verbose(stdout: &str) -> Result<Vec<String>> {
             return Ok(rest.split_whitespace().map(|s| s.to_string()).collect());
         }
     }
-    Err(anyhow!("could not extract token sequence from wasm-run output"))
+    Err(anyhow!(
+        "could not extract token sequence from wasm-run output"
+    ))
 }
 
 fn decode_output_accounts(tokens: &[String], kind: &TxKind) -> Result<Vec<Account>> {
