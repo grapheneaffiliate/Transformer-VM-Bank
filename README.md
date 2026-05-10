@@ -49,6 +49,35 @@ resolution be a function of the protocol, not an off-chain process.
 
 Per-gate command, output, commit hash: `docs/STATUS.md`. **Doc index:** `docs/INDEX.md`.
 
+## Performance
+
+Measured throughput on the sequencer integration bench
+(`bench_sequencer_tps_10k_blocks` in `sequencer/tests/integration.rs`,
+15,106 mixed signed transactions across 10,000 blocks — real ed25519
+signatures, real MPT writes, real state-root computation):
+
+| Configuration                                                     | TPS         | Per-tx mean |
+| ---                                                               | ---:        | ---:        |
+| **Sequencer + 3 followers** (in-process, root-agreement every block) | **~925 tx/s** | 1.08 ms     |
+| Single-replica sequencer                                          | ~3,990 tx/s | 251 µs      |
+| Composed estimate including real ternary trace_hash (back-of-envelope) | ~1,750 tx/s single-replica | — |
+
+Caveats: bench uses `NativeTraceExecutor` (deterministic stub, real
+ternary VM trace adds ~9.5 µs × ~34 trace-hashes per transfer), in-
+memory `State` (no `sled` durable commit; that migration is deferred
+per ADR-0012), in-process transport (production = mutual-TLS HTTPS).
+Hardware: WSL2 Ubuntu host, release build. Comfortably above the
+gate-9 sovereign-pilot trigger threshold of 100 TPS.
+
+Reproduce:
+```bash
+cargo test -p psl-sequencer --test integration --release \
+  bench_sequencer_tps_10k_blocks -- --ignored --nocapture
+# Single-replica variant:
+PSL_BENCH_REPLICAS=1 cargo test -p psl-sequencer --test integration \
+  --release bench_sequencer_tps_10k_blocks -- --ignored --nocapture
+```
+
 ## The agent layer in 60 seconds
 
 ```
