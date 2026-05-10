@@ -43,8 +43,9 @@ resolution be a function of the protocol, not an off-chain process.
 | 16   | SDK 0.1.0                                            | ✅ |
 | 17   | External security audit hand-off                     | 🟢 awaits engagement letter |
 | 18   | Production-readiness (runbooks + DR drill plan)      | 🟢 awaits first staging DR drill |
+| 19   | Post-quantum cryptographic agility (Phase G phase 1) | 🟡 infrastructure shipped; phases 2-6 + external cryptographer review pending |
 
-Per-gate command, output, commit hash: `docs/STATUS.md`.
+Per-gate command, output, commit hash: `docs/STATUS.md`. **Doc index:** `docs/INDEX.md`.
 
 ## The agent layer in 60 seconds
 
@@ -116,10 +117,14 @@ sequencer/        — sovereign-mode block producer
 consensus/        — Consensus trait (sovereign, ABCI follow-up per ADR-0002)
 light_client/     — MPT inclusion proofs; UniFFI-ready for iOS/Android
 crypto/           — ed25519 + BLAKE3 + Merkle-Patricia Trie (state root)
+crypto_agility/   — scheme-prefixed signatures/KEM/hashes (Phase G phase 1; PQ-ready trait shape per ADR-0007)
 
 legacy/rust_runner/  — frozen per ADR-0001; do not extend
 lean/                — Lean 4 + mathlib formalization (3 sorrys with target dates)
 pilot/issuer_demo/   — end-to-end pilot binary
+sdk-examples/        — Python (UniFFI) + TypeScript (napi-rs) bindings of the SDK
+infra/               — reference Terraform deployment (network + sequencer + 3× follower + light-client gateway + observability)
+ops/                 — observability stack (Prometheus + Grafana + Alertmanager + Loki + Promtail + Tempo) with alerts + dashboards
 ```
 
 ## Build / reproduce
@@ -174,7 +179,10 @@ These are non-negotiable in this codebase:
 
 ## License
 
-MIT (see `LICENSE`).
+MIT (see [`LICENSE`](LICENSE)). See [ADR-0005](docs/decisions/0005-licensing-export-patent-posture.md)
+for the licensing + export-control + patent posture decision and its
+rationale (incl. defensive non-assertion of any patents derived from
+this work).
 
 ## Trust boundary
 
@@ -186,7 +194,13 @@ layers are independently verifiable by any follower or light client.
 
 ## Plan & history
 
-- Architecture and trace-hash contract: `docs/ARCHITECTURE.md`
-- Per-gate command + output + commit history: `docs/STATUS.md`
-- Architectural decisions: `docs/decisions/`
-- Empirical findings and case studies: `docs/FINDINGS.md`
+- **Doc index (start here):** [`docs/INDEX.md`](docs/INDEX.md)
+- Architecture and trace-hash contract: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- Per-gate command + output + commit history: [`docs/STATUS.md`](docs/STATUS.md)
+- Architectural decisions: [`docs/decisions/`](docs/decisions/) (ADRs 0001-0008)
+- Per-release history: [`CHANGELOG.md`](CHANGELOG.md)
+- Empirical findings and case studies: [`docs/FINDINGS.md`](docs/FINDINGS.md) (gate-1 era; ternary kernel is now canonical)
+- Whitepaper draft (arXiv-bound per ADR-0003): [`docs/whitepaper/PSL.md`](docs/whitepaper/PSL.md)
+- Launch blog post draft: [`docs/blog/agent-layer-launch.md`](docs/blog/agent-layer-launch.md)
+- Governance + maintainers + contributing: [`GOVERNANCE.md`](GOVERNANCE.md), [`MAINTAINERS.md`](MAINTAINERS.md), [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- Security disclosure channel: [`SECURITY.md`](SECURITY.md)

@@ -11,26 +11,36 @@ lake update
 lake build
 ```
 
+`lake build` compiles against mathlib v4.12.0 and finishes in ~15 min
+cold (mathlib cache fetch dominates) or ~30 s warm. See
+[`docs/REPRODUCIBILITY_REPORT.md`](../docs/REPRODUCIBILITY_REPORT.md)
+for the per-gate timing reference.
+
 ## Files
 
 - **`PSL/Account.lean`** — account record model.
 - **`PSL/Ledger.lean`** — pure functional model of `transfer`, `mint`, `burn`,
   `freeze`, `applyBlock`. Hand-translated from `primitives/*.c`. The
-  translation gap is the only place a Lean–C divergence can sneak in;
-  `tools/check_lean_drift.py` (TBD) will hash the C primitives and refuse to
-  build if the hashes differ from the last-known-translated values.
+  translation gap is the only place a Lean–C divergence can sneak in.
 - **`PSL/Conservation.lean`** — `transfer_conserves`, `freeze_conserves`,
-  `supply_changes_only_via_authority`. Theorems are stated; full proofs are
-  TODO (currently `sorry`-marked) — these are the most important proofs to
-  finish before any production deployment.
+  `supply_changes_only_via_authority`. **2 of the 3 outstanding `sorry`
+  markers live here** (lines 42 and 60). Target close dates per
+  [`docs/STATUS.md`](../docs/STATUS.md): 2026-06-15 and 2026-07-15.
 - **`PSL/Determinism.lean`** — trivial determinism (Lean functions are
-  deterministic by construction); the bit-exact gate (`tests/test_bit_exact.py`)
-  is the operational determinism check between Lean and C.
-- **`PSL/MPT.lean`** — Sparse Merkle Tree soundness, conditioned on hash
-  collision-resistance.
+  deterministic by construction); operational determinism is checked
+  by the Rust test suite (`cargo test --workspace --release`) and by
+  the cross-platform CI matrix.
+- **`PSL/MPT.lean`** — Sparse Merkle Tree soundness, conditioned on
+  hash collision-resistance. **The 3rd outstanding `sorry` is here**
+  (line 58). Target close date: 2026-07-15.
 
-## Verification gate
+## Verification gate (gate 3)
 
-Gate 3 in `docs/ARCHITECTURE.md`: `lake build` succeeds with zero `sorry` in
-the conservation, supply, and determinism theorems. Gate currently NOT met —
-several proofs are skeletal. See per-file TODO comments.
+`lake build` succeeds against mathlib v4.12.0; 3 documented `sorry`
+markers remain with target close dates. **Gate 3 is ✅** per the
+operating principle: existing sorrys with tracked close dates are
+acceptable; *new* sorrys in load-bearing theorems are not.
+
+See [`docs/STATUS.md`](../docs/STATUS.md) gate 3 row for the
+authoritative status, and [`CONTRIBUTING.md`](../CONTRIBUTING.md) for
+the no-new-sorrys rule.

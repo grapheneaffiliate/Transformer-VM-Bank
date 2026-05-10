@@ -1,25 +1,42 @@
-# Reproduce PSL gates 1–7 from a clean machine
+# Reproduce PSL from a clean machine
 
 **Goal**: a third party — auditor, partner, regulator — clones this repo,
 follows this doc, and sees green on every gate within one working day.
 
+**Last refreshed: 2026-05-09 (post-v0.1.0 cut + Phase H docs cleanup).**
+**Companion:** [`docs/REPRODUCIBILITY_REPORT.md`](docs/REPRODUCIBILITY_REPORT.md) —
+pinned toolchain + per-gate command + wall-clock timings on the
+reference VM.
+
 There are two reproducibility tiers, depending on how much you want to
 verify yourself:
 
-- **Tier 1 (gates 2–7)** — pure Rust + Lean. Verifies the consensus,
-  state-commitment, formal-model, light-client, compliance, and pilot
-  layers. Fully reproducible on any x86_64 Linux host. **~10 minutes
-  wall-clock total** after deps are installed.
-- **Tier 2 (gate 1)** — adds the `Transformer-VM` analytical-model build
-  pipeline. Verifies that every state-transition primitive is bit-exact
-  between native WASM and the specialized transformer. **Hours of compute**
-  (~10–20 min per primitive × 7 active primitives, plus a one-time
-  ~3 GB torch download).
+- **Tier 1 (gates 2–7, 10–16, 19)** — pure Rust + (optional) Lean.
+  Verifies the consensus, state-commitment, formal-model, light-client,
+  compliance, and pilot layers PLUS the entire Phase 2 agent execution
+  layer (ternary VM, contracts, wallet, protocol, dispute, SDK) PLUS
+  the Phase G phase 1 cryptographic agility crate. Fully reproducible
+  on any x86_64 Linux host. **~5 minutes wall-clock total** after Rust
+  toolchain is installed; ~15 min more if you also do Lean. The
+  headline is `cargo build --workspace --release && cargo test
+  --workspace --release` plus the two SDK reference examples.
+- **Tier 2 (legacy gate 1)** — adds the `Transformer-VM` analytical-model
+  build pipeline. Verifies that every state-transition primitive in
+  the **legacy gate-1 era** is bit-exact between native WASM and the
+  specialized transformer. **Hours of compute** (~10–20 min per
+  primitive × 7 active primitives, plus a one-time ~3 GB torch
+  download). The legacy fp64 runner is frozen per ADR-0001 and is no
+  longer the canonical engine; this tier exists for the historical
+  receipts and for verifiers who want to re-validate the gate-1
+  result independently.
 
-Tier 1 alone is enough to convince yourself that PSL's *claimed* design is
-implemented correctly, that its proofs build, and that an end-to-end pilot
-runs to completion. Tier 2 verifies the load-bearing claim that the
-transformer-trace contract holds at scale.
+Tier 1 alone is enough to convince yourself that PSL's *claimed* design
+is implemented correctly, that its proofs build, that an end-to-end
+pilot runs to completion, that the agent layer's two reference binaries
+(trader_agent + service_agent) execute the happy and dispute paths
+correctly, and that the cryptographic agility infrastructure works.
+Tier 2 verifies the legacy transformer-trace contract; new verifiers
+should default to Tier 1.
 
 ---
 
