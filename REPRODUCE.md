@@ -218,35 +218,47 @@ the actual transformer, complete Tier 2 first.
 
 ```bash
 cd lean
-lake update     # downloads mathlib + 5134-olean precompiled cache, ~20 min
-lake build      # compiles PSL + verifies sorry tracker
+lake exe cache get   # downloads ~5134 precompiled mathlib oleans, ~1-2 min
+lake build           # compiles PSL + runs the in-build formal-audit gate
 cd ..
 ```
 
-Expected:
+Expected (the formal layer is **sorry-free**; the audit gate prints a pass):
 
 ```
-✔ [11/17] Built PSL.Account
-⚠ [12/17] Built PSL.MPT
-warning: PSL/MPT.lean:49:8: declaration uses 'sorry'
-✔ [13/17] Built PSL.Ledger
-✔ [14/17] Built PSL.Determinism
-⚠ [15/17] Built PSL.Conservation
-warning: PSL/Conservation.lean:30:8: declaration uses 'sorry'
-warning: PSL/Conservation.lean:54:8: declaration uses 'sorry'
-✔ [16/17] Built PSL
+✔ [15/19] Built PSL.Conservation
+✔ [16/19] Built PSL.LedgerInvariants
+ℹ [17/19] Built PSL.Audit
+info: PSL/Audit.lean:53:0: ✓ formal audit passed: 8 load-bearing theorems rest only on the 5 allowed axioms
+✔ [18/19] Built PSL
 Build completed successfully.
 ```
 
-(Lean reports the declaration-start line; the literal `sorry` keyword
-is a few lines further into each proof body.)
+`lake build` does two things: it kernel-checks every proof, and it elaborates
+`PSL/Audit.lean`, whose `run_cmd` collects the transitive axioms of each
+load-bearing theorem and **aborts the build** if any falls outside the
+allowlist (Lean's 3 standard axioms + the 2 declared BLAKE3 assumptions). So a
+reintroduced `sorry` (→ `sorryAx`), a `native_decide` (→ `Lean.ofReduceBool`),
+or any new `axiom` fails this step. The same `lake build` runs in CI on every
+PR (`.github/workflows/ci.yml`, job `formal-verification`).
 
-The 3 sorrys are tracked in `docs/STATUS.md` with target close dates
-2026-06-15 / 2026-07-15. Per the gate-3 contract ("compiles" is the
-success criterion), this is a pass. **Note**: `lake update` takes most
-of the time — it downloads ~5000 precompiled mathlib oleans. If you
-want to skip the cache and let mathlib compile from scratch, expect
-1–3 hours instead.
+See `VERIFICATION.md` for the full claim → theorem → axiom map. To print the
+axiom footprint yourself:
+
+```bash
+cd lean
+echo 'import PSL
+open PSL PSL.MPT
+#print axioms transfer_conserves
+#print axioms mint_increases_supply
+#print axioms inclusion_proof_sound' > /tmp/Ax.lean
+lake env lean /tmp/Ax.lean   # shows each theorem rests only on allowed axioms
+cd ..
+```
+
+**Note**: `lake exe cache get` takes most of the time — it downloads ~5000
+precompiled mathlib oleans. To skip the cache and let mathlib compile from
+scratch, expect 1–3 hours instead.
 
 If you only want to verify Tier 1, you can stop here. Total wall-clock
 so far: about 30 minutes (most of which is the mathlib cache).

@@ -16,6 +16,11 @@ updates in the same commit (per `GOVERNANCE.md`).
 - [REPRODUCE.md](../REPRODUCE.md) — Two-tier reproduction guide
   (Tier 1: ~5 min Rust-only; Tier 2: longer, adds Lean + legacy gate-1
   sweep).
+- [VERIFICATION.md](../VERIFICATION.md) — The formal-verification ledger:
+  every machine-checked theorem, the property it guarantees, and the exact
+  axioms it rests on. CI-enforced by the in-build axiom-audit gate
+  (`lean/PSL/Audit.lean`) — the build fails on any `sorry`/`native_decide`/
+  axiom drift.
 
 ## Architecture & design
 

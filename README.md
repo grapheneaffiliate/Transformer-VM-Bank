@@ -197,6 +197,32 @@ cargo run -p psl-agent-sdk --release --example service_agent
 Total time on a fresh clone, fresh VM, no cache: ~30 minutes including
 toolchain install, ~5 minutes after toolchains land.
 
+## Verify it yourself (trust tour)
+
+Don't take the claims on faith — each headline property has a command you can
+run. Full guide: `REPRODUCE.md`. The proved-vs-assumed map: `VERIFICATION.md`.
+
+1. **Dispute resolution by re-execution is real, not a slogan.** Run the
+   reference agents; the second one shows a malicious executor caught and
+   slashed by deterministic re-execution, no human arbiter:
+   ```bash
+   cargo run -p psl-agent-sdk --release --example service_agent
+   ```
+2. **The financial-safety theorems are machine-checked, not asserted.** Build
+   the Lean proofs; the build *fails* if a `sorry`, a `native_decide`, or any
+   unexpected axiom sneaks in:
+   ```bash
+   cd lean && lake exe cache get && lake build && cd ..
+   # ⇒ ✓ formal audit passed: 8 load-bearing theorems rest only on the 5 allowed axioms
+   ```
+   What each theorem guarantees and exactly what it assumes is in
+   `VERIFICATION.md` — supply is conserved under transfer/freeze, moves by
+   exactly the authorized amount under mint/burn, frozen senders can't move
+   funds, and a committed Merkle root pins a unique balance per key.
+3. **Determinism is byte-exact across machines.** The cross-platform CI matrix
+   (x86_64 + aarch64) pins golden BLAKE3 digests; reproduce locally per
+   `REPRODUCE.md` Tier 1.
+
 ## For auditors
 
 Start with `docs/AUDIT_BRIEF.md` — that is the day-1 entry document.
@@ -204,7 +230,9 @@ It points at the security review (`docs/SECURITY_REVIEW.md`),
 reproducibility report (`docs/REPRODUCIBILITY_REPORT.md`), unwrap audit
 (`docs/UNWRAP_AUDIT.md`), fuzz harness inventory (`docs/FUZZING.md`),
 threat model with adversary inventory, and the in-scope crate list
-with file paths.
+with file paths. For the formal layer, `VERIFICATION.md` is the
+machine-checked map of every proven property and the exact axioms it
+rests on (CI-enforced — the build fails on any axiom drift).
 
 ## For institutional / partner due diligence
 
