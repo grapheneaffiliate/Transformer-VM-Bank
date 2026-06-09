@@ -32,8 +32,13 @@ below, which records the state at commit `113c11b`.)
   collision-resistance needed), the capstone **correctness** (any verifying
   proof carries exactly the stored value; non-inclusion soundness falls out
   as the empty-value case), and spec-level root **order-independence**.
+- **Block-level supply accounting** (`lean/PSL/BlockAccounting.lean`): over
+  any block, `supply_before + minted = supply_after + burned` exactly, for
+  every asset — plus the corollary that a block with no mint/burn cannot
+  change supply. Includes the `WellKeyed`-preservation lemmas (no axioms)
+  that let per-tx theorems legitimately chain across a block.
 - **In-build axiom-audit gate** (`lean/PSL/Audit.lean`) + `formal-verification`
-  CI job: `lake build` now fails if any of the 11 load-bearing theorems gains a
+  CI job: `lake build` now fails if any of the 13 load-bearing theorems gains a
   disallowed axiom (`sorryAx`/`Lean.ofReduceBool`/unlisted axiom) or goes
   missing. Trust boundary documented in `VERIFICATION.md`.
 

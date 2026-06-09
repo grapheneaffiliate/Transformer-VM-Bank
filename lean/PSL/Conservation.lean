@@ -167,7 +167,7 @@ private theorem totalSupply_swap_two
       foldr_two f g a b hab l ha hb hnd hother hsum]
 
 /-- If two states give equal per-pubkey contributions, their supplies agree. -/
-private theorem totalSupply_congr (s s' : State) (asset : AssetId) (live : List PubKey)
+theorem totalSupply_congr (s s' : State) (asset : AssetId) (live : List PubKey)
     (h : ∀ pk, (let a := s.accounts pk; if a.assetId = asset then a.balance else 0)
              = (let a := s'.accounts pk; if a.assetId = asset then a.balance else 0))
     : totalSupply s asset live = totalSupply s' asset live := by

@@ -45,16 +45,20 @@ standard, expected form for a hash-based proof. **There is no `sorryAx` and no
 | A burn decreases the asset's total supply by **exactly** the burned amount. | `burn_decreases_supply` | `PSL/LedgerInvariants.lean` | `propext`, `Quot.sound` |
 | A frozen sender cannot move funds — its transfer is a no-op (state and success flag unchanged). Freeze-authority enforcement. | `frozen_sender_transfer_noop` | `PSL/LedgerInvariants.lean` | none |
 | A successful transfer strictly advances the sender's nonce by one (replay/ordering monotonicity). | `transfer_success_increments_nonce` | `PSL/LedgerInvariants.lean` | none |
+| **Block-level supply accounting:** over ANY block, for every asset, `supply_before + total_minted = supply_after + total_burned`, where the totals sum exactly the successful mint/burn amounts. Supply moves only by authorized amounts no matter how transactions are interleaved. (Relies on `wellKeyed_applyTx`/`wellKeyed_applyBlock`: the `WellKeyed` invariant is preserved by every operation — proven with no axioms — so per-tx theorems legitimately chain.) | `block_supply_accounting` | `PSL/BlockAccounting.lean` | `propext`, `Quot.sound` |
+| A block containing no mint or burn transactions cannot change the supply of any asset. | `block_without_authority_conserves` | `PSL/BlockAccounting.lean` | `propext`, `Quot.sound` |
 | **Value binding:** for a committed `(root, key)`, no two proofs can verify with different values. A forged alternative value that still verifies would break collision-resistance. (Phone-side balance-proof soundness.) | `inclusion_proof_sound` | `PSL/MPT.lean` | `propext`, `Classical.choice`, `Quot.sound`, `hash_collision_resistant`, `hash_length` |
 | **Completeness:** the honestly-generated proof for any key verifies against the model root. Purely structural — needs **no collision-resistance**. | `inclusion_proof_complete` | `PSL/SMTModel.lean` | `propext`, `Quot.sound`, `hash_length` |
 | **Correctness (capstone):** *any* proof that verifies against a model root carries exactly the stored value `m key`. Soundness + completeness combined: the committed root pins down precisely the map's value at every key. With an absent key (`m key = []`) this **is** non-inclusion soundness. | `inclusion_proof_correct` | `PSL/SMTModel.lean` | `propext`, `Classical.choice`, `Quot.sound`, `hash_collision_resistant`, `hash_length` |
 | The state commitment depends only on the final key→value map — writing two distinct keys in either order yields the same root (spec-level form of the Rust `put_order_independent_for_independent_keys` test). | `smt_root_order_independent` | `PSL/SMTModel.lean` | `propext`, `Quot.sound` |
 
-Together these give a complete supply-accounting picture: total supply is
-**invariant** under transfer and freeze, and moves by **precisely** the
-authorized amount under mint and burn. And the Merkle layer is closed in both
-directions: honest proofs verify (completeness), and anything that verifies is
-the truth (soundness/correctness).
+Together these give a complete supply-accounting picture, per transaction
+**and per block**: total supply is **invariant** under transfer and freeze,
+moves by **precisely** the authorized amount under mint and burn, and over an
+entire block the books balance exactly (`before + minted = after + burned`).
+And the Merkle layer is closed in both directions: honest proofs verify
+(completeness), and anything that verifies is the truth
+(soundness/correctness).
 
 ### Why these statements, and not stronger-sounding ones
 
@@ -111,7 +115,7 @@ lake exe cache get                             # prebuilt mathlib (~1-2 min)
 lake build                                     # builds proofs + runs the audit gate
 ```
 
-A passing build prints `✓ formal audit passed: 11 load-bearing theorems rest
+A passing build prints `✓ formal audit passed: 13 load-bearing theorems rest
 only on the 5 allowed axioms`. To see the footprint yourself:
 
 ```bash

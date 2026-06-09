@@ -213,7 +213,7 @@ run. Full guide: `REPRODUCE.md`. The proved-vs-assumed map: `VERIFICATION.md`.
    unexpected axiom sneaks in:
    ```bash
    cd lean && lake exe cache get && lake build && cd ..
-   # ⇒ ✓ formal audit passed: 11 load-bearing theorems rest only on the 5 allowed axioms
+   # ⇒ ✓ formal audit passed: 13 load-bearing theorems rest only on the 5 allowed axioms
    ```
    What each theorem guarantees and exactly what it assumes is in
    `VERIFICATION.md` — supply is conserved under transfer/freeze, moves by

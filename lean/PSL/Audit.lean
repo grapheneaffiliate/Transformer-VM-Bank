@@ -19,6 +19,7 @@
 import Lean
 import PSL.Conservation
 import PSL.LedgerInvariants
+import PSL.BlockAccounting
 import PSL.MPT
 import PSL.SMTModel
 
@@ -45,6 +46,8 @@ def loadBearing : List Name :=
    ``PSL.burn_decreases_supply,
    ``PSL.frozen_sender_transfer_noop,
    ``PSL.transfer_success_increments_nonce,
+   ``PSL.block_supply_accounting,
+   ``PSL.block_without_authority_conserves,
    ``PSL.MPT.inclusion_proof_sound,
    ``PSL.MPT.inclusion_proof_complete,
    ``PSL.MPT.inclusion_proof_correct,

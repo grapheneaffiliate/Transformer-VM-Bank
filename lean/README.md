@@ -34,6 +34,11 @@ for the per-gate timing reference.
   the authorized amount), `frozen_sender_transfer_noop` (freeze-authority
   enforcement), `transfer_success_increments_nonce` (replay/ordering). All
   proven, no `sorry`.
+- **`PSL/BlockAccounting.lean`** — block-level supply accounting:
+  `block_supply_accounting` (over any block, for every asset,
+  `before + minted = after + burned` exactly) and the no-authority
+  conservation corollary, built on axiom-free `WellKeyed`-preservation
+  lemmas so the per-tx theorems chain legitimately across `applyBlock`.
 - **`PSL/SMTModel.lean`** — functional model of the Sparse Merkle Tree
   (`rootHash` as a pure function of the key→value map, faithful to
   `crypto/src/smt.rs`). Proves `inclusion_proof_complete` (honest proofs
