@@ -26,8 +26,14 @@ below, which records the state at commit `113c11b`.)
 - **New invariants** (`lean/PSL/LedgerInvariants.lean`): mint/burn change
   supply by exactly the authorized amount; frozen senders cannot move funds;
   successful transfers advance the sender nonce.
+- **Functional SMT model** (`lean/PSL/SMTModel.lean`): the tree as a pure
+  function of the key→value map, faithful to `crypto/src/smt.rs`. Proves
+  inclusion-proof **completeness** (honest proofs verify — no
+  collision-resistance needed), the capstone **correctness** (any verifying
+  proof carries exactly the stored value; non-inclusion soundness falls out
+  as the empty-value case), and spec-level root **order-independence**.
 - **In-build axiom-audit gate** (`lean/PSL/Audit.lean`) + `formal-verification`
-  CI job: `lake build` now fails if any of the 8 load-bearing theorems gains a
+  CI job: `lake build` now fails if any of the 11 load-bearing theorems gains a
   disallowed axiom (`sorryAx`/`Lean.ofReduceBool`/unlisted axiom) or goes
   missing. Trust boundary documented in `VERIFICATION.md`.
 

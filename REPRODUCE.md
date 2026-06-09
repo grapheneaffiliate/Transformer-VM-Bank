@@ -229,7 +229,7 @@ Expected (the formal layer is **sorry-free**; the audit gate prints a pass):
 ✔ [15/19] Built PSL.Conservation
 ✔ [16/19] Built PSL.LedgerInvariants
 ℹ [17/19] Built PSL.Audit
-info: PSL/Audit.lean:53:0: ✓ formal audit passed: 8 load-bearing theorems rest only on the 5 allowed axioms
+info: PSL/Audit.lean:57:0: ✓ formal audit passed: 11 load-bearing theorems rest only on the 5 allowed axioms
 ✔ [18/19] Built PSL
 Build completed successfully.
 ```

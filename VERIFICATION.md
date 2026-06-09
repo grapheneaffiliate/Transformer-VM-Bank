@@ -46,10 +46,15 @@ standard, expected form for a hash-based proof. **There is no `sorryAx` and no
 | A frozen sender cannot move funds — its transfer is a no-op (state and success flag unchanged). Freeze-authority enforcement. | `frozen_sender_transfer_noop` | `PSL/LedgerInvariants.lean` | none |
 | A successful transfer strictly advances the sender's nonce by one (replay/ordering monotonicity). | `transfer_success_increments_nonce` | `PSL/LedgerInvariants.lean` | none |
 | **Value binding:** for a committed `(root, key)`, no two proofs can verify with different values. A forged alternative value that still verifies would break collision-resistance. (Phone-side balance-proof soundness.) | `inclusion_proof_sound` | `PSL/MPT.lean` | `propext`, `Classical.choice`, `Quot.sound`, `hash_collision_resistant`, `hash_length` |
+| **Completeness:** the honestly-generated proof for any key verifies against the model root. Purely structural — needs **no collision-resistance**. | `inclusion_proof_complete` | `PSL/SMTModel.lean` | `propext`, `Quot.sound`, `hash_length` |
+| **Correctness (capstone):** *any* proof that verifies against a model root carries exactly the stored value `m key`. Soundness + completeness combined: the committed root pins down precisely the map's value at every key. With an absent key (`m key = []`) this **is** non-inclusion soundness. | `inclusion_proof_correct` | `PSL/SMTModel.lean` | `propext`, `Classical.choice`, `Quot.sound`, `hash_collision_resistant`, `hash_length` |
+| The state commitment depends only on the final key→value map — writing two distinct keys in either order yields the same root (spec-level form of the Rust `put_order_independent_for_independent_keys` test). | `smt_root_order_independent` | `PSL/SMTModel.lean` | `propext`, `Quot.sound` |
 
 Together these give a complete supply-accounting picture: total supply is
 **invariant** under transfer and freeze, and moves by **precisely** the
-authorized amount under mint and burn.
+authorized amount under mint and burn. And the Merkle layer is closed in both
+directions: honest proofs verify (completeness), and anything that verifies is
+the truth (soundness/correctness).
 
 ### Why these statements, and not stronger-sounding ones
 
@@ -83,12 +88,19 @@ necessary with a counterexample, rather than quietly assuming it away:
   by hand. `lean/PSL/MPT.lean::verifyProof` mirrors `SparseMerkleTree::
   verify_proof`. Divergence is guarded empirically (gate 1 bit-exact vectors)
   and by `tools/check_lean_drift.py` (not yet wired into CI — see STATUS notes).
-- **Not yet formalized** (tested in Rust only): SMT root determinism /
-  order-independence (the Lean MPT model has `verifyProof` but not the tree
-  `put`), and compliance (travel-rule) invariants. These are candidates for
-  future proof work; until then they are empirical, not formal, guarantees.
-  (Freeze-authority enforcement and nonce/replay monotonicity are now
-  formalized — see the table above.)
+- **The SMT model is functional, not imperative.** `PSL/SMTModel.lean` models
+  the tree as a pure function of the key→value map (`rootHash`), faithful to
+  `crypto/src/smt.rs`'s hashing scheme (leaf/internal/default-subtree rules,
+  MSB-first key bits). Completeness, correctness, and order-independence are
+  proven against this functional spec. The *imperative* node-store `put` in
+  Rust agreeing with the functional spec remains an empirically-tested
+  property (the 100k randomized-put determinism test), per the
+  hand-translation contract.
+- **Not yet formalized** (tested in Rust only): compliance (travel-rule)
+  invariants. Candidates for future proof work; until then they are
+  empirical, not formal, guarantees. (Freeze-authority enforcement,
+  nonce/replay monotonicity, Merkle completeness/correctness, and spec-level
+  root order-independence are now formalized — see the table above.)
 
 ## Reproduce locally
 
@@ -99,7 +111,7 @@ lake exe cache get                             # prebuilt mathlib (~1-2 min)
 lake build                                     # builds proofs + runs the audit gate
 ```
 
-A passing build prints `✓ formal audit passed: 8 load-bearing theorems rest
+A passing build prints `✓ formal audit passed: 11 load-bearing theorems rest
 only on the 5 allowed axioms`. To see the footprint yourself:
 
 ```bash
@@ -112,6 +124,9 @@ open PSL PSL.MPT
 #print axioms burn_decreases_supply
 #print axioms frozen_sender_transfer_noop
 #print axioms transfer_success_increments_nonce
-#print axioms inclusion_proof_sound' > /tmp/Ax.lean
+#print axioms inclusion_proof_sound
+#print axioms inclusion_proof_complete
+#print axioms inclusion_proof_correct
+#print axioms smt_root_order_independent' > /tmp/Ax.lean
 lake env lean /tmp/Ax.lean
 ```

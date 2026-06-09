@@ -34,6 +34,14 @@ for the per-gate timing reference.
   the authorized amount), `frozen_sender_transfer_noop` (freeze-authority
   enforcement), `transfer_success_increments_nonce` (replay/ordering). All
   proven, no `sorry`.
+- **`PSL/SMTModel.lean`** — functional model of the Sparse Merkle Tree
+  (`rootHash` as a pure function of the key→value map, faithful to
+  `crypto/src/smt.rs`). Proves `inclusion_proof_complete` (honest proofs
+  verify; needs no collision-resistance), the capstone
+  `inclusion_proof_correct` (anything that verifies carries exactly the
+  stored value — non-inclusion soundness is the empty-value special case),
+  and `smt_root_order_independent` (the commitment depends only on the final
+  map). Includes the proven 256-bit key↔path round-trip.
 - **`PSL/Audit.lean`** — the in-build axiom-footprint gate (see § Verification
   gate). Fails `lake build` if any load-bearing theorem gains a disallowed
   axiom (`sorry`/`native_decide`/unlisted axiom) or goes missing.

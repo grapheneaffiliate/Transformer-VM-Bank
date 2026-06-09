@@ -20,6 +20,7 @@ import Lean
 import PSL.Conservation
 import PSL.LedgerInvariants
 import PSL.MPT
+import PSL.SMTModel
 
 open Lean Elab Command
 
@@ -44,7 +45,10 @@ def loadBearing : List Name :=
    ``PSL.burn_decreases_supply,
    ``PSL.frozen_sender_transfer_noop,
    ``PSL.transfer_success_increments_nonce,
-   ``PSL.MPT.inclusion_proof_sound]
+   ``PSL.MPT.inclusion_proof_sound,
+   ``PSL.MPT.inclusion_proof_complete,
+   ``PSL.MPT.inclusion_proof_correct,
+   ``PSL.MPT.smt_root_order_independent]
 
 /-- Axioms a constant transitively depends on. -/
 def axiomsOf (env : Environment) (n : Name) : List Name :=
