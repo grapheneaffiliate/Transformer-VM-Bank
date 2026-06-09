@@ -58,6 +58,12 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
+      - name: Lean ↔ implementation drift check
+        # Fails if any implementation source the Lean models hand-translate
+        # (primitives/*.c, sequencer/src/trace.rs, crypto/src/{account,smt}.rs)
+        # changed without the pinned manifest being re-reviewed. Guards the
+        # hand-translation contract documented in VERIFICATION.md.
+        run: python3 tools/check_lean_drift.py
       - name: Install elan (Lean toolchain manager)
         run: |
           curl -fsSL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -o elan-init.sh

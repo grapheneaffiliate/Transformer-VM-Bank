@@ -119,9 +119,14 @@ Notes:
   fixed 32-byte BLAKE3-256 digest). This is the standard hash-modeling
   approach; the soundness result is conditioned on these assumptions, which
   is the honest and expected form for a hash-based proof.
-- The `tools/check_lean_drift.py` checker exists but is not wired into
-  CI; add a pre-commit hook before any production deployment to prevent
-  silent C/Lean divergence.
+- The `tools/check_lean_drift.py` checker is **wired into CI** (the
+  `formal-verification` job): it hashes every implementation source the Lean
+  models hand-translate (primitives/*.c, sequencer/src/trace.rs,
+  crypto/src/{account,smt}.rs) against the pinned `lean/drift_manifest.json`
+  and fails on divergence. Note: the original watch list referenced
+  nonexistent `ledger_*.c` files, so the checker had never run successfully
+  before the 2026-06 correspondence audit; the audit's findings (model-only
+  `assetId`, ℕ vs u128 `wrapping_add`) are recorded in `VERIFICATION.md`.
 
 ---
 

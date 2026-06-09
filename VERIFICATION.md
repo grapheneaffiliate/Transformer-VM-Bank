@@ -88,10 +88,28 @@ necessary with a counterexample, rather than quietly assuming it away:
   compression function. This is standard; closing it would require a verified
   BLAKE3, which mathlib does not provide.
 - **Lean ↔ Rust/C correspondence** is a *hand-translation contract*, not a
-  proof: `lean/PSL/Ledger.lean` mirrors `primitives/*.c` and `crypto/src/smt.rs`
-  by hand. `lean/PSL/MPT.lean::verifyProof` mirrors `SparseMerkleTree::
-  verify_proof`. Divergence is guarded empirically (gate 1 bit-exact vectors)
-  and by `tools/check_lean_drift.py` (not yet wired into CI — see STATUS notes).
+  proof: `lean/PSL/Ledger.lean` mirrors the executable semantics in
+  `sequencer/src/trace.rs` (composed from the `primitives/*.c` micro-ops);
+  `lean/PSL/MPT.lean::verifyProof` and `lean/PSL/SMTModel.lean` mirror
+  `crypto/src/smt.rs`. Divergence is guarded empirically (gate 1 bit-exact
+  vectors) and by `tools/check_lean_drift.py`, which hashes every watched
+  implementation source against a pinned manifest and **runs in CI** (the
+  `formal-verification` job fails if a watched source changes without the
+  manifest being re-reviewed).
+- **Correspondence-audit findings (2026-06, recorded honestly rather than
+  papered over):**
+  1. The previous drift checker watched `ledger_*.c` files that never existed
+     in this tree — it had **never run successfully**, so the hand-translation
+     contract was unenforced until now. The watch list is fixed and pinned.
+  2. `Account.assetId` is **model-only**: the Rust 64-byte account record has
+     no asset_id field (asset_id exists only on transactions). The Lean
+     assetId guards model the intended per-asset partitioning; the
+     implementation enforces it at a different layer.
+  3. Rust's transfer credit path uses u128 `wrapping_add` while Lean balances
+     are ℕ — the conservation theorems **do not cover a u128 wraparound** of
+     a recipient balance. Mint uses `checked_add` (fails safe). Whether wrap
+     is reachable depends on issuer mint policy; treating this as out of
+     scope of the formal claim is a documented decision, not an oversight.
 - **The SMT model is functional, not imperative.** `PSL/SMTModel.lean` models
   the tree as a pure function of the key→value map (`rootHash`), faithful to
   `crypto/src/smt.rs`'s hashing scheme (leaf/internal/default-subtree rules,
