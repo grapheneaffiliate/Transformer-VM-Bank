@@ -49,7 +49,7 @@ for the two-tier breakdown.
 | P2 | Repo + remote backup | github.com/grapheneaffiliate/Transformer-VM-Bank | ✅ live | — |
 | **1** | Bit-exact 10k/primitive | `tools/run_per_byte_10k.py` + `run_freeze_decomposed.py` | ✅ 10000/10000 on all 7 active primitives | `9c50e3d` |
 | **2** | SMT determinism | `cargo test -p crypto` | ✅ 22/22 (incl. 100k randomized put + non-inclusion proofs) | `93bae87` |
-| **3** | Lean lake build | `cd lean && lake build` | ✅ compiles against mathlib v4.12.0; 3 sorrys remain (target dates below) | `113c11b` |
+| **3** | Lean lake build | `cd lean && lake build` | ✅ compiles against mathlib v4.12.0; **formal layer is now sorry-free** — all conservation theorems and MPT soundness proven (see "Lean `sorry` tracker" below; only declared axioms are `hash_collision_resistant` + `hash_length`) | `113c11b` |
 | **4** | Sequencer + 3 followers, 100 blocks | `cargo test -p psl-sequencer --test integration` | ✅ 2/2; all 4 state roots match every block; mutation detected. **Sequencer TPS regression bench** (`bench_sequencer_tps_10k_blocks`, `#[ignore]`d, runs 15,106 mixed signed transactions across 10,000 blocks): **4-replica** with cross-replica root agreement ≈ **925 tx/s** (mean 1.08 ms/tx; p50 950 µs, p95 1.95 ms, p99 2.72 ms, p99.9 4.20 ms; single 922 ms max outlier is OS-scheduler noise). **Single-replica** ≈ **3,990 tx/s** (mean 251 µs/tx; p50 201 µs, p95 464 µs, p99 737 µs, p99.9 1.42 ms). Pinned reference hardware: **Intel Core i7-7700 @ 3.60 GHz, 4 cores / 8 threads, x86_64**, WSL2 Ubuntu (Linux 5.15), release build, `NativeTraceExecutor` synthetic trace, in-memory `State`. Run-to-run TPS variance ~5-15% on this WSL2 host from OS scheduler noise; production cloud-CPU deployments should be more stable and likely faster. End-to-end with real ternary trace (~34 trace-hashes per transfer × ~9.5 µs each from gate 10's measured `byte_add` throughput) is back-of-envelope ≈ 1,750 tx/s single-replica — comfortably above the gate-9 trigger threshold of 100 TPS. Hardware spec is captured at run time by the bench (`uname -a` + relevant `lscpu` fields). Run with `cargo test -p psl-sequencer --test integration --release bench_sequencer_tps_10k_blocks -- --ignored --nocapture` (set `PSL_BENCH_REPLICAS=1` for single-replica). v0.2 maturation (perf-CI auto-regression gate, real-trace measurement) deferred per [ADR-0013](decisions/0013-defer-tps-bench-maturation-to-v0.2.md). | `93bae87` |
 | **5** | Compliance enforcement | `cargo test -p psl-sequencer --test compliance` | ✅ 9/9 (travel-rule × 3, freeze authority × 4, view-key proofs × 2) | _(this commit)_ |
 | **6** | Light client cross-verifies 1000 balances | `cargo test -p psl-light-client` | ✅ 8/8 (1000-balance cross-verify + 6 adversarial: tampered proof value, tampered siblings, bad sig, tampered root, wrong signer, broken chain) | _(this commit)_ |
@@ -99,30 +99,29 @@ burn = 17, multi-asset = N × 34.
 
 ## Lean `sorry` tracker
 
-Each open `sorry` in a load-bearing theorem with a target close date.
-"Load-bearing" = a theorem we'd cite to prove safety or compliance.
+**Status: CLOSED — the formal layer is sorry-free.** All previously-tracked
+`sorry`s in load-bearing theorems are now proven and machine-checked in Lean
+4.12.0 (no `sorry`, no `native_decide`). History retained for traceability.
 
-| File | Theorem | Why it's load-bearing | Target close |
-| --- | --- | --- | --- |
-| `PSL/Conservation.lean:30` (sorry at :42) | `transfer_balance_delta_sums_to_zero` | The conservation result other theorems unfold to. Without this the entire conservation chain is hand-waved. | 2026-06-15 |
-| `PSL/Conservation.lean:54` (sorry at :60) | `transfer_conserves` | Auditor-facing claim that transfers preserve total supply per asset. Closes immediately once the helper above closes. | 2026-06-15 |
-| `PSL/Conservation.lean` | `freeze_conserves` | freeze must not change any balance — a regulator would expect this. | 2026-06-22 |
-| `PSL/Conservation.lean` | `supply_changes_only_via_authority` | The compliance-facing invariant that mint/burn are the only supply-altering operations. | 2026-07-01 |
-| `PSL/MPT.lean:49` (sorry at :58) | `inclusion_proof_sound` | Phone-side balance verification soundness. Currently conditioned on `hash_collision_resistant` axiom (fine); the verifier-folding step itself is unproven. | 2026-07-15 |
+| File | Theorem | Resolution |
+| --- | --- | --- |
+| `PSL/Conservation.lean` | `transfer_conserves` | ✅ Proven. The original was false as stated; proven under the genuinely-required `WellKeyed` invariant, `live.Nodup`, and distinct in-set endpoints. Generalized to conserve every asset. No-axiom `decide` counterexample (`transfer_not_conserves_without_nodup`) shows `Nodup` is necessary. Axioms: `propext`, `Quot.sound`. |
+| `PSL/Conservation.lean` | `freeze_conserves` | ✅ Proven under the `WellKeyed` state invariant (the model writes accounts at `a.pubkey`, so a mis-keyed state breaks conservation; counterexample `freeze_not_conserves_without_wellkeyed`). Axioms: `Quot.sound`. |
+| `PSL/Conservation.lean` | `supply_changes_only_via_authority` | ✅ Proven. The original conclusion was *vacuous* (constant `"mint"`, `h_change` unused; see `original_authority_conclusion_is_vacuous`). Restated so a supply change forces `tx` to be a mint or burn, with `h_change` genuinely load-bearing. Axioms: `propext`, `Quot.sound`. |
+| `PSL/MPT.lean` | `inclusion_proof_sound` | ✅ Proven. The original conclusion (`value.length ∈ {0,64}`) was ill-posed — no verifier enforces value length. Replaced by the correct soundness property, **value binding**: a committed `(root, key)` pins a unique value (forging another value that verifies breaks collision-resistance). `verifyProof` now mirrors `crypto/src/smt.rs::verify_proof` (recompute the root by folding the 256 key-bit-ordered siblings). Axioms: `propext`, `Classical.choice`, `Quot.sound`, `hash_collision_resistant`, `hash_length`. |
 
 Notes:
 - **Determinism** theorems (`PSL/Determinism.lean`) are by-construction
   trivial because Lean functions are deterministic; the operational
   determinism between Lean and C/WASM is checked empirically by gate 1.
-- **MPT.lean** uses `opaque` modeling for hash; that's the standard
-  approach and not a `sorry` problem. The unfinished work is the
-  `verifyProof` body and the soundness theorem's step-folding.
+- **MPT.lean** treats `hash` as `opaque` with two explicit crypto axioms
+  (`hash_collision_resistant`, `hash_length` — collision resistance and the
+  fixed 32-byte BLAKE3-256 digest). This is the standard hash-modeling
+  approach; the soundness result is conditioned on these assumptions, which
+  is the honest and expected form for a hash-based proof.
 - The `tools/check_lean_drift.py` checker exists but is not wired into
   CI; add a pre-commit hook before any production deployment to prevent
   silent C/Lean divergence.
-
-If any of these dates slip, document the slip *in this table*, not in a
-side conversation. Permanent `sorry`s are silent technical debt.
 
 ---
 
