@@ -211,8 +211,9 @@ Before any production deployment carrying real value:
       `docs/audits/<date>_<vendor>.pdf`. All critical / high
       findings remediated. Audit re-sign-off recorded in
       `docs/AUDIT_FINDINGS.md`.
-- [ ] Three Lean `sorry`s closed (`Conservation:42`, `:60`,
-      `MPT:58`).
+- [x] Lean `sorry`s closed — formal layer is sorry-free
+      (`Conservation`, `MPT`); CI axiom-audit gate enforces it on every
+      PR (see `VERIFICATION.md`).
 - [ ] CI pipeline runs:
       - `cargo test --workspace --release` (all green)
       - `cargo deny check licenses bans advisories`

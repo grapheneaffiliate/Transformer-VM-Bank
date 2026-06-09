@@ -29,7 +29,7 @@ resolution be a function of the protocol, not an off-chain process.
 | ---  | ---                                                  | ---    |
 | 1    | Primitive bit-exact (10k vectors each)               | ✅ |
 | 2    | Crypto + SMT determinism                             | ✅ |
-| 3    | Lean `lake build` (3 sorrys with target dates)       | ✅ |
+| 3    | Lean `lake build` — proofs CI-gated, **sorry-free** (axiom-audited) | ✅ |
 | 4    | Sequencer + 3 followers, 100 mixed blocks            | ✅ |
 | 5    | Compliance enforcement (9/9)                         | ✅ |
 | 6    | Light client cross-verifies 1000 balances + 6 adv.   | ✅ |
@@ -173,7 +173,7 @@ crypto/           — ed25519 + BLAKE3 + Merkle-Patricia Trie (state root)
 crypto_agility/   — scheme-prefixed signatures/KEM/hashes (hybrid ed25519+ML-DSA-65 sigs, hybrid X25519+ML-KEM-768 KEM with forward-secret witness encryption per ADR-0007/0011)
 
 legacy/rust_runner/  — frozen per ADR-0001; do not extend
-lean/                — Lean 4 + mathlib formalization (3 sorrys with target dates)
+lean/                — Lean 4 + mathlib formalization (sorry-free; CI axiom-audit gate, see VERIFICATION.md)
 pilot/issuer_demo/   — end-to-end pilot binary
 sdk-examples/        — Python (UniFFI) + TypeScript (napi-rs) bindings of the SDK
 infra/               — reference Terraform deployment (network + sequencer + 3× follower + light-client gateway + observability)
@@ -217,8 +217,9 @@ reference Terraform — "redeploy this exactly" is `terraform apply`.
 
 These are non-negotiable in this codebase:
 
-1. **No new sorrys** in load-bearing Lean theorems; existing 3 have
-   target close dates.
+1. **No sorrys** in load-bearing Lean theorems. The formal layer is
+   sorry-free and its axiom footprint is CI-enforced by an in-build audit
+   gate (`lean/PSL/Audit.lean`); see `VERIFICATION.md`.
 2. **No `unwrap()` / `expect()` on production paths** other than
    audited lock-poison + audited structurally-impossible-overflow
    (see `docs/UNWRAP_AUDIT.md`).

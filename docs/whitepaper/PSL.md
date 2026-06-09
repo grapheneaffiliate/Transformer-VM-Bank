@@ -175,9 +175,13 @@ We claim:
 > - Run-to-run nondeterminism (none introduced by P; PRNG is
 >   excluded from contract code by construction).
 
-Mechanized statement and proof are in `lean/ternary/Determinism.lean`
-(the proof is partial as of v0.1.0; see `docs/STATUS.md` § Lean
-sorrys for tracking).
+A determinism statement is in `lean/PSL/Determinism.lean`: ledger-level
+determinism is by construction (the Lean model is a pure function), and
+the load-bearing Lean ↔ implementation byte-exactness is established
+empirically by the gate-1 bit-exact vectors. The financial-safety
+theorems — supply conservation and Merkle inclusion-proof soundness —
+are fully proven, sorry-free, and axiom-audited; see `VERIFICATION.md`
+for the proved-vs-assumed map.
 
 ## 4. Standard contract library
 

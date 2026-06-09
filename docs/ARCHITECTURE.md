@@ -466,7 +466,7 @@ any state below.
 | -- | ---                                                  | --- |
 | 1  | Primitive bit-exact (10k/primitive)                  | ✅ all 7 active primitives 10000/10000 |
 | 2  | SMT / crypto determinism                             | ✅ 22/22 |
-| 3  | Lean lake build                                      | ✅ compiles; 3 sorrys with target close dates |
+| 3  | Lean lake build                                      | ✅ compiles; sorry-free, CI-gated axiom audit (VERIFICATION.md) |
 | 4  | Sequencer + 3 followers, 100 blocks                  | ✅ all roots match every block; mutation detected |
 | 5  | Compliance enforcement                               | ✅ 9/9 |
 | 6  | Light client cross-verifies                          | ✅ 8/8 |
@@ -553,11 +553,12 @@ acceptance criteria — human-in-the-loop sign-off.
 
 ## 10. Open contracts to be filled in
 
-- `lean/PSL/MPT.lean` — proof depends on whether we use a verified
-  BLAKE3 in Lean or treat hashing as an opaque collision-resistant
-  function.
-- `lean/PSL/Conservation.lean` — 2 of 3 outstanding sorrys; target
-  close dates 2026-06-15 / 2026-07-15.
+- ~~`lean/PSL/MPT.lean`~~ — ✅ done. Proven as value binding with `hash`
+  treated as an opaque collision-resistant, fixed-length function (two
+  explicit axioms); `verifyProof` mirrors `crypto/src/smt.rs`. See
+  `VERIFICATION.md`.
+- ~~`lean/PSL/Conservation.lean`~~ — ✅ done. All conservation theorems
+  proven, sorry-free, axiom-audited (`VERIFICATION.md`).
 - Hybrid signature/KEM implementations per ADR-0006 phases 2-6.
 - BFT consensus engine selection on first ADR-0002 trigger fire (60-day
   SLA from trigger).
