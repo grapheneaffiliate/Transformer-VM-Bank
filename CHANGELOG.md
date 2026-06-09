@@ -37,8 +37,20 @@ below, which records the state at commit `113c11b`.)
   every asset — plus the corollary that a block with no mint/burn cannot
   change supply. Includes the `WellKeyed`-preservation lemmas (no axioms)
   that let per-tx theorems legitimately chain across a block.
+- **Compliance admission policy** (`lean/PSL/Compliance.lean`): faithful model
+  of `sequencer/src/mempool.rs::validate` with nine **axiom-free** theorems —
+  travel-rule, freeze-authority + court-order, mint/burn-authority,
+  frozen-sender, nonce, and signature gates reject as intended; a compliant
+  transfer is admitted. Signature verification abstracted as an opaque prop.
+- **Lean↔implementation drift checker fixed + CI-enforced**
+  (`tools/check_lean_drift.py`): the prior version watched nonexistent
+  `ledger_*.c` files (it had never run); rewritten to watch the real
+  hand-translated sources (primitives, `trace.rs`, `mempool.rs`,
+  `account.rs`, `smt.rs`), manifest pinned, runs in the `formal-verification`
+  job. The forced correspondence audit's findings (model-only `assetId`,
+  ℕ-vs-u128 wraparound) are documented in `VERIFICATION.md`.
 - **In-build axiom-audit gate** (`lean/PSL/Audit.lean`) + `formal-verification`
-  CI job: `lake build` now fails if any of the 13 load-bearing theorems gains a
+  CI job: `lake build` now fails if any of the 22 load-bearing theorems gains a
   disallowed axiom (`sorryAx`/`Lean.ofReduceBool`/unlisted axiom) or goes
   missing. Trust boundary documented in `VERIFICATION.md`.
 

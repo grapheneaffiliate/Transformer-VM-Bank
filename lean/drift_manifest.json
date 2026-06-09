@@ -9,5 +9,6 @@
   "primitives/mpt_emit_record.c": "2c9ee2ca87a5abce8bb8c9d62a1fc7ee",
   "primitives/transfer_check.c": "b331783cf8b885a5080a51ee4ffd44c5",
   "primitives/transfer_finalize.c": "6bffdb0144fc27121ef4f252f3f02074",
+  "sequencer/src/mempool.rs": "42307964a8de0c5e2ee0172ea3002822",
   "sequencer/src/trace.rs": "ff5a1565afbe77c71b4d0242e97d0e88"
 }

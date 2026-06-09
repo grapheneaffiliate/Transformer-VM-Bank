@@ -47,6 +47,12 @@ for the per-gate timing reference.
   stored value — non-inclusion soundness is the empty-value special case),
   and `smt_root_order_independent` (the commitment depends only on the final
   map). Includes the proven 256-bit key↔path round-trip.
+- **`PSL/Compliance.lean`** — the mempool admission policy
+  (`sequencer/src/mempool.rs::validate`). Nine **axiom-free** theorems: the
+  travel-rule, freeze-authority + court-order, mint/burn-authority,
+  frozen-sender, nonce, and signature gates each reject as intended, and a
+  fully-compliant transfer is admitted. Signature verification is abstracted
+  as an opaque proposition.
 - **`PSL/Audit.lean`** — the in-build axiom-footprint gate (see § Verification
   gate). Fails `lake build` if any load-bearing theorem gains a disallowed
   axiom (`sorry`/`native_decide`/unlisted axiom) or goes missing.

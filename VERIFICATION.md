@@ -11,10 +11,11 @@ each theorem below at build time and fails the build if it drifts, and the
 silently go stale: if it disagrees with the code, CI is red.
 
 > Scope note. This ledger covers the **Lean 4 formal layer** (`lean/PSL/`),
-> which models the ledger semantics and the Sparse Merkle Tree. Properties
-> verified *empirically* (bit-exact primitive re-execution, cross-platform
-> determinism, compliance enforcement) are tracked in `docs/STATUS.md` gates,
-> not here. The honest boundary between "proved" and "tested" is the point.
+> which models the ledger semantics, the Sparse Merkle Tree, and the mempool
+> compliance policy. Properties verified *empirically* (bit-exact primitive
+> re-execution, cross-platform determinism, ed25519 signature correctness) are
+> tracked in `docs/STATUS.md` gates, not here. The honest boundary between
+> "proved" and "tested" is the point.
 
 ## Trust boundary: the allowed axioms
 
@@ -51,6 +52,7 @@ standard, expected form for a hash-based proof. **There is no `sorryAx` and no
 | **Completeness:** the honestly-generated proof for any key verifies against the model root. Purely structural — needs **no collision-resistance**. | `inclusion_proof_complete` | `PSL/SMTModel.lean` | `propext`, `Quot.sound`, `hash_length` |
 | **Correctness (capstone):** *any* proof that verifies against a model root carries exactly the stored value `m key`. Soundness + completeness combined: the committed root pins down precisely the map's value at every key. With an absent key (`m key = []`) this **is** non-inclusion soundness. | `inclusion_proof_correct` | `PSL/SMTModel.lean` | `propext`, `Classical.choice`, `Quot.sound`, `hash_collision_resistant`, `hash_length` |
 | The state commitment depends only on the final key→value map — writing two distinct keys in either order yields the same root (spec-level form of the Rust `put_order_independent_for_independent_keys` test). | `smt_root_order_independent` | `PSL/SMTModel.lean` | `propext`, `Quot.sound` |
+| **Compliance admission policy** (`PSL/Compliance.lean`, modeling `sequencer/src/mempool.rs::validate`; signature verification abstracted as an opaque proposition). Nine theorems, **all axiom-free**: a high-value transfer without travel-rule metadata is rejected; a freeze needs both issuer authority and a court order; mint/burn need the (capability-enabled) issuer authority; a frozen sender's transfer/burn is rejected; a wrong-nonce transfer/burn is rejected; an invalid signature is rejected; and a fully-compliant transfer is admitted. | `travel_rule_high_value_rejected`, `freeze_non_authority_rejected`, `freeze_without_court_order_rejected`, `mint_non_authority_rejected`, `burn_non_authority_rejected`, `frozen_sender_rejected`, `nonce_mismatch_rejected`, `invalid_signature_rejected`, `compliant_transfer_admitted` | `PSL/Compliance.lean` | none |
 
 Together these give a complete supply-accounting picture, per transaction
 **and per block**: total supply is **invariant** under transfer and freeze,
@@ -118,11 +120,20 @@ necessary with a counterexample, rather than quietly assuming it away:
   Rust agreeing with the functional spec remains an empirically-tested
   property (the 100k randomized-put determinism test), per the
   hand-translation contract.
-- **Not yet formalized** (tested in Rust only): compliance (travel-rule)
-  invariants. Candidates for future proof work; until then they are
-  empirical, not formal, guarantees. (Freeze-authority enforcement,
-  nonce/replay monotonicity, Merkle completeness/correctness, and spec-level
-  root order-independence are now formalized — see the table above.)
+- **Compliance: policy proven, signature abstracted.** `PSL/Compliance.lean`
+  models the `mempool.rs::validate` admission policy and proves all nine
+  regulator-facing gate properties (axiom-free). Signature *verification*
+  itself is abstracted as an opaque proposition `SigValid` (the same treatment
+  `hash` gets) — ed25519 correctness is a tested, not formalized, property.
+- **Essentially the whole load-bearing surface is now formalized.** Supply
+  conservation/accounting (per-tx and per-block), mint/burn exactness,
+  freeze-authority, nonce/replay monotonicity, Merkle
+  soundness/completeness/correctness, root order-independence, and the
+  compliance admission policy all have machine-checked theorems above. The
+  remaining honest gaps are the *correspondence* items: the hand-translation
+  contract (guarded by the CI drift check), the opaque-`hash`/`SigValid`
+  abstractions, the functional-vs-imperative SMT `put`, and the documented
+  ℕ-vs-u128 wraparound scoping.
 
 ## Reproduce locally
 
@@ -133,22 +144,21 @@ lake exe cache get                             # prebuilt mathlib (~1-2 min)
 lake build                                     # builds proofs + runs the audit gate
 ```
 
-A passing build prints `✓ formal audit passed: 13 load-bearing theorems rest
+A passing build prints `✓ formal audit passed: 22 load-bearing theorems rest
 only on the 5 allowed axioms`. To see the footprint yourself:
 
 ```bash
 echo 'import PSL
-open PSL PSL.MPT
+open PSL PSL.MPT PSL.Compliance
 #print axioms transfer_conserves
-#print axioms freeze_conserves
 #print axioms supply_changes_only_via_authority
 #print axioms mint_increases_supply
-#print axioms burn_decreases_supply
-#print axioms frozen_sender_transfer_noop
-#print axioms transfer_success_increments_nonce
+#print axioms block_supply_accounting
 #print axioms inclusion_proof_sound
-#print axioms inclusion_proof_complete
 #print axioms inclusion_proof_correct
-#print axioms smt_root_order_independent' > /tmp/Ax.lean
+#print axioms smt_root_order_independent
+#print axioms travel_rule_high_value_rejected
+#print axioms freeze_without_court_order_rejected
+#print axioms compliant_transfer_admitted' > /tmp/Ax.lean
 lake env lean /tmp/Ax.lean
 ```

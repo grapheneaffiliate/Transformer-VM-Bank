@@ -11,6 +11,7 @@ Watched correspondence (see VERIFICATION.md "Modeling assumptions"):
   - lean/PSL/Account.lean  ↔ crypto/src/account.rs + primitives/common.h
   - lean/PSL/MPT.lean,
     lean/PSL/SMTModel.lean ↔ crypto/src/smt.rs
+  - lean/PSL/Compliance.lean ↔ sequencer/src/mempool.rs (validate)
 
 This tool hashes each watched source and compares against a checked-in
 manifest. Mismatches (or missing files) abort with a non-zero exit code; the
@@ -49,6 +50,7 @@ WATCHED = [
     "primitives/transfer_check.c",
     "primitives/transfer_finalize.c",
     "sequencer/src/trace.rs",
+    "sequencer/src/mempool.rs",
     "crypto/src/account.rs",
     "crypto/src/smt.rs",
 ]

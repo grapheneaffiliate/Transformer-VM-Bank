@@ -20,6 +20,7 @@ import Lean
 import PSL.Conservation
 import PSL.LedgerInvariants
 import PSL.BlockAccounting
+import PSL.Compliance
 import PSL.MPT
 import PSL.SMTModel
 
@@ -51,7 +52,16 @@ def loadBearing : List Name :=
    ``PSL.MPT.inclusion_proof_sound,
    ``PSL.MPT.inclusion_proof_complete,
    ``PSL.MPT.inclusion_proof_correct,
-   ``PSL.MPT.smt_root_order_independent]
+   ``PSL.MPT.smt_root_order_independent,
+   ``PSL.Compliance.invalid_signature_rejected,
+   ``PSL.Compliance.travel_rule_high_value_rejected,
+   ``PSL.Compliance.freeze_non_authority_rejected,
+   ``PSL.Compliance.freeze_without_court_order_rejected,
+   ``PSL.Compliance.mint_non_authority_rejected,
+   ``PSL.Compliance.burn_non_authority_rejected,
+   ``PSL.Compliance.frozen_sender_rejected,
+   ``PSL.Compliance.nonce_mismatch_rejected,
+   ``PSL.Compliance.compliant_transfer_admitted]
 
 /-- Axioms a constant transitively depends on. -/
 def axiomsOf (env : Environment) (n : Name) : List Name :=
