@@ -47,6 +47,45 @@ jobs:
       - name: cargo clippy strict (new crates only)
         run: cargo clippy -p psl-crypto-agility --all-targets -- -D warnings
 
+  # Formal-verification gate. Builds the Lean 4 proofs against mathlib and runs
+  # the in-build axiom-footprint audit (`lean/PSL/Audit.lean`). This is the gate
+  # that was previously MISSING: the proofs existed but nothing checked them on
+  # PRs, so a `sorry`, a `native_decide`, an unexpected axiom, or a deleted
+  # theorem could land unnoticed. The audit module fails `lake build` on any of
+  # those, so this job is the continuous enforcement of the trust boundary
+  # documented in VERIFICATION.md.
+  formal-verification:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Lean ↔ implementation drift check
+        # Fails if any implementation source the Lean models hand-translate
+        # (primitives/*.c, sequencer/src/trace.rs, crypto/src/{account,smt}.rs)
+        # changed without the pinned manifest being re-reviewed. Guards the
+        # hand-translation contract documented in VERIFICATION.md.
+        run: python3 tools/check_lean_drift.py
+      - name: Install elan (Lean toolchain manager)
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -o elan-init.sh
+          sh elan-init.sh -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Cache Lean toolchain + resolved packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.elan
+            lean/.lake/packages
+          key: lean-${{ runner.os }}-${{ hashFiles('lean/lean-toolchain', 'lean/lake-manifest.json') }}
+      - name: Fetch prebuilt mathlib cache
+        working-directory: lean
+        run: lake exe cache get
+      - name: Build proofs + run formal-audit gate
+        working-directory: lean
+        # `lake build` compiles every PSL theorem AND elaborates PSL/Audit.lean,
+        # whose `run_cmd` aborts the build if any load-bearing theorem gains a
+        # disallowed axiom (sorryAx / Lean.ofReduceBool / unlisted axiom).
+        run: lake build
+
   reproducibility:
     runs-on: ubuntu-24.04
     steps:

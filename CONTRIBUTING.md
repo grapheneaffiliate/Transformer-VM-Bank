@@ -47,7 +47,12 @@ Code-quality expectations beyond the linters:
 - **No silent failures.** All input-driven errors return `Result`.
 - **Tests are the spec.** Anything you want to be true should be
   asserted in a test, including adversarial scenarios.
-- **No new Lean sorrys** in load-bearing theorems.
+- **No new Lean sorrys** in load-bearing theorems. This is machine-enforced:
+  `lean/PSL/Audit.lean` fails `lake build` (and the `formal-verification` CI
+  job) if any load-bearing theorem gains a `sorry` (`sorryAx`),
+  `native_decide` (`Lean.ofReduceBool`), or any axiom outside the allowlist.
+  When you add a load-bearing theorem, add it to that file's `loadBearing`
+  list and to `VERIFICATION.md`.
 
 If your change touches the trust model, the trace-hash contract, or
 any ADR'd decision, write an ADR first. ADRs land as a separate

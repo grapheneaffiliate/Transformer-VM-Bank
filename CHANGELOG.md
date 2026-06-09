@@ -5,6 +5,55 @@ load-bearing commit on `origin/main`.
 
 ## [Unreleased] — post-v0.1.0 work
 
+### Changed — Formal-verification layer hardened to sorry-free + CI-gated
+
+The Lean formal layer is now **sorry-free** and its trust boundary is
+machine-enforced. (Supersedes the "Gate 3 cleared — 3 sorrys remain" entry
+below, which records the state at commit `113c11b`.)
+
+- **Conservation theorems corrected and proven.** An audit found the originals
+  were unsound or vacuous as stated: `freeze_conserves` needed a `WellKeyed`
+  state invariant, `transfer_conserves` needed `live.Nodup` + endpoint
+  conditions, and `supply_changes_only_via_authority` was vacuous (its
+  conclusion held for the constant `"mint"`). All three now proven under the
+  genuinely-required hypotheses, with no-axiom `decide` counterexamples
+  proving each hypothesis necessary.
+- **MPT `inclusion_proof_sound` proven as value binding.** The original
+  conclusion (`value.length ∈ {0,64}`) was ill-posed — no verifier enforces
+  it. Replaced by the real soundness property: a committed `(root, key)` pins
+  a unique value (forging another that verifies breaks collision-resistance).
+  `verifyProof` now mirrors `crypto/src/smt.rs::verify_proof`.
+- **New invariants** (`lean/PSL/LedgerInvariants.lean`): mint/burn change
+  supply by exactly the authorized amount; frozen senders cannot move funds;
+  successful transfers advance the sender nonce.
+- **Functional SMT model** (`lean/PSL/SMTModel.lean`): the tree as a pure
+  function of the key→value map, faithful to `crypto/src/smt.rs`. Proves
+  inclusion-proof **completeness** (honest proofs verify — no
+  collision-resistance needed), the capstone **correctness** (any verifying
+  proof carries exactly the stored value; non-inclusion soundness falls out
+  as the empty-value case), and spec-level root **order-independence**.
+- **Block-level supply accounting** (`lean/PSL/BlockAccounting.lean`): over
+  any block, `supply_before + minted = supply_after + burned` exactly, for
+  every asset — plus the corollary that a block with no mint/burn cannot
+  change supply. Includes the `WellKeyed`-preservation lemmas (no axioms)
+  that let per-tx theorems legitimately chain across a block.
+- **Compliance admission policy** (`lean/PSL/Compliance.lean`): faithful model
+  of `sequencer/src/mempool.rs::validate` with nine **axiom-free** theorems —
+  travel-rule, freeze-authority + court-order, mint/burn-authority,
+  frozen-sender, nonce, and signature gates reject as intended; a compliant
+  transfer is admitted. Signature verification abstracted as an opaque prop.
+- **Lean↔implementation drift checker fixed + CI-enforced**
+  (`tools/check_lean_drift.py`): the prior version watched nonexistent
+  `ledger_*.c` files (it had never run); rewritten to watch the real
+  hand-translated sources (primitives, `trace.rs`, `mempool.rs`,
+  `account.rs`, `smt.rs`), manifest pinned, runs in the `formal-verification`
+  job. The forced correspondence audit's findings (model-only `assetId`,
+  ℕ-vs-u128 wraparound) are documented in `VERIFICATION.md`.
+- **In-build axiom-audit gate** (`lean/PSL/Audit.lean`) + `formal-verification`
+  CI job: `lake build` now fails if any of the 22 load-bearing theorems gains a
+  disallowed axiom (`sorryAx`/`Lean.ofReduceBool`/unlisted axiom) or goes
+  missing. Trust boundary documented in `VERIFICATION.md`.
+
 ### Added — Post-quantum cryptography (gate 19 → 🟢, PRs #11-#15 + #18)
 
 The full ADR-0011 5-commit plan plus follow-up tests shipped to main.

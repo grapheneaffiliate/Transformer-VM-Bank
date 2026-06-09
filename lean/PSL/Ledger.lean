@@ -1,17 +1,35 @@
 /-
-  Lean model of the PSL ledger primitives.
+  Lean model of the PSL ledger semantics.
 
-  Each function mirrors a C primitive in `primitives/`:
-    - transfer       ↔ ledger_transfer.c
-    - mint           ↔ ledger_mint.c
-    - burn           ↔ ledger_burn.c
-    - freeze         ↔ ledger_freeze.c
+  Each function mirrors the executable transaction semantics in
+  `sequencer/src/trace.rs` (`NativeTraceExecutor`), which is itself composed
+  from the `primitives/*.c` micro-ops (transfer_check = the balance≥amount
+  compare, transfer_finalize = the nonce increment, freeze_setup/apply, …):
+    - transfer       ↔ trace.rs::transfer  (frozen/balance guards, debit,
+                       credit, nonce+1, lastActive)
+    - mint           ↔ trace.rs::mint
+    - burn           ↔ trace.rs::burn
+    - freeze         ↔ trace.rs::freeze
     - applyBlock     ↔ block-level composition in sequencer/src/node.rs
 
+  Known model ↔ implementation deltas (found in the 2026-06 correspondence
+  audit; full discussion in VERIFICATION.md):
+    • `Account.assetId` is MODEL-ONLY: the Rust 64-byte account record
+      (crypto/src/account.rs) has no asset_id field — asset_id exists only on
+      transactions. The Lean assetId guards model the intended per-asset
+      partitioning; the implementation enforces it at a different layer.
+    • Balances here are ℕ; Rust uses u128 with `wrapping_add` on the transfer
+      credit path and `checked_add` on mint. The conservation theorems
+      therefore do not cover a u128 wraparound of a recipient balance.
+
   These are pure, side-effect-free functions; Lean proves invariants over
-  them directly. The hand-translation contract: when a primitive's C source
+  them directly. The hand-translation contract: when a watched source
   changes, this file MUST be updated and the corresponding theorems re-proven.
-  Drift detection: `tools/check_lean_drift.py`.
+  Drift detection: `tools/check_lean_drift.py` (runs in CI).
+
+  Historical note: this header previously claimed correspondence to
+  `ledger_transfer.c` / `ledger_mint.c` / `ledger_burn.c` / `ledger_freeze.c`
+  — files that never existed in this tree.
 -/
 
 import PSL.Account
