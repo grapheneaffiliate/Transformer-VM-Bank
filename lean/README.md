@@ -29,6 +29,14 @@ for the per-gate timing reference.
   under the genuinely-required hypotheses (`WellKeyed` state invariant,
   `live.Nodup`, distinct in-set endpoints), with no-axiom `decide`
   counterexamples showing each hypothesis is necessary.
+- **`PSL/LedgerInvariants.lean`** — completes the supply-accounting story:
+  `mint_increases_supply` / `burn_decreases_supply` (supply moves by *exactly*
+  the authorized amount), `frozen_sender_transfer_noop` (freeze-authority
+  enforcement), `transfer_success_increments_nonce` (replay/ordering). All
+  proven, no `sorry`.
+- **`PSL/Audit.lean`** — the in-build axiom-footprint gate (see § Verification
+  gate). Fails `lake build` if any load-bearing theorem gains a disallowed
+  axiom (`sorry`/`native_decide`/unlisted axiom) or goes missing.
 - **`PSL/Determinism.lean`** — trivial determinism (Lean functions are
   deterministic by construction); operational determinism is checked
   by the Rust test suite (`cargo test --workspace --release`) and by

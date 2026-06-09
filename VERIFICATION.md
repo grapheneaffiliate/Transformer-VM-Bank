@@ -41,7 +41,15 @@ standard, expected form for a hash-based proof. **There is no `sorryAx` and no
 | A transfer never changes the total supply of **any** asset (given a well-keyed state, a duplicate-free working set, and distinct endpoints both in that set). | `transfer_conserves` | `PSL/Conservation.lean` | `propext`, `Quot.sound` |
 | A freeze never changes any balance (given a well-keyed state). | `freeze_conserves` | `PSL/Conservation.lean` | `Quot.sound` |
 | The total supply of an asset can change **only** via mint or burn — a transfer or freeze that changes supply is impossible. | `supply_changes_only_via_authority` | `PSL/Conservation.lean` | `propext`, `Quot.sound` |
+| A mint increases the asset's total supply by **exactly** the minted amount. | `mint_increases_supply` | `PSL/LedgerInvariants.lean` | `propext`, `Quot.sound` |
+| A burn decreases the asset's total supply by **exactly** the burned amount. | `burn_decreases_supply` | `PSL/LedgerInvariants.lean` | `propext`, `Quot.sound` |
+| A frozen sender cannot move funds — its transfer is a no-op (state and success flag unchanged). Freeze-authority enforcement. | `frozen_sender_transfer_noop` | `PSL/LedgerInvariants.lean` | none |
+| A successful transfer strictly advances the sender's nonce by one (replay/ordering monotonicity). | `transfer_success_increments_nonce` | `PSL/LedgerInvariants.lean` | none |
 | **Value binding:** for a committed `(root, key)`, no two proofs can verify with different values. A forged alternative value that still verifies would break collision-resistance. (Phone-side balance-proof soundness.) | `inclusion_proof_sound` | `PSL/MPT.lean` | `propext`, `Classical.choice`, `Quot.sound`, `hash_collision_resistant`, `hash_length` |
+
+Together these give a complete supply-accounting picture: total supply is
+**invariant** under transfer and freeze, and moves by **precisely** the
+authorized amount under mint and burn.
 
 ### Why these statements, and not stronger-sounding ones
 
@@ -76,9 +84,11 @@ necessary with a counterexample, rather than quietly assuming it away:
   verify_proof`. Divergence is guarded empirically (gate 1 bit-exact vectors)
   and by `tools/check_lean_drift.py` (not yet wired into CI — see STATUS notes).
 - **Not yet formalized** (tested in Rust only): SMT root determinism /
-  order-independence, nonce/replay protection, freeze-authority enforcement,
-  compliance (travel-rule) invariants. These are candidates for future proof
-  work; until then they are empirical, not formal, guarantees.
+  order-independence (the Lean MPT model has `verifyProof` but not the tree
+  `put`), and compliance (travel-rule) invariants. These are candidates for
+  future proof work; until then they are empirical, not formal, guarantees.
+  (Freeze-authority enforcement and nonce/replay monotonicity are now
+  formalized — see the table above.)
 
 ## Reproduce locally
 
@@ -89,7 +99,7 @@ lake exe cache get                             # prebuilt mathlib (~1-2 min)
 lake build                                     # builds proofs + runs the audit gate
 ```
 
-A passing build prints `✓ formal audit passed: 4 load-bearing theorems rest
+A passing build prints `✓ formal audit passed: 8 load-bearing theorems rest
 only on the 5 allowed axioms`. To see the footprint yourself:
 
 ```bash
@@ -98,6 +108,10 @@ open PSL PSL.MPT
 #print axioms transfer_conserves
 #print axioms freeze_conserves
 #print axioms supply_changes_only_via_authority
+#print axioms mint_increases_supply
+#print axioms burn_decreases_supply
+#print axioms frozen_sender_transfer_noop
+#print axioms transfer_success_increments_nonce
 #print axioms inclusion_proof_sound' > /tmp/Ax.lean
 lake env lean /tmp/Ax.lean
 ```

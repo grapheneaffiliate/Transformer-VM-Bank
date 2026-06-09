@@ -18,6 +18,7 @@
 
 import Lean
 import PSL.Conservation
+import PSL.LedgerInvariants
 import PSL.MPT
 
 open Lean Elab Command
@@ -39,6 +40,10 @@ def loadBearing : List Name :=
   [``PSL.transfer_conserves,
    ``PSL.freeze_conserves,
    ``PSL.supply_changes_only_via_authority,
+   ``PSL.mint_increases_supply,
+   ``PSL.burn_decreases_supply,
+   ``PSL.frozen_sender_transfer_noop,
+   ``PSL.transfer_success_increments_nonce,
    ``PSL.MPT.inclusion_proof_sound]
 
 /-- Axioms a constant transitively depends on. -/

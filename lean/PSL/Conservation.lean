@@ -60,7 +60,7 @@ def WellKeyed (s : State) : Prop := ∀ pk, (s.accounts pk).pubkey = pk
     formulation throughout (no `f a - g a`). -/
 
 /-- `foldl (+)` from accumulator `z` is `z` plus the `foldr (+)` sum. -/
-private theorem foldl_add_acc :
+theorem foldl_add_acc :
     ∀ (l : List Nat) (z : Nat), l.foldl (· + ·) z = z + l.foldr (· + ·) 0 := by
   intro l
   induction l with
@@ -82,7 +82,7 @@ private theorem foldr_congr (f g : PubKey → Nat) :
 /-- Single-point update lemma (additive form to dodge `Nat` subtraction):
     if `f`, `g` agree on a `Nodup` list except possibly at `b ∈ l`, then
     `Σf + g b = Σg + f b`. -/
-private theorem foldr_one (f g : PubKey → Nat) (b : PubKey) :
+theorem foldr_one (f g : PubKey → Nat) (b : PubKey) :
     ∀ (l : List PubKey), b ∈ l → l.Nodup → (∀ x ∈ l, x ≠ b → f x = g x) →
       (l.map f).foldr (· + ·) 0 + g b = (l.map g).foldr (· + ·) 0 + f b := by
   intro l
