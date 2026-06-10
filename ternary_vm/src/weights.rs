@@ -407,7 +407,7 @@ mod tests {
             bias: vec![5, -3],
             relu: true,
         };
-        let (bytes, digest) = pack_weights("test", 3, 2, &[layer.clone()]);
+        let (bytes, digest) = pack_weights("test", 3, 2, std::slice::from_ref(&layer));
         let (header, layers) = unpack_weights(&bytes).unwrap();
         assert_eq!(header.primitive, "test");
         assert_eq!(header.input_dim, 3);

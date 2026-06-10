@@ -233,7 +233,7 @@ impl AgentSdk {
         accept.verify().map_err(SdkError::Protocol)?;
         let mut log = self.proposals.lock().unwrap();
         log.apply_accept(accept.clone())?;
-        let st = log.get(&accept.proposal_hash).cloned().ok_or_else(|| {
+        let st = log.get(&accept.proposal_hash).cloned().ok_or({
             SdkError::Protocol(psl_agent_protocol::ProtocolError::UnknownProposal {
                 hash: accept.proposal_hash,
             })

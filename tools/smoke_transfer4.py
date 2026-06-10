@@ -1,6 +1,5 @@
 """4-stage transfer smoke test (check + sub + add + nonce)."""
 
-import json
 import os
 import random
 import subprocess

@@ -18,6 +18,9 @@ use psl_sequencer::{
     tx::{SignedTx, TxKind},
 };
 
+// Test helper that spells out every SignedTx field at the call site;
+// a params struct would just restate the SignedTx fields.
+#[allow(clippy::too_many_arguments)]
 fn build_tx(
     kind: TxKind,
     asset_id: u32,

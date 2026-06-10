@@ -84,10 +84,9 @@ impl ProposalLog {
         p.verify()?;
         let h = p.proposal_hash();
         // Idempotent re-insert
-        if !self.by_hash.contains_key(&h) {
-            self.by_hash
-                .insert(h, ProposalState::Proposed { propose: p });
-        }
+        self.by_hash
+            .entry(h)
+            .or_insert(ProposalState::Proposed { propose: p });
         Ok(h)
     }
 

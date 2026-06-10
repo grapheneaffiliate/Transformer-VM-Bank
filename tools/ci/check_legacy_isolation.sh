@@ -29,6 +29,11 @@ while IFS= read -r file; do
         CHANGELOG.md)                            ;;  # release history
         Cargo.lock)                              ;;  # generated workspace lockfile
         tools/ci/check_legacy_isolation.sh)      ;;  # this file
+        # These name the crate only to EXCLUDE it from the strict
+        # clippy gate (`--exclude psl-rust-runner`) — not an import.
+        .github/workflows/ci.yml)                ;;
+        CONTRIBUTING.md)                         ;;
+        .github/pull_request_template.md)        ;;
         # Cross-engine verification harness — explicit opt-in via env var,
         # documented as a backward-compat path in `tests/test_bit_exact.py`.
         tests/test_bit_exact.py)                 ;;

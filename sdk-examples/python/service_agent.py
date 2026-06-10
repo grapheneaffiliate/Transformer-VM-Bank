@@ -72,7 +72,7 @@ def main() -> None:
     assert outcome.is_disputed, "alice should detect the lie and dispute"
     print("alice opens Dispute (her local re-execution disagrees with bob's claim)")
 
-    dispute = alice_sdk.open_dispute(proposal.proposal_hash())
+    alice_sdk.open_dispute(proposal.proposal_hash())
     judge_outcome = resolve_dispute(
         contract=TransferContract(),
         proposal=proposal,

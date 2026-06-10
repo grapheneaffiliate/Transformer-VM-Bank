@@ -52,7 +52,7 @@ impl SparseTernaryLayer {
                 expected: self.output_dim,
             });
         }
-        for i in 0..self.output_dim {
+        for (i, y_i) in y.iter_mut().enumerate() {
             let mut acc: i64 = self.bias[i];
             for &j in &self.pos_indices[i] {
                 acc = acc
@@ -70,7 +70,7 @@ impl SparseTernaryLayer {
                         row: i,
                     })?;
             }
-            y[i] = if self.relu && acc < 0 { 0 } else { acc };
+            *y_i = if self.relu && acc < 0 { 0 } else { acc };
         }
         Ok(())
     }

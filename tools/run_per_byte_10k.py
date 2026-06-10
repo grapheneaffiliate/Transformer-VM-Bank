@@ -12,7 +12,6 @@ Stages run sequentially through the C++ engine in big batches. Total
 expected runtime: ~10-20 min for all 5 stages.
 """
 
-import json
 import os
 import random
 import re
@@ -258,7 +257,7 @@ def main():
         results["transfer_check"] = test_transfer_check(n)
     if target in ("all", "finalize"):
         results["transfer_finalize"] = test_transfer_finalize(n)
-    print(f"\n=== summary ===", flush=True)
+    print("\n=== summary ===", flush=True)
     for k, v in results.items():
         print(f"  {k}: {'PASS' if v else 'FAIL'}", flush=True)
 

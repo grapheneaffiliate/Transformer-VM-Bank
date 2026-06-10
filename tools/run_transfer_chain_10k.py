@@ -12,7 +12,6 @@ byte_add specs + N transfer_check + N transfer_finalize, run each as a
 single big batch, then verify each step's output matches its golden.
 """
 
-import json
 import os
 import random
 import re
@@ -179,13 +178,13 @@ def main():
         expected_finalize.append(new_nonce)
 
     # ---- Stage 1: check ----
-    print(f"\n[2/8] rendering check specs...", flush=True)
+    print("\n[2/8] rendering check specs...", flush=True)
     check_paths = []
     for i, (from_b, amt, to_b, fn) in enumerate(witnesses):
         p = SPEC_DIR / f"check_{i:06d}.txt"
         p.write_text(render_binary_spec(from_b + amt))
         check_paths.append(p)
-    print(f"[3/8] running check batch...", flush=True)
+    print("[3/8] running check batch...", flush=True)
     check_out, _ = run_batch(check_w, check_paths, "check", max_new=3000)
 
     # ---- Stage 2: sub × 16 ----
@@ -197,7 +196,7 @@ def main():
             p = SPEC_DIR / f"sub_{i:06d}_{k:02d}.txt"
             p.write_text(render_binary_spec([m, s, b_in]))
             sub_paths.append(p)
-    print(f"[5/8] running sub batch...", flush=True)
+    print("[5/8] running sub batch...", flush=True)
     sub_out, _ = run_batch(sub_w, sub_paths, "sub", max_new=600)
 
     # ---- Stage 3: add × 16 ----
@@ -209,21 +208,21 @@ def main():
             p = SPEC_DIR / f"add_{i:06d}_{k:02d}.txt"
             p.write_text(render_binary_spec([a, b, c_in]))
             add_paths.append(p)
-    print(f"[7/8] running add batch...", flush=True)
+    print("[7/8] running add batch...", flush=True)
     add_out, _ = run_batch(add_w, add_paths, "add", max_new=300)
 
     # ---- Stage 4: finalize ----
-    print(f"\n  rendering finalize specs...", flush=True)
+    print("\n  rendering finalize specs...", flush=True)
     fin_paths = []
     for i, (from_b, amt, to_b, fn) in enumerate(witnesses):
         p = SPEC_DIR / f"fin_{i:06d}.txt"
         p.write_text(render_binary_spec(fn))
         fin_paths.append(p)
-    print(f"  running finalize batch...", flush=True)
+    print("  running finalize batch...", flush=True)
     fin_out, _ = run_batch(finalize_w, fin_paths, "finalize", max_new=1000)
 
     # ---- Compare ----
-    print(f"\n[8/8] comparing all stages...", flush=True)
+    print("\n[8/8] comparing all stages...", flush=True)
     pass_ct = 0
     fail_ct = 0
     fail_examples = []
@@ -258,7 +257,7 @@ def main():
                     "i": i, "check": check_ok, "sub": sub_ok, "add": add_ok, "fin": fin_ok,
                 })
 
-    print(f"\n=== chained transfer summary ===", flush=True)
+    print("\n=== chained transfer summary ===", flush=True)
     print(f"  Result: {pass_ct}/{n} chained transfers passed", flush=True)
     for fe in fail_examples:
         print(f"  {fe}", flush=True)

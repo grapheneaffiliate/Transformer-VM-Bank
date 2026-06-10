@@ -151,9 +151,7 @@ impl SparseMerkleTree {
             } else {
                 // current is a default subtree at depth `d`; all siblings below
                 // are also defaults.
-                for k in d..KEY_BITS {
-                    siblings[k] = self.defaults[k + 1];
-                }
+                siblings[d..KEY_BITS].copy_from_slice(&self.defaults[d + 1..KEY_BITS + 1]);
                 break;
             }
         }
