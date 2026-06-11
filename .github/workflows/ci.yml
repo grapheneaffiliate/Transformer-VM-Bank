@@ -37,15 +37,38 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: cargo fmt --check
         run: cargo fmt --all -- --check
-      # Clippy is advisory: it runs to surface issues but does NOT fail
-      # the build. Many warnings live in the frozen legacy crate
-      # (per ADR-0001 we don't modify that code) and in pre-existing
-      # crates whose style cleanup is tracked separately. New crates
-      # (`crypto_agility/`) get a stricter pass below.
-      - name: cargo clippy (advisory)
-        run: cargo clippy --workspace --all-targets || true
-      - name: cargo clippy strict (new crates only)
-        run: cargo clippy -p psl-crypto-agility --all-targets -- -D warnings
+      # Clippy is strict on every active crate. The frozen legacy
+      # crate (ADR-0001: `legacy/rust_runner` is not modified, and it
+      # carries intentional self-deprecation warnings) is excluded
+      # from the strict gate but still gets an advisory pass so its
+      # warnings stay visible in logs.
+      - name: cargo clippy (strict, active crates)
+        run: cargo clippy --workspace --exclude psl-rust-runner --all-targets -- -D warnings
+      - name: cargo clippy (advisory, frozen legacy crate)
+        run: cargo clippy -p psl-rust-runner --all-targets || true
+
+  python-lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: ruff check
+        # Lints tools/, tests/, and sdk-examples/python/.
+        # Config (per-file ignores) lives in pyproject.toml.
+        uses: astral-sh/ruff-action@v3
+
+  # Internal-link integrity for every Markdown file. --offline checks
+  # only repo-local file links (deterministic, no network flakiness);
+  # external URLs are deliberately out of scope here.
+  docs-links:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: lychee (offline, internal links only)
+        uses: lycheeverse/lychee-action@v2
+        with:
+          # --hidden so .github/*.md templates are scanned too.
+          args: --offline --no-progress --hidden "**/*.md"
+          fail: true
 
   reproducibility:
     runs-on: ubuntu-24.04

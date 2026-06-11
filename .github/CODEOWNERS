@@ -1,0 +1,12 @@
+# Default reviewers for every change. More specific rules below
+# override this line for their paths.
+* @grapheneaffiliate
+
+# Verifier-path and crypto code: changes here are determinism- and
+# security-critical (see docs/ARCHITECTURE.md § 0).
+/crypto/ @grapheneaffiliate
+/crypto_agility/ @grapheneaffiliate
+/ternary_vm/ @grapheneaffiliate
+
+# Frozen per ADR-0001 — changes should normally not happen at all.
+/legacy/ @grapheneaffiliate

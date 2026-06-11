@@ -5,6 +5,31 @@ load-bearing commit on `origin/main`.
 
 ## [Unreleased] — post-v0.1.0 work
 
+### Changed — repository hygiene pass (2026-06-10)
+
+- **Strict clippy is now a CI gate for every active crate**
+  (`cargo clippy --workspace --exclude psl-rust-runner --all-targets
+  -- -D warnings`), replacing the advisory-only run. All ~25
+  outstanding warnings in active crates fixed; the frozen legacy
+  crate (ADR-0001) keeps an advisory pass. CI now matches what
+  CONTRIBUTING.md had promised.
+  - `ternary_vm/tests/exhaustive_byte_add.rs` now calls
+    `trace_hash::v1::trace_hash_v1` directly (byte-identical to the
+    deprecated `trace_hash_ternary` shim it replaced).
+- **Python lint gate**: `ruff check .` added to CI; all violations
+  fixed (unused imports/f-strings/variables). `tools/*.py` carries a
+  documented `E402` per-file ignore — determinism harnesses must pin
+  env vars before importing torch.
+- **Docs link gate**: offline lychee pass over every Markdown file
+  catches broken intra-repo links in CI.
+- **Toolchain pinned in-repo**: `rust-toolchain.toml` (1.95.0) so
+  local builds match CI; previously the pin lived only in workflows.
+- **Contributor surface**: issue templates (bug/feature with ADR +
+  determinism prompts), PR template mirroring the CONTRIBUTING
+  checklist, CODEOWNERS, `.editorconfig`.
+- Fixed stale `tools/audit.sh` reference in `docs/SECURITY_REVIEW.md`
+  (cargo-audit runs via `.github/workflows/security.yml`).
+
 ### Added — Post-quantum cryptography (gate 19 → 🟢, PRs #11-#15 + #18)
 
 The full ADR-0011 5-commit plan plus follow-up tests shipped to main.

@@ -7,11 +7,9 @@ Pipeline (sequencer-side parsing, transformer-trace verifies arithmetic):
   3. Sequencer extracts (success, from_nonce) → transfer_nonce → new_from_nonce
 """
 
-import json
 import os
 import random
 import subprocess
-import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent

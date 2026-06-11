@@ -8,7 +8,7 @@ use ed25519_dalek::SigningKey;
 use psl_agent_contracts::{TernaryProgram, TransferContract};
 use psl_agent_protocol::{
     dispute::{resolve_dispute, Dispute, DisputeOutcome},
-    message::{Accept, Execute, ExpectedOutput, ProposalHash, Propose},
+    message::{Accept, Execute, ExpectedOutput, Propose},
     state_machine::ProposalLog,
     ProtocolError,
 };

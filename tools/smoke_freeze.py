@@ -23,7 +23,6 @@ sys.path.insert(0, str(TVM))
 def main():
     import torch
     from transformer_vm.attention.standard_cache import StandardKVCache
-    from transformer_vm.evaluator import run_program
     from transformer_vm.model.weights import load_weights
 
     program = REPO / "data" / "ledger_freeze.txt"
