@@ -1,4 +1,4 @@
-[gate-1-rust] loading /mnt/c/Users/atchi/Transformer_VM_Bank/weights/byte_sub_with_borrow.bin
+[gate-1-rust] loading $PSL_REPO/weights/byte_sub_with_borrow.bin
 [gate-1-rust] vocab=871 d_model=48 n_layers=6 n_heads=24 ffn=[9, 6, 286, 42, 32, 25]
   [  100/1000] 100 ok / 0 fail  (4.2/s, ETA 216s)
   [  200/1000] 200 ok / 0 fail  (4.4/s, ETA 182s)

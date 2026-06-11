@@ -1,4 +1,4 @@
-[gate-1-rust] loading /mnt/c/Users/atchi/Transformer_VM_Bank/weights/mpt_emit_record.bin
+[gate-1-rust] loading $PSL_REPO/weights/mpt_emit_record.bin
 [gate-1-rust] vocab=869 d_model=36 n_layers=6 n_heads=18 ffn=[8, 8, 42, 32, 14, 32]
   [   50/500] 50 ok / 0 fail  (0.1/s, ETA 4899s)
   [  100/500] 100 ok / 0 fail  (0.1/s, ETA 4292s)

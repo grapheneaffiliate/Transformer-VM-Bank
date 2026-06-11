@@ -17,10 +17,11 @@ transformer) computes a different result.
 
 ## Repro
 
-In PSL repo (https://github.com/grapheneaffiliate/Transformer-VM-Bank):
+In PSL repo (https://github.com/grapheneaffiliate/Transformer-VM-Bank), with
+`$PSL_REPO` set to your clone of this repo:
 
 ```bash
-cd /mnt/c/Users/atchi/Transformer_VM_Bank
+cd "$PSL_REPO"
 git checkout 4232f3b   # the commit with the four minimal repros
 PSL_KEEP_WASM=1 ./tools/compile.sh primitives/repro_freeze.c \
     --args "0 41 248 193 22 174 195 21 52 205 82 199 99 175 48 214 49 168 150 171 135 218 202 223 192 64 221 175 3 167 35 98 244 1 52 28 183 159 210 167 124 225 140 38 138 108 23 26 0 56 157 242 131 13 163 7 92 253 148 157 102 138 59 209 155"

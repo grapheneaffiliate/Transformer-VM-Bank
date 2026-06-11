@@ -1,4 +1,4 @@
-[gate-1-rust] loading /mnt/c/Users/atchi/Transformer_VM_Bank/weights/transfer_finalize.bin
+[gate-1-rust] loading $PSL_REPO/weights/transfer_finalize.bin
 [gate-1-rust] vocab=869 d_model=50 n_layers=6 n_heads=25 ffn=[11, 6, 272, 35, 33, 18]
   [  100/1000] 100 ok / 0 fail  (1.6/s, ETA 549s)
   [  200/1000] 200 ok / 0 fail  (1.5/s, ETA 540s)
