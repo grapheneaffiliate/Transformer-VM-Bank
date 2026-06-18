@@ -70,6 +70,10 @@ Per [`/deny.toml`](../deny.toml) `[advisories].ignore`:
 | RUSTSEC-2025-0057 | fxhash    | unmaintained | Hash function crate; algorithm is stable. No security implication. Resolves on sled migration (see [`SAFETY.md`](SAFETY.md) § "Tracked: sled migration"). |
 | RUSTSEC-2024-0384 | instant   | unmaintained | Replaced upstream by `web-time`; comes via sled's older `parking_lot 0.11`. Resolves on sled migration. |
 | RUSTSEC-2024-0436 | paste     | unmaintained | Proc-macro crate, declared stable-and-feature-complete by author. Compile-time only; no I/O surface. Comes via `pqcrypto-mldsa` (added PR #7). |
+| RUSTSEC-2026-0161 | pqcrypto-mlkem | unmaintained | PQClean-backed ML-KEM (FIPS 203) binding; upstream PQClean archived ~July 2026. Class is unmaintained, not vulnerability; advisory states no safe upgrade within the `pqcrypto-*` ecosystem. Resolves on migration to pure-Rust `ml-kem` (cryptographer-review-gated; ADR-0006 / gate 19). Comes via `psl-crypto-agility`. |
+| RUSTSEC-2026-0162 | pqcrypto-traits | unmaintained | Shared trait definitions for the `pqcrypto-*` ecosystem; same PQClean-archival root cause as RUSTSEC-2026-0161. No I/O surface of its own. Resolves on the `ml-dsa` / `ml-kem` migration. |
+| RUSTSEC-2026-0163 | pqcrypto-internals | unmaintained | Internal FFI utilities for the `pqcrypto-*` ecosystem; same PQClean-archival root cause. Resolves on the `ml-dsa` / `ml-kem` migration. |
+| RUSTSEC-2026-0166 | pqcrypto-mldsa | unmaintained | PQClean-backed ML-DSA (FIPS 204) binding; same PQClean-archival root cause. Resolves on migration to pure-Rust `ml-dsa` (cryptographer-review-gated; ADR-0006 / gate 19). Comes via `psl-crypto-agility`. |
 
 cargo-audit invocation in `.github/workflows/security.yml` mirrors
 this list via `--ignore` flags. Both tools must agree; update both
@@ -156,6 +160,17 @@ To add a new dep with a non-allow-listed license:
   criteria additionally requires an external cryptographer review
   of the *integration* (`crypto_agility/src/hybrid.rs`) — separate
   from the dependency-level audit.
+- Maintenance posture (2026-06-04): RustSec flagged the entire
+  `pqcrypto-*` family `unmaintained` (RUSTSEC-2026-0161/-0162/-0163/
+  -0166) because upstream PQClean is being archived (~July 2026).
+  This is a deprecation signal, not a vulnerability — the wrapped
+  FIPS 203/204 implementations are standardized and unchanged, and
+  the advisories note no safe upgrade exists within the `pqcrypto-*`
+  ecosystem. The forward path is the pure-Rust `ml-dsa` / `ml-kem`
+  crates (both determinism-compatible, unlike the FN-DSA/Falcon path
+  ADR-0006 permanently excluded). That swap is a cryptographer-review-
+  gated change and is tracked under ADR-0006 / gate 19; the advisories
+  are ignored in the interim (see § "Ignored advisories").
 
 ### `ed25519-dalek` + `curve25519-dalek` + `x25519-dalek`
 
