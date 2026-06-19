@@ -161,9 +161,10 @@ For an auditor:
 ## 6. Pinned dependencies + SBOM
 
 Run `tools/sbom.sh > sbom.txt` to emit a SBOM via `cargo tree
---workspace --edges normal`. `cargo audit` runs in CI via
-`tools/audit.sh` (added gate 17 prep). All workspace dependencies
-are pinned via `Cargo.lock` in tree — no floating versions.
+--workspace --edges normal`. `cargo audit` runs in CI via the
+`cargo-audit` job in `.github/workflows/security.yml` (added gate 17
+prep). All workspace dependencies are pinned via `Cargo.lock` in
+tree — no floating versions.
 
 ## 7. Out-of-scope reminders
 

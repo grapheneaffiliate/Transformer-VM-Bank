@@ -7,7 +7,6 @@ Pipeline (sequencer-side):
   4. Extract (success, from_nonce)           → transfer_nonce_binary → new_nonce
 """
 
-import json
 import os
 import random
 import re
@@ -134,7 +133,7 @@ def main():
     for i, (frozen, fb, tb, amt, fn) in enumerate(witnesses):
         sname = f"check_{i:06d}"
         ch_str = check_out.get(sname, "")
-        success_model = ord(ch_str[0]) if (ch_str and (0x20 <= ord(ch_str[0]) < 0x7F)) else (0 if ch_str.startswith('.') else None)
+        _success_model = ord(ch_str[0]) if (ch_str and (0x20 <= ord(ch_str[0]) < 0x7F)) else (0 if ch_str.startswith('.') else None)
         # Actually from char-form: "." is non-printable (could be 0 or other). For success ∈ {0, 1}, both are non-printable.
         # The cleaner approach: just pass the EXPECTED success to subsequent stages.
         # But that's not testing the model — only spot-checks downstream.

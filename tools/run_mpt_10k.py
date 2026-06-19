@@ -105,7 +105,7 @@ def main():
             pass_ct += 1
         elif len(fail_examples) < 5:
             fail_examples.append((i, len(want), len(got)))
-    print(f"\n=== mpt_emit_record summary ===", flush=True)
+    print("\n=== mpt_emit_record summary ===", flush=True)
     print(f"  Result: {pass_ct}/{n}", flush=True)
     for ex in fail_examples:
         print(f"  FAIL #{ex[0]}: exp_len={ex[1]} got_len={ex[2]}", flush=True)

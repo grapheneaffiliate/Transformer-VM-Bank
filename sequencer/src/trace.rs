@@ -146,7 +146,7 @@ impl NativeTraceExecutor {
         // all 2N participating accounts in (from_0, to_0, from_1, to_1, ...) order.
         // For NativeTraceExecutor we apply each transfer in turn with the same
         // amount/epoch, accumulating updates.
-        if w.accounts.len() % 2 != 0 || w.accounts.is_empty() {
+        if !w.accounts.len().is_multiple_of(2) || w.accounts.is_empty() {
             return Err(anyhow!(
                 "multi_asset needs an even, nonzero number of accounts"
             ));

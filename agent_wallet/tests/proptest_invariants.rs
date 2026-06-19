@@ -152,7 +152,7 @@ proptest! {
 // ── Spending policy is conservative (I6) ─────────────────────────────
 
 fn arb_amount() -> impl Strategy<Value = u128> {
-    (0u128..1_000_000_000)
+    0u128..1_000_000_000
 }
 
 proptest! {

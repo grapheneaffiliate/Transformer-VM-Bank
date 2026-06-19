@@ -98,17 +98,13 @@ pub fn validate(
     // 3. Authority for mint/burn/freeze
     let issuer = registry(tx.asset_id).ok_or_else(|| anyhow!("unknown asset_id"))?;
     match tx.kind {
-        TxKind::Mint => {
-            if tx.signer != issuer.authority_pubkey || !issuer.mint_enabled {
-                return Err(anyhow!("mint not authorized"));
-            }
+        TxKind::Mint if tx.signer != issuer.authority_pubkey || !issuer.mint_enabled => {
+            return Err(anyhow!("mint not authorized"));
         }
-        TxKind::Burn => {
-            // Burn: either the holder burns their own balance OR issuer-authority burns.
-            // For simplicity v1 requires issuer-authority burn.
-            if tx.signer != issuer.authority_pubkey || !issuer.burn_enabled {
-                return Err(anyhow!("burn not authorized"));
-            }
+        // Burn: either the holder burns their own balance OR issuer-authority burns.
+        // For simplicity v1 requires issuer-authority burn.
+        TxKind::Burn if tx.signer != issuer.authority_pubkey || !issuer.burn_enabled => {
+            return Err(anyhow!("burn not authorized"));
         }
         TxKind::Freeze => {
             if tx.signer != issuer.authority_pubkey || !issuer.freeze_enabled {

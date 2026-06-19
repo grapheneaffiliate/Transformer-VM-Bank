@@ -128,8 +128,8 @@ mod tests {
     fn smoke_pattern() {
         let n = build();
         let mut r = [0u8; 64];
-        for i in 0..64 {
-            r[i] = (i * 7 + 13) as u8;
+        for (i, byte) in r.iter_mut().enumerate() {
+            *byte = (i * 7 + 13) as u8;
         }
         assert_eq!(run(&n, &r).unwrap(), r);
     }

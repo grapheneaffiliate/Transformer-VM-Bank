@@ -1,0 +1,6 @@
+# Pins the local toolchain to the version CI builds and tests with.
+# Must agree with the `toolchain:` pins in .github/workflows/*.yml —
+# update both together (REPRODUCIBILITY_REPORT.md records the pin).
+[toolchain]
+channel = "1.95.0"
+components = ["rustfmt", "clippy"]

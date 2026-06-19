@@ -32,7 +32,10 @@ The CI gates (`.github/workflows/ci.yml`) must pass:
 - `cargo build --workspace --release`
 - `cargo test --workspace --release`
 - `cargo fmt --all -- --check`
-- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo clippy --workspace --exclude psl-rust-runner --all-targets -- -D warnings`
+  (the frozen legacy crate is excluded per ADR-0001; everything else
+  is clippy-clean)
+- `ruff check .` (Python tooling and SDK examples)
 - `tools/ci/check_legacy_isolation.sh`
 
 Code-quality expectations beyond the linters:

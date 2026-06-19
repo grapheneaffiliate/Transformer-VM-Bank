@@ -20,3 +20,8 @@ markers = [
 dev-dependencies = [
     "ruff>=0.4",
 ]
+
+[tool.ruff.lint.per-file-ignores]
+# Determinism harnesses must pin thread counts / env vars BEFORE
+# importing torch, so module-level imports cannot sit at the top.
+"tools/*.py" = ["E402"]

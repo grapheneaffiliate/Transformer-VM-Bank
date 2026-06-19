@@ -3,6 +3,9 @@
 
 use psl_ternary_vm::primitives::byte_sub_with_borrow::{build, run};
 
+/// `(m, s, b, got, want)` for the first failing combination.
+type FailCase = (u8, u8, u8, (u8, u8), (u8, u8));
+
 fn ground_truth(m: u8, s: u8, b: u8) -> (u8, u8) {
     let d = m as i32 - s as i32 - b as i32;
     if d < 0 {
@@ -17,7 +20,7 @@ fn byte_sub_exhaustive_131072() {
     let net = build();
     let mut pass = 0u32;
     let mut fail = 0u32;
-    let mut first_fail: Option<(u8, u8, u8, (u8, u8), (u8, u8))> = None;
+    let mut first_fail: Option<FailCase> = None;
 
     for m in 0u8..=255 {
         for s in 0u8..=255 {

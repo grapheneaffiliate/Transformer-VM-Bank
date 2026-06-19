@@ -2,11 +2,9 @@
 witness → transfer_parse → transfer_compute → (success, new_balances, new_nonce).
 """
 
-import json
 import os
 import random
 import subprocess
-import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -64,7 +62,7 @@ def make_witness(seed, force_success=True):
 
 
 def native_golden(witness):
-    epoch = witness[0]
+    _epoch = witness[0]  # epoch occupies witness[0]; unused by the golden computation
     from_acc = list(witness[1:65])
     to_acc = list(witness[65:129])
     amount_b = list(witness[129:145])

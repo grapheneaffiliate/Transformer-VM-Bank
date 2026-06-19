@@ -202,6 +202,9 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+// Demo helper that spells out every SignedTx field at the call site;
+// a params struct would just restate the SignedTx fields.
+#[allow(clippy::too_many_arguments)]
 fn build_tx(
     kind: TxKind,
     asset_id: u32,
@@ -287,7 +290,7 @@ fn finalize_block(
         block_n: *block_n,
         parent_hash,
         prev_state_root,
-        tx_list_hash: tx_list_hash(&[tx.clone()]),
+        tx_list_hash: tx_list_hash(std::slice::from_ref(tx)),
         trace_hash: combined_trace_hash(&[res.trace_hash]),
         new_state_root,
         issuer_registry_root: new_reg_root,

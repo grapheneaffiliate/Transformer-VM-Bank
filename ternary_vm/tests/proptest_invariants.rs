@@ -31,7 +31,7 @@ proptest! {
         let (s1, co1) = byte_add_with_carry::run(&net, a, b, c).unwrap();
         let (s2, co2) = byte_add_with_carry::run(&net, a, b, c).unwrap();
         prop_assert_eq!((s1, co1), (s2, co2));
-        let want_sum = (a as u16 + b as u16 + c as u16) as u16;
+        let want_sum = a as u16 + b as u16 + c as u16;
         prop_assert_eq!(s1 as u16, want_sum & 0xff);
         prop_assert_eq!(co1 as u16, want_sum >> 8);
     }
@@ -175,8 +175,8 @@ proptest! {
         let max = values.iter().max().unwrap();
         prop_assert_eq!(values[r], *max);
         // Tie-break: lowest index
-        for i in 0..r {
-            prop_assert!(values[i] < *max);
+        for v in values.iter().take(r) {
+            prop_assert!(*v < *max);
         }
     }
 

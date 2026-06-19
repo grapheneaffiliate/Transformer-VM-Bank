@@ -48,6 +48,30 @@ ignore = [
     # exposures from PSL's use of it, and is only invoked at compile
     # time. No security implication.
     "RUSTSEC-2024-0436",
+
+    # RUSTSEC-2026-0161 / -0162 / -0163 / -0166: the pqcrypto-* crates
+    # (pqcrypto-mlkem, pqcrypto-traits, pqcrypto-internals,
+    # pqcrypto-mldsa) flagged unmaintained 2026-06-04.
+    # Path: psl-crypto-agility -> pqcrypto-mldsa / pqcrypto-mlkem (and
+    # their shared pqcrypto-traits / pqcrypto-internals).
+    # Rationale: these crates wrap the NIST-standardized PQClean C
+    # reference implementations of ML-DSA (FIPS 204) and ML-KEM
+    # (FIPS 203). The advisory class is `unmaintained`, NOT
+    # `vulnerability`: upstream PQClean is being archived (~July 2026),
+    # so the bindings will stop receiving updates. The advisories
+    # state "No safe upgrade is available" within the pqcrypto-*
+    # ecosystem -- the wrapped FIPS implementations themselves are
+    # standardized and unchanged. The forward path is migrating to the
+    # pure-Rust `ml-dsa` / `ml-kem` crates; that is a
+    # cryptographer-review-gated change tracked under ADR-0006 /
+    # gate 19 (see docs/LICENSE_REVIEW.md § pqcrypto). If any of these
+    # advisories is ever reclassified from `unmaintained` to
+    # `vulnerability`, this ignore must be removed and the migration
+    # prioritized.
+    "RUSTSEC-2026-0161",
+    "RUSTSEC-2026-0162",
+    "RUSTSEC-2026-0163",
+    "RUSTSEC-2026-0166",
 ]
 
 [licenses]

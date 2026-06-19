@@ -5,16 +5,21 @@
 //! `(a + b + c) ≥ 256` for every one. This is the gate-10 acceptance
 //! criterion for this primitive (see `docs/STATUS.md`).
 //!
-//! Also computes `trace_hash_ternary` for each witness to confirm
-//! determinism across re-runs and to seed the cross-platform
-//! determinism CI test (gate 10 part 2 — landing in a follow-up commit).
+//! Also computes the frozen v1 trace hash (`trace_hash_v1`, the
+//! behavior behind the deprecated `trace_hash_ternary` re-export) for
+//! each witness to confirm determinism across re-runs and to seed the
+//! cross-platform determinism CI test (gate 10 part 2 — landing in a
+//! follow-up commit).
 //!
 //! Runtime: ~1 second on a modern x86_64 single thread (single-shot
 //! inference, ~3590 ternary slots, no autoregressive loop).
 
 use psl_ternary_vm::primitives::byte_add_with_carry::{build, run};
 use psl_ternary_vm::primitives::byte_add_with_carry::{decode_output, encode_input};
-use psl_ternary_vm::trace_hash_ternary;
+use psl_ternary_vm::trace_hash::v1::trace_hash_v1;
+
+/// `(a, b, c, got, want)` for the first failing combination.
+type FailCase = (u8, u8, u8, (u8, u8), (u8, u8));
 
 fn ground_truth(a: u8, b: u8, c: u8) -> (u8, u8) {
     let s = a as u16 + b as u16 + c as u16;
@@ -26,7 +31,7 @@ fn byte_add_exhaustive_131072() {
     let net = build();
     let mut pass = 0u32;
     let mut fail = 0u32;
-    let mut first_fail: Option<(u8, u8, u8, (u8, u8), (u8, u8))> = None;
+    let mut first_fail: Option<FailCase> = None;
 
     for a in 0u8..=255 {
         for b in 0u8..=255 {
@@ -65,8 +70,8 @@ fn trace_hash_is_deterministic_across_runs() {
             "forward differs across builds for ({a},{b},{c})"
         );
 
-        let h1 = trace_hash_ternary(&net1, &in_vec, &out1);
-        let h2 = trace_hash_ternary(&net2, &in_vec, &out2);
+        let h1 = trace_hash_v1(&net1, &in_vec, &out1);
+        let h2 = trace_hash_v1(&net2, &in_vec, &out2);
         assert_eq!(h1, h2);
 
         // also check decode round-trip
@@ -82,7 +87,7 @@ fn trace_hash_differs_for_different_inputs() {
     let in_b = encode_input(1, 3, 0).unwrap();
     let out_a = net.forward(&in_a).unwrap();
     let out_b = net.forward(&in_b).unwrap();
-    let ha = trace_hash_ternary(&net, &in_a, &out_a);
-    let hb = trace_hash_ternary(&net, &in_b, &out_b);
+    let ha = trace_hash_v1(&net, &in_a, &out_a);
+    let hb = trace_hash_v1(&net, &in_b, &out_b);
     assert_ne!(ha, hb);
 }

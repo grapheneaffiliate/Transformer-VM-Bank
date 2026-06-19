@@ -32,6 +32,10 @@ pub struct AgentRegistration {
 }
 
 impl AgentRegistration {
+    // The argument list mirrors the canonical wire encoding field-for-
+    // field, in encoding order. Folding them into a struct would hide
+    // the byte-layout contract this function exists to pin down.
+    #[allow(clippy::too_many_arguments)]
     fn canonical_bytes(
         pubkey: &[u8; 32],
         endpoint: &str,
@@ -58,6 +62,8 @@ impl AgentRegistration {
         out
     }
 
+    // Mirrors `canonical_bytes` argument-for-argument; see the note there.
+    #[allow(clippy::too_many_arguments)]
     pub fn sign(
         signer: &SigningKey,
         endpoint: String,

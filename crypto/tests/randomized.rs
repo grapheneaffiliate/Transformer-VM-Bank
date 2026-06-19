@@ -10,7 +10,10 @@ use rand::{rngs::StdRng, Rng, SeedableRng};
 
 const N: usize = 10_000;
 
-fn build_tree(seed: u64, n: usize) -> (SparseMerkleTree, Vec<([u8; 32], Vec<u8>)>) {
+/// `(key, value)` pairs inserted into the tree, in insertion order.
+type Entries = Vec<([u8; 32], Vec<u8>)>;
+
+fn build_tree(seed: u64, n: usize) -> (SparseMerkleTree, Entries) {
     let mut rng = StdRng::seed_from_u64(seed);
     let mut entries = Vec::with_capacity(n);
     for _ in 0..n {

@@ -23,7 +23,6 @@ printable bytes literally + '.' for non-printable. Compare char form, allowing
 '.' to match expected non-printable bytes exactly.
 """
 
-import json
 import os
 import random
 import re
@@ -138,11 +137,11 @@ def main():
         spec_paths.append(p)
         expecteds.append(expected)
 
-    print(f"[2/3] running wasm-run batch...", flush=True)
+    print("[2/3] running wasm-run batch...", flush=True)
     by_name, elapsed = run_batch(weights, spec_paths)
     print(f"  done in {elapsed:.0f}s ({len(spec_paths)/elapsed:.1f}/s)", flush=True)
 
-    print(f"[3/3] comparing outputs...", flush=True)
+    print("[3/3] comparing outputs...", flush=True)
     pass_ct = 0
     fail_ct = 0
     fail_examples = []

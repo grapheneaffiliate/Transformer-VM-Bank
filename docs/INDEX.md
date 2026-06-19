@@ -5,7 +5,8 @@ non-third-party Markdown file in the repository is listed here, grouped
 semantically. Whenever a doc is added, moved, or removed, this file
 updates in the same commit (per `GOVERNANCE.md`).
 
-**Last refresh: 2026-05-09 (v0.1.0 cut + Phase H docs cleanup).**
+**Last refresh: 2026-06-10 (repo hygiene pass: contributor templates,
+toolchain pin, strict-clippy CI gate).**
 
 ## Start here
 
@@ -35,6 +36,16 @@ updates in the same commit (per `GOVERNANCE.md`).
   for new work by the ternary VM kernel; preserved because some
   primitives in `primitives/` are still maintained under v3 rules and
   CHANGELOG references the migration.
+
+## Use cases & applications
+
+- [use-cases/verifiable-inference-settlement.md](use-cases/verifiable-inference-settlement.md)
+  — Model-gated settlement: using the ternary VM as a *decision model*
+  (not just an adding machine) so a neural-network inference is both the
+  contract's release condition and the dispute-resolution ground truth.
+  Documents the shipped `risk_gated_transfer` contract +
+  `credit_risk_model_v1` + `inference_agent` example, and a portfolio of
+  further model-gated applications.
 
 ## Status, reproducibility, and history
 
@@ -191,6 +202,19 @@ Future ADRs continue from 0014.
 - [CONTRIBUTING.md](../CONTRIBUTING.md) — How to contribute.
 - [CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md) — Expected and
   unacceptable behavior.
+
+## Contributor templates (`.github/`)
+
+GitHub-rendered forms; each mirrors a section of `CONTRIBUTING.md`
+rather than stating new policy.
+
+- [pull_request_template.md](../.github/pull_request_template.md) —
+  PR checklist: CI gates + repo invariants (unwrap audit, no fp on
+  verifier path, INDEX freshness, frozen-code boundaries).
+- [ISSUE_TEMPLATE/bug_report.md](../.github/ISSUE_TEMPLATE/bug_report.md) —
+  Exact command / expected / observed; failing test encouraged.
+- [ISSUE_TEMPLATE/feature_request.md](../.github/ISSUE_TEMPLATE/feature_request.md) —
+  Requires an ADR check and a determinism-impact statement.
 
 ## Historical / superseded
 

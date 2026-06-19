@@ -460,7 +460,7 @@ fn published_root_mutation_detected() {
         block_n: 1,
         parent_hash: [0u8; 32],
         prev_state_root: [0u8; 32],
-        tx_list_hash: tx_list_hash(&[mint.clone()]),
+        tx_list_hash: tx_list_hash(std::slice::from_ref(&mint)),
         trace_hash: combined_trace_hash(&[[0u8; 32]; 16]), // 16-trace mint
         new_state_root: mutated,
         issuer_registry_root: states[0].read().unwrap().registry_root(),

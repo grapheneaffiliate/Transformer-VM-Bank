@@ -104,11 +104,11 @@ def main():
         setup_paths.append(p)
 
     # Step 2: run all freeze_setup in one wasm-run call
-    print(f"[2/4] running freeze_setup batch...", flush=True)
+    print("[2/4] running freeze_setup batch...", flush=True)
     setup_outputs = run_batch(setup_w, setup_paths, max_new_tokens=200000, batch_label="setup")
 
     # Step 3: render freeze_apply specs
-    print(f"[3/4] rendering freeze_apply specs from setup outputs...", flush=True)
+    print("[3/4] rendering freeze_apply specs from setup outputs...", flush=True)
     apply_paths = []
     bad_setup = 0
     for i, out in enumerate(setup_outputs):
