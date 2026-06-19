@@ -32,3 +32,7 @@ path = "examples/trader_agent.rs"
 [[example]]
 name = "service_agent"
 path = "examples/service_agent.rs"
+
+[[example]]
+name = "inference_agent"
+path = "examples/inference_agent.rs"

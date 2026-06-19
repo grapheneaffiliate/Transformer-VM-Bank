@@ -32,6 +32,16 @@ toolchain pin, strict-clippy CI gate).**
   primitives in `primitives/` are still maintained under v3 rules and
   CHANGELOG references the migration.
 
+## Use cases & applications
+
+- [use-cases/verifiable-inference-settlement.md](use-cases/verifiable-inference-settlement.md)
+  — Model-gated settlement: using the ternary VM as a *decision model*
+  (not just an adding machine) so a neural-network inference is both the
+  contract's release condition and the dispute-resolution ground truth.
+  Documents the shipped `risk_gated_transfer` contract +
+  `credit_risk_model_v1` + `inference_agent` example, and a portfolio of
+  further model-gated applications.
+
 ## Status, reproducibility, and history
 
 - [STATUS.md](STATUS.md) — see above.

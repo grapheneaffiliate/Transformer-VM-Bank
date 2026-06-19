@@ -5,6 +5,31 @@ load-bearing commit on `origin/main`.
 
 ## [Unreleased] — post-v0.1.0 work
 
+### Added — verifiable inference settlement (model-gated contracts)
+
+First contract that uses the ternary VM as a **decision model** rather
+than an adding machine: the gate is a neural-network forward pass on the
+verifier path, not a trusted flag byte. This makes a machine-learning
+inference a bit-exact, re-executable artifact that both releases money
+and resolves disputes — no oracle, no human underwriter. See
+[`docs/use-cases/verifiable-inference-settlement.md`](docs/use-cases/verifiable-inference-settlement.md).
+
+- **`risk_gated_transfer`** (`agent_contracts/src/inference.rs`) — a
+  transfer gated by `credit_risk_model_v1`, a 4-layer integer-only
+  ternary MLP computing `APPROVE = (income + collateral − debt ≥ 500)
+  AND (risk_flags ≤ 10)`. The `AND` is a real `ReLU(b1+b2−1)`
+  non-linearity. The contract `program_hash` commits to the model's
+  `weights_hash`, so the model is part of the contract identity (model
+  governance via content-addressing).
+- **`inference_agent` example** (`agent_sdk/examples/inference_agent.rs`)
+  — happy path (model APPROVEs, loan settles) + dispute path (model
+  DENIEs a high-risk applicant, malicious executor claims it disbursed,
+  judge re-executes the model and returns `SlashExecutor`).
+- 10 new contract tests (264 workspace tests total), including a
+  feature-grid sweep verifying the ternary network is bit-exact against
+  a plain-Rust ground truth across both decision boundaries. Strict
+  clippy clean.
+
 ### Changed — repository hygiene pass (2026-06-10)
 
 - **Strict clippy is now a CI gate for every active crate**
