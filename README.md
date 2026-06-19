@@ -29,7 +29,7 @@ resolution be a function of the protocol, not an off-chain process.
 | ---  | ---                                                  | ---    |
 | 1    | Primitive bit-exact (10k vectors each)               | ✅ |
 | 2    | Crypto + SMT determinism                             | ✅ |
-| 3    | Lean `lake build` (3 sorrys with target dates)       | ✅ |
+| 3    | Lean `lake build` — proofs CI-gated, **sorry-free** (axiom-audited) | ✅ |
 | 4    | Sequencer + 3 followers, 100 mixed blocks            | ✅ |
 | 5    | Compliance enforcement (9/9)                         | ✅ |
 | 6    | Light client cross-verifies 1000 balances + 6 adv.   | ✅ |
@@ -173,7 +173,7 @@ crypto/           — ed25519 + BLAKE3 + Merkle-Patricia Trie (state root)
 crypto_agility/   — scheme-prefixed signatures/KEM/hashes (hybrid ed25519+ML-DSA-65 sigs, hybrid X25519+ML-KEM-768 KEM with forward-secret witness encryption per ADR-0007/0011)
 
 legacy/rust_runner/  — frozen per ADR-0001; do not extend
-lean/                — Lean 4 + mathlib formalization (3 sorrys with target dates)
+lean/                — Lean 4 + mathlib formalization (sorry-free; CI axiom-audit gate, see VERIFICATION.md)
 pilot/issuer_demo/   — end-to-end pilot binary
 sdk-examples/        — Python (UniFFI) + TypeScript (napi-rs) bindings of the SDK
 infra/               — reference Terraform deployment (network + sequencer + 3× follower + light-client gateway + observability)
@@ -197,6 +197,32 @@ cargo run -p psl-agent-sdk --release --example service_agent
 Total time on a fresh clone, fresh VM, no cache: ~30 minutes including
 toolchain install, ~5 minutes after toolchains land.
 
+## Verify it yourself (trust tour)
+
+Don't take the claims on faith — each headline property has a command you can
+run. Full guide: `REPRODUCE.md`. The proved-vs-assumed map: `VERIFICATION.md`.
+
+1. **Dispute resolution by re-execution is real, not a slogan.** Run the
+   reference agents; the second one shows a malicious executor caught and
+   slashed by deterministic re-execution, no human arbiter:
+   ```bash
+   cargo run -p psl-agent-sdk --release --example service_agent
+   ```
+2. **The financial-safety theorems are machine-checked, not asserted.** Build
+   the Lean proofs; the build *fails* if a `sorry`, a `native_decide`, or any
+   unexpected axiom sneaks in:
+   ```bash
+   cd lean && lake exe cache get && lake build && cd ..
+   # ⇒ ✓ formal audit passed: 22 load-bearing theorems rest only on the 5 allowed axioms
+   ```
+   What each theorem guarantees and exactly what it assumes is in
+   `VERIFICATION.md` — supply is conserved under transfer/freeze, moves by
+   exactly the authorized amount under mint/burn, frozen senders can't move
+   funds, and a committed Merkle root pins a unique balance per key.
+3. **Determinism is byte-exact across machines.** The cross-platform CI matrix
+   (x86_64 + aarch64) pins golden BLAKE3 digests; reproduce locally per
+   `REPRODUCE.md` Tier 1.
+
 ## For auditors
 
 Start with `docs/AUDIT_BRIEF.md` — that is the day-1 entry document.
@@ -204,7 +230,9 @@ It points at the security review (`docs/SECURITY_REVIEW.md`),
 reproducibility report (`docs/REPRODUCIBILITY_REPORT.md`), unwrap audit
 (`docs/UNWRAP_AUDIT.md`), fuzz harness inventory (`docs/FUZZING.md`),
 threat model with adversary inventory, and the in-scope crate list
-with file paths.
+with file paths. For the formal layer, `VERIFICATION.md` is the
+machine-checked map of every proven property and the exact axioms it
+rests on (CI-enforced — the build fails on any axiom drift).
 
 ## For institutional / partner due diligence
 
@@ -217,8 +245,9 @@ reference Terraform — "redeploy this exactly" is `terraform apply`.
 
 These are non-negotiable in this codebase:
 
-1. **No new sorrys** in load-bearing Lean theorems; existing 3 have
-   target close dates.
+1. **No sorrys** in load-bearing Lean theorems. The formal layer is
+   sorry-free and its axiom footprint is CI-enforced by an in-build audit
+   gate (`lean/PSL/Audit.lean`); see `VERIFICATION.md`.
 2. **No `unwrap()` / `expect()` on production paths** other than
    audited lock-poison + audited structurally-impossible-overflow
    (see `docs/UNWRAP_AUDIT.md`).

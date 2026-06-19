@@ -192,9 +192,12 @@ Documented honestly:
 - **Gate 9 deferred** to one of three explicit triggers (see
   ADR-0002). Sovereign-mode trust assumption documented for
   institutional partners (`docs/SOVEREIGN_MODE_TRUST.md`).
-- **3 Lean `sorry`s** remain on conservation theorems with
-  documented target close dates (see `docs/STATUS.md` "Lean sorry
-  tracker" section). No new `sorry`s introduced in Phase 2.
+- **Lean formal layer is sorry-free.** The conservation theorems and MPT
+  inclusion-proof soundness (value binding) are fully proven and machine-
+  checked; an in-build audit gate (`lean/PSL/Audit.lean`, run by the
+  `formal-verification` CI job) pins each load-bearing theorem's axiom
+  footprint to an explicit allowlist (no `sorry`, no `native_decide`).
+  Trust boundary mapped in `VERIFICATION.md`; status in `docs/STATUS.md`.
 
 ## 9. Recommended audit scope + deliverables
 

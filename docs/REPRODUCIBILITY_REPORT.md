@@ -89,7 +89,7 @@ including toolchain install. ~5 minutes after toolchains land.**
 | Gate | Reproduction command                                                                  | Expected result                                          | Phase 2 closure session timing |
 | ---  | ---                                                                                   | ---                                                      | ---                            |
 | 2    | `cargo test -p psl-crypto --release`                                                  | 22 / 22 pass                                             | < 5 s                          |
-| 3    | `cd lean && lake build`                                                               | mathlib cache + 16/17 modules; 3 documented sorrys remain | ~15 min cold, ~30 s warm       |
+| 3    | `cd lean && lake build`                                                               | mathlib cache + all modules; sorry-free, in-build axiom-audit gate passes | ~15 min cold, ~30 s warm       |
 | 4    | `cargo test -p psl-sequencer --release --test integration`                            | sequencer + 3 followers, 100 blocks, 4 roots agree       | ~10 s                          |
 | 5    | `cargo test -p psl-sequencer --release --test compliance`                             | 9 / 9                                                    | ~5 s                           |
 | 6    | `cargo test -p psl-light-client --release`                                            | 8 / 8 (1000-balance + 6 adversarial)                     | ~5 s                           |

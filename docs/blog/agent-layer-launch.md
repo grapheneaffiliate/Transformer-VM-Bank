@@ -89,7 +89,7 @@ zeros on precondition failure; no panics, no fallthroughs).
 | Compliance (travel rule, freeze, view keys)              | ✅ 9/9 |
 | Light client                                             | ✅ 1000 balances + 6 adversarial |
 | End-to-end pilot (register → mint → transfer → burn)     | ✅ |
-| Lean formalization                                       | ✅ 16/17 modules; 3 sorrys with target close dates |
+| Lean formalization                                       | ✅ sorry-free; CI-gated axiom audit |
 | External audit                                           | 🟢 hand-off package ready, awaits engagement |
 | First DR drill                                           | 🟢 plan ready, awaits scheduled drill |
 

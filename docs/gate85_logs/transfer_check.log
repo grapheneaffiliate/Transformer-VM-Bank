@@ -1,4 +1,4 @@
-[gate-1-rust] loading /mnt/c/Users/atchi/Transformer_VM_Bank/weights/transfer_check.bin
+[gate-1-rust] loading $PSL_REPO/weights/transfer_check.bin
 [gate-1-rust] vocab=618 d_model=52 n_layers=6 n_heads=26 ffn=[9, 6, 174, 41, 33, 22]
   [  100/1000] 100 ok / 0 fail  (0.3/s, ETA 3595s)
   [  200/1000] 200 ok / 0 fail  (0.3/s, ETA 2904s)

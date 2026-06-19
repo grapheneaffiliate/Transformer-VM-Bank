@@ -1,4 +1,4 @@
-[gate-1-rust] loading /mnt/c/Users/atchi/Transformer_VM_Bank/weights/byte_add_with_carry.bin
+[gate-1-rust] loading $PSL_REPO/weights/byte_add_with_carry.bin
 [gate-1-rust] vocab=868 d_model=40 n_layers=6 n_heads=20 ffn=[7, 6, 52, 29, 24, 30]
   [  100/1000] 100 ok / 0 fail  (50.7/s, ETA 18s)
   [  200/1000] 200 ok / 0 fail  (52.9/s, ETA 15s)
