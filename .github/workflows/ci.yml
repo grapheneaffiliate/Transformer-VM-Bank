@@ -14,7 +14,7 @@ jobs:
   build-and-test:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: "1.95.0"
@@ -29,7 +29,7 @@ jobs:
   fmt-and-clippy:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: "1.95.0"
@@ -50,7 +50,7 @@ jobs:
   python-lint:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: ruff check
         # Lints tools/, tests/, and sdk-examples/python/.
         # Config (per-file ignores) lives in pyproject.toml.
@@ -62,7 +62,7 @@ jobs:
   docs-links:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: lychee (offline, internal links only)
         uses: lycheeverse/lychee-action@v2
         with:
@@ -80,7 +80,7 @@ jobs:
   formal-verification:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Lean ↔ implementation drift check
         # Fails if any implementation source the Lean models hand-translate
         # (primitives/*.c, sequencer/src/trace.rs, crypto/src/{account,smt}.rs)
@@ -112,7 +112,7 @@ jobs:
   reproducibility:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: "1.95.0"
@@ -149,7 +149,7 @@ jobs:
     runs-on: ${{ matrix.runner.os }}
     name: cross-platform-determinism (${{ matrix.runner.arch }})
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: "1.95.0"
